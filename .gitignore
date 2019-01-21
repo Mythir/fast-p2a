@@ -1,0 +1,26 @@
+# C/C++/CLion stuff
+cmake-build-debug/
+.idea/
+debug/
+build/
+release/
+
+*.pyc
+.cproject
+.settings/
+.project
+
+# VSIM stuff
+work/
+transcript
+*.vstf
+*.wlf
+
+platforms/aws-f1/cl_arrow/software/runtime/regexp/Release/
+platforms/aws-f1/cl_arrow/software/runtime/regexp/output\.txt
+platforms/aws-f1/cl_arrow/software/runtime/regexp/output\.csv
+
+*.dat
+
+platforms/aws-f1/regexp/design/ip/axi_interconnect_top/*
+!platforms/aws-f1/regexp/design/ip/axi_interconnect_top/axi_interconnect_top\.xci
