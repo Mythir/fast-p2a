@@ -15,8 +15,16 @@
 // specific language governing permissions and limitations
 // under the License.
 
+/*
+ * Author: Lars van Leeuwen
+ * Code for benchmarking the performance of Arrow's Parquet function
+ * Lots of the code here is based on example code provided in the Parquet GitHub repo (https://github.com/apache/parquet-cpp/)
+ */
+
 #include <stdlib.h>
 #include <cstdlib>
+#include <iomanip>
+#include <ctime>
 
 #include <arrow/api.h>
 #include <arrow/io/api.h>
@@ -27,6 +35,9 @@
 #include <parquet/file_reader.h>
 #include <parquet/types.h>
 #include <string.h>
+
+//Struct for timing code
+#include "../utils/timer.h"
 
 // #0 Build dummy data to pass around
 // To have some input data, we first create an Arrow Table that holds
@@ -77,6 +88,68 @@ void write_parquet_file(const arrow::Table& table, std::string filename, int chu
       parquet::arrow::WriteTable(table, arrow::default_memory_pool(), outfile, chunk_size, builder->build()));
 }
 
+std::shared_ptr<arrow::Table> read_whole_file(std::string file_path){
+  //Code for the actual reading
+  std::shared_ptr<arrow::io::ReadableFile> infile;
+  PARQUET_THROW_NOT_OK(arrow::io::ReadableFile::Open(
+      file_path, arrow::default_memory_pool(), &infile));
+
+  std::unique_ptr<parquet::arrow::FileReader> reader;
+  PARQUET_THROW_NOT_OK(
+      parquet::arrow::OpenFile(infile, arrow::default_memory_pool(), &reader));
+  std::shared_ptr<arrow::Table> table;
+  PARQUET_THROW_NOT_OK(reader->ReadTable(&table));
+
+  return table;
+}
+
+/*
+void parquet_to_arrow_benchmark(std::string file_path, int iterations) {
+  std::vector<clock_t> times;
+  std::shared_ptr<arrow::Table> table;
+  clock_t starttime;
+  clock_t stoptime;
+  int average;
+  int total = 0;
+
+  std::cout << "Reading " << file_path<< std::endl;
+
+  for(int i=0; i<iterations; i++){
+    starttime = std::clock();
+    table = read_whole_file(file_path);
+    stoptime = std::clock();
+    times.push_back(stoptime-starttime);
+  }
+
+  for(int i=0; i<times.size(); i++){
+    total += times[i];
+  }
+  average = total/times.size();
+  std::cout<<"Total time: "<<total<<std::endl;
+  std::cout << "Loaded " << table->num_rows() << " rows in " << table->num_columns()
+            << " columns. Average time for " << iterations << " iterations: " << average << std::endl;
+}
+*/
+
+void parquet_to_arrow_benchmark(std::string file_path, int iterations) {
+  std::shared_ptr<arrow::Table> table;
+  Timer t;
+
+  std::cout << "Reading " << file_path<< std::endl;
+
+  for(int i=0; i<iterations; i++){
+    t.start();
+    table = read_whole_file(file_path);
+    t.stop();
+    t.record();
+  }
+  std::cout<<"Total time: "<<t.total()<<std::endl;
+  std::cout << "Loaded " << table->num_rows() << " rows in " << table->num_columns()
+            << " columns. Average time for " << iterations << " iterations: " << t.average() << std::endl;
+
+  t.clear_history();
+}
+
 void examine_metadata(std::string file_path) {
   std::shared_ptr<parquet::FileMetaData> md;
   std::unique_ptr<parquet::ParquetFileReader> file;
@@ -114,38 +187,48 @@ void examine_metadata(std::string file_path) {
   }while(page->type() != 0);
 
   
-  std::cout<<"num_values: "<<std::static_pointer_cast<parquet::DataPage>(page)->num_values()<<" size: "<<page->size()<<std::endl;
-  for(int i=0; i<20;i++){
-    std::cout<<std::hex<<" data uint8: "<<static_cast<int>(page->data()[i])<<std::endl;
+  std::cout<<"num_values: "<<std::static_pointer_cast<parquet::DataPage>(page)->num_values()<<" size: "<<page->size()<<" encoding: "<<std::static_pointer_cast<parquet::DataPage>(page)->encoding()<<std::endl;
+  for(int i=0; i<40;i++){
+    std::cout<<i<<" data uint8: "<<std::hex<<std::setfill('0')<<std::setw(2)<<static_cast<unsigned int>(page->data()[i])<<std::dec<<std::endl;
   }
   
-  std::cout<<std::dec<<std::endl;
+  std::cout<<std::endl;
 
 
 }
 
 int main(int argc, char** argv) {
   if(argc<2){
-    std::cout<<"Usage: prelim num_values"<<std::endl;
+    std::cout<<"Usage: prelim num_values [iterations]"<<std::endl;
     return 1;
   }
 
   int num_values = atoi(argv[1]);
+  int iterations = 1;
+
+  if(argc==3){
+    iterations = atoi(argv[2]);
+  }
 
   std::cout<<"Size of Arrow table: "<<num_values<<" values."<<std::endl;
   std::shared_ptr<arrow::Table> table = generate_table(num_values);
 
   write_parquet_file(*table, "int64array.prq", num_values, true, true);
-
-  examine_metadata("int64array.prq");
-
   write_parquet_file(*table, "int64array_nosnap.prq", num_values, false, true);
-
-  examine_metadata("int64array_nosnap.prq");
-
+  write_parquet_file(*table, "int64array_nodict.prq", num_values, true, false);
   write_parquet_file(*table, "int64array_nosnap_nodict.prq", num_values, false, false);
 
+/*
+  examine_metadata("int64array.prq");
+  examine_metadata("int64array_nosnap.prq");
+  examine_metadata("int64array_nodict.prq");
   examine_metadata("int64array_nosnap_nodict.prq");
+*/
+
+  parquet_to_arrow_benchmark("int64array.prq", iterations);
+  parquet_to_arrow_benchmark("int64array_nosnap.prq", iterations);
+  parquet_to_arrow_benchmark("int64array_nodict.prq", iterations);
+  parquet_to_arrow_benchmark("int64array_nosnap_nodict.prq", iterations);
 
   /* std::shared_ptr<arrow::Int64Array> i64Array = std::static_pointer_cast<arrow::Int64Array>(table->column(0)->data()->chunk(0));
 

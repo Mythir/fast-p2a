@@ -70,8 +70,9 @@ endif()
 find_package(Parquet)
 
 include_directories(SYSTEM ${ARROW_INCLUDE_DIR} ${PARQUET_INCLUDE_DIR})
+include_directories("../utils")
 
-add_executable(prelim prelim.cc)
+add_executable(prelim prelim.cc "../utils/timer.cpp")
 target_link_libraries(prelim ${PARQUET_SHARED_LIB} ${ARROW_SHARED_LIB})
 if (ARROW_VENDORED)
   add_dependencies(prelim arrow_ep)
