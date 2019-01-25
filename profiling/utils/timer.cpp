@@ -15,7 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-
 // The timer struct is based on code from Johan Peltenburg (https://github.com/johanpel)
 
 #include <iostream>
