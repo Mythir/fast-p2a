@@ -39,7 +39,7 @@
 //Struct for timing code
 #include "../utils/timer.h"
 
-// #0 Build dummy data to pass around
+// Build dummy data to pass around
 // To have some input data, we first create an Arrow Table that holds
 // some data.
 std::shared_ptr<arrow::Table> generate_table(int num_values) {
@@ -57,18 +57,15 @@ std::shared_ptr<arrow::Table> generate_table(int num_values) {
   return arrow::Table::Make(schema, {i64array});
 }
 
-// #1 Write out the data as a Parquet file
+// Write out the data as a Parquet file
 void write_parquet_file(const arrow::Table& table, std::string filename, int chunk_size, bool compression, bool dictionary) {
   std::shared_ptr<arrow::io::FileOutputStream> outfile;
   PARQUET_THROW_NOT_OK(
       arrow::io::FileOutputStream::Open(filename, &outfile));
-  // The last argument to the function call is the size of the RowGroup in
-  // the parquet file. Normally you would choose this to be rather large but
-  // for the example, we use a small value to have multiple RowGroups.
   
-  //Adjust compression type
   auto builder = std::make_shared<parquet::WriterProperties::Builder>();
 
+  //Parquet options
   if(compression){
     builder->compression(parquet::Compression::SNAPPY);
   }
@@ -89,7 +86,6 @@ void write_parquet_file(const arrow::Table& table, std::string filename, int chu
 }
 
 std::shared_ptr<arrow::Table> read_whole_file(std::string file_path){
-  //Code for the actual reading
   std::shared_ptr<arrow::io::ReadableFile> infile;
   PARQUET_THROW_NOT_OK(arrow::io::ReadableFile::Open(
       file_path, arrow::default_memory_pool(), &infile));
@@ -103,39 +99,11 @@ std::shared_ptr<arrow::Table> read_whole_file(std::string file_path){
   return table;
 }
 
-/*
-void parquet_to_arrow_benchmark(std::string file_path, int iterations) {
-  std::vector<clock_t> times;
-  std::shared_ptr<arrow::Table> table;
-  clock_t starttime;
-  clock_t stoptime;
-  int average;
-  int total = 0;
-
-  std::cout << "Reading " << file_path<< std::endl;
-
-  for(int i=0; i<iterations; i++){
-    starttime = std::clock();
-    table = read_whole_file(file_path);
-    stoptime = std::clock();
-    times.push_back(stoptime-starttime);
-  }
-
-  for(int i=0; i<times.size(); i++){
-    total += times[i];
-  }
-  average = total/times.size();
-  std::cout<<"Total time: "<<total<<std::endl;
-  std::cout << "Loaded " << table->num_rows() << " rows in " << table->num_columns()
-            << " columns. Average time for " << iterations << " iterations: " << average << std::endl;
-}
-*/
-
 void parquet_to_arrow_benchmark(std::string file_path, int iterations) {
   std::shared_ptr<arrow::Table> table;
   Timer t;
 
-  std::cout << "Reading " << file_path<< std::endl;
+  std::cout << "Reading " << file_path << std::endl;
 
   for(int i=0; i<iterations; i++){
     t.start();
@@ -143,13 +111,14 @@ void parquet_to_arrow_benchmark(std::string file_path, int iterations) {
     t.stop();
     t.record();
   }
-  std::cout<<"Total time: "<<t.total()<<std::endl;
+  std::cout << "Total time: " << t.total() << std::endl;
   std::cout << "Loaded " << table->num_rows() << " rows in " << table->num_columns()
             << " columns. Average time for " << iterations << " iterations: " << t.average() << std::endl;
 
   t.clear_history();
 }
 
+// Examine some values in the metadata for debugging purposes
 void examine_metadata(std::string file_path) {
   std::shared_ptr<parquet::FileMetaData> md;
   std::unique_ptr<parquet::ParquetFileReader> file;
