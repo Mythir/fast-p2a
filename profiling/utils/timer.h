@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// The timer struct is based on code from Johan Peltenburg (https://github.com/johanpel)
+// The timer class is based on code from Johan Peltenburg (https://github.com/johanpel)
 
 #pragma once
 
