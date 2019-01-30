@@ -38,7 +38,7 @@ package body Thrift is
   begin
     x := shift_right(signed(a), a'length - 1);
     y := shift_left(signed(a), 1);
-    return int(x xor y);
+    return to_integer(signed(x xor y));
   end function;
 
   function decode_zigzag(a : in std_logic_vector) return integer is
@@ -47,6 +47,6 @@ package body Thrift is
   begin
     x := std_logic_vector(shift_right(unsigned(a), 1));
     y := std_logic_vector(-signed(a and slv(1, a'length)));
-    return int(x xor y);
+    return to_integer(signed(x xor y));
   end function;
 end Thrift;
