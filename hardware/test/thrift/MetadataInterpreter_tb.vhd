@@ -25,6 +25,12 @@ entity MetadataInterpreter_tb is
 end MetadataInterpreter_tb;
 
 architecture tb of MetadataInterpreter_tb is
+  constant clk_period     : time    := 10 ns;
+  constant METADATA_WIDTH : natural := 64;
+  constant BUS_ADDR_WIDTH : natural := 64;
+  constant BUS_DATA_WIDTH : natural := 512;
+  constant BUS_LEN_WIDTH  : natural := 8;
+
   signal clk                         :  std_logic;
   signal hw_reset                    :  std_logic;
   signal mst_rreq_valid              :  std_logic;
@@ -45,37 +51,79 @@ architecture tb of MetadataInterpreter_tb is
   signal md_comp_size                :  std_logic_vector(31 downto 0);
   signal md_num_values               :  std_logic_vector(31 downto 0);
   signal cycle_count                 :  std_logic_vector(31 downto 0);
-  signal md_addr                     :  std_logic_vector(31 downto 0);
+  signal md_addr                     :  std_logic_vector(BUS_ADDR_WIDTH-1 downto 0);
 begin
   dut : entity work.MetadataInterpreter
   generic map(
-    METADATA_WIDTH := 64,
-    BUS_ADDR_WIDTH := 64,
-    BUS_DATA_WIDTH := 512,
-    BUS_LEN_WIDTH  := 8);
+    METADATA_WIDTH => METADATA_WIDTH,
+    BUS_ADDR_WIDTH => BUS_ADDR_WIDTH,
+    BUS_DATA_WIDTH => BUS_DATA_WIDTH,
+    BUS_LEN_WIDTH  => BUS_LEN_WIDTH)
   port map(
-    clk             => clk;             
-    hw_reset        => hw_reset;        
-    mst_rreq_valid  => mst_rreq_valid;  
-    mst_rreq_ready  => mst_rreq_ready;  
-    mst_rreq_addr   => mst_rreq_addr;   
-    mst_rreq_len    => mst_rreq_len;
-    mst_rdat_valid  => mst_rdat_valid;  
-    mst_rdat_ready  => mst_rdat_ready;  
-    mst_rdat_data   => mst_rdat_data;   
-    mst_rdat_last   => mst_rdat_last;   
-    ctrl_done       => ctrl_done;       
-    ctrl_busy       => ctrl_busy;       
-    ctrl_idle       => ctrl_idle;       
-    ctrl_reset      => ctrl_reset;      
-    ctrl_stop       => ctrl_stop;       
-    ctrl_start      => ctrl_start;      
-    md_uncomp_size  => md_uncomp_size;  
-    md_comp_size    => md_comp_size;    
-    md_num_values   => md_num_values;   
-    cycle_count     => cycle_count;     
-    md_addr         => md_addr;         
+    clk             => clk,             
+    hw_reset        => hw_reset,        
+    mst_rreq_valid  => mst_rreq_valid,  
+    mst_rreq_ready  => mst_rreq_ready,  
+    mst_rreq_addr   => mst_rreq_addr,   
+    mst_rreq_len    => mst_rreq_len,
+    mst_rdat_valid  => mst_rdat_valid,  
+    mst_rdat_ready  => mst_rdat_ready,  
+    mst_rdat_data   => mst_rdat_data,   
+    mst_rdat_last   => mst_rdat_last,   
+    ctrl_done       => ctrl_done,       
+    ctrl_busy       => ctrl_busy,       
+    ctrl_idle       => ctrl_idle,       
+    ctrl_reset      => ctrl_reset,      
+    ctrl_stop       => ctrl_stop,       
+    ctrl_start      => ctrl_start,      
+    md_uncomp_size  => md_uncomp_size,  
+    md_comp_size    => md_comp_size,    
+    md_num_values   => md_num_values,   
+    cycle_count     => cycle_count,     
+    md_addr         => md_addr         
   );
+
+  -- Don't care about these signals
+  mst_rdat_last <= '0';
+  ctrl_reset <= '0';
+  ctrl_stop <= '0';
+  md_addr <= (others => '0');
+
+  values_p: process is
+  begin
+    mst_rreq_ready <= '0';
+    mst_rdat_valid <= '0';
+    mst_rdat_data <= (others => '0');
+
+    loop
+      wait until rising_edge(clk);
+      exit when hw_reset = '0';
+    end loop;
+
+    mst_rreq_ready <= '1';
+
+    loop
+      wait until rising_edge(clk);
+      exit when mst_rreq_valid = '1';
+    end loop;
+
+    mst_rreq_ready <= '0';
+
+    mst_rdat_valid <= '1';
+    -- A dictionary page header pulled from a random Parquet file
+    mst_rdat_data(BUS_DATA_WIDTH - 1 downto BUS_DATA_WIDTH - (34 * 4)) <= x"150415807d15807d4c15d00f1504120000";
+    mst_rdat_data(BUS_DATA_WIDTH - (34 * 4) -1 downto 0) <= (others => '0');
+
+    loop
+      wait until rising_edge(clk);
+      exit when mst_rdat_ready = '1';
+    end loop;
+
+    mst_rdat_valid <= '0';
+    mst_rdat_data <= (others => '0');
+
+    wait;
+  end process;
 
   clk_p :process
   begin
@@ -83,5 +131,17 @@ begin
     wait for clk_period/2;
     clk <= '1';
     wait for clk_period/2;
+  end process;
+
+  reset_p: process is
+  begin
+    ctrl_start <= '0';
+    hw_reset <= '1';
+    wait for 10 ns;
+    wait until rising_edge(clk);
+    hw_reset <= '0';
+    wait for 10 ns;
+    ctrl_start <= '1';
+    wait;
   end process;
 end architecture;
