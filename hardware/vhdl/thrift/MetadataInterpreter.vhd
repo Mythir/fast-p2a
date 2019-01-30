@@ -33,7 +33,7 @@ entity MetadataInterpreter is
     BUS_DATA_WIDTH              : natural;
 
     -- Bus burst length width
-    BUS_LEN_WIDTH               : natural;
+    BUS_LEN_WIDTH               : natural
 
 
   );
@@ -43,7 +43,7 @@ entity MetadataInterpreter is
     clk                         : in  std_logic;
 
     -- Active-high synchronous reset.
-    reset                       : in  std_logic;
+    hw_reset                       : in  std_logic;
 
     -- Master port.
     mst_rreq_valid              : out std_logic;
@@ -64,15 +64,15 @@ entity MetadataInterpreter is
     ctrl_start                  : in std_logic;
 
     -- Metadata output
-    uncomp_size                 : out std_logic_vector(31 downto 0);
-    comp_size                   : in  std_logic_vector(31 downto 0);
-    num_values                  : out std_logic_vector(31 downto 0);
+    md_uncomp_size                 : out std_logic_vector(31 downto 0);
+    md_comp_size                   : out  std_logic_vector(31 downto 0);
+    md_num_values                  : out std_logic_vector(31 downto 0);
 
     -- For debugging purposes
     cycle_count                 : out std_logic_vector(31 downto 0);
 
     -- Pointer to metadata that should be interpreted
-    metadata_addr               : in std_logic_vector(31 downto 0);
+    md_addr               : in std_logic_vector(31 downto 0)
 
   );
 end MetadataInterpreter;
@@ -80,7 +80,7 @@ end MetadataInterpreter;
 architecture behv of MetadataInterpreter is
 
   -- Top level state in the state machine
-  type top_state_t is (RESET, IDLE, READ_MEM, INTERPRETING, DONE);
+  type top_state_t is (RESET, IDLE, READ_MEM_REQ, READ_MEM_DAT, INTERPRETING, DONE);
       signal top_state, top_state_next : top_state_t;
   
   -- Which Parquet metadata structure is being interpreted
@@ -100,32 +100,32 @@ architecture behv of MetadataInterpreter is
       signal field_state, field_state_next : field_state_t;
 
   -- Shift register for metadata input
-  signal metadata_addr              : std_logic_vector(METADATA_WIDTH-1 downto 0);
+  signal metadata_r                 : std_logic_vector(METADATA_WIDTH-1 downto 0);
 
   -- Registers for decoded metadata output
-  signal uncomp_size_r              : std_logic_vector(31 downto 0);
-  signal comp_size_r                : std_logic_vector(31 downto 0);
-  signal num_values_r               : std_logic_vector(31 downto 0);
+  signal md_uncomp_size_r              : std_logic_vector(31 downto 0);
+  signal md_comp_size_r                : std_logic_vector(31 downto 0);
+  signal md_num_values_r               : std_logic_vector(31 downto 0);
 
   -- Keep score of cycles for debugging purposes
   signal cycle_count_r              : std_logic_vector(31 downto 0);
 
 begin
 
-  uncomp_size <= uncomp_size_r;
-  comp_size <= comp_size_r;
-  num_values <= num_values_r;
+  md_uncomp_size <= md_uncomp_size_r;
+  md_comp_size <= md_comp_size_r;
+  md_num_values <= md_num_values_r;
   cycle_count <= cycle_count_r;
 
-  mst_rreq_addr <= metadata_addr;
+  mst_rreq_addr <= md_addr;
 
   -- Always only request 1 beat per transfer
-  mst_rreq_len <= std_logic_vector(unsigned(1, BUS_LEN_WIDTH));
+  mst_rreq_len <= std_logic_vector(to_unsigned(1, BUS_LEN_WIDTH));
 
   logic_p: process (metadata_state, page_header_state, data_page_header_state, field_state, ctrl_start) is
   begin
     -- Default values
-    top_state_next <= top_state
+    top_state_next <= top_state;
     metadata_state_next <= metadata_state;
     page_header_state_next <= page_header_state;
     data_page_header_state_next <= data_page_header_state;
@@ -136,7 +136,7 @@ begin
     mst_rreq_valid <= '0';
 
     -- State machine
-    case top_state =>
+    case top_state is
       when RESET =>
         ctrl_idle <= '0';
         ctrl_busy <= '0';
@@ -145,17 +145,60 @@ begin
         top_state_next <= IDLE;
 
       when IDLE =>
+        -- Wait for signal to begin
         ctrl_idle <= '1';
         ctrl_busy <= '0';
         ctrl_done <= '0';
 
         if ctrl_start = '1' then
-          top_state_next <= READ_MEM;
+          top_state_next <= READ_MEM_REQ;
         end if;
 
-      when READ_MEM =>
+      when READ_MEM_REQ =>
+        -- Send address of metadata to master
         ctrl_idle <= '0';
         ctrl_busy <= '1';
+        ctrl_done <= '0';
+
+        mst_rreq_valid <= '1';
+
+        if mst_rreq_ready = '1' then
+          top_state_next <= READ_MEM_DAT;
+        end if;
+
+      when READ_MEM_DAT =>
+        -- Read metadata from memory
+        ctrl_idle <= '0';
+        ctrl_busy <= '1';
+        ctrl_done <= '0';
+
+        mst_rdat_ready <= '1';
+
+        if mst_rdat_valid = '1' then
+          metadata_r <= mst_rdat_data(METADATA_WIDTH - 1 downto BUS_DATA_WIDTH - METADATA_WIDTH);
+          top_state_next <= INTERPRETING;
+        end if;
+
+      when INTERPRETING =>
+        -- To be implemented, now simply debug stuff
+        ctrl_idle <= '0';
+        ctrl_busy <= '1';
+        ctrl_done <= '0';
+
+        -- Just checking the contents of the metadata register for debugging purposes
+        md_uncomp_size_r <= metadata_r(METADATA_WIDTH -1 downto 32);
+        md_comp_size_r <= metadata_r(31 downto 0);
+
+        top_state_next <= DONE;
+
+      when DONE =>
+        ctrl_idle <= '1';
+        ctrl_busy <= '0';
+        ctrl_done <= '1';
+
+      when others =>
+        ctrl_idle <= '0';
+        ctrl_busy <= '0';
         ctrl_done <= '0';
 
     end case;
@@ -166,17 +209,18 @@ begin
   state_p: process (clk)
   begin
     if rising_edge(clk) then
-      if reset = '1' or ctrl_reset = '1' then
+      if hw_reset = '1' or ctrl_reset = '1' then
         top_state <= RESET;
         metadata_state <= PAGE;
         page_header_state <= RESET;
         data_page_header_state <= RESET;
         field_state <= HEADER;
 
-        uncomp_size_r <= std_logic_vector(unsigned(0, 32));
-        comp_size_r <= std_logic_vector(unsigned(0, 32));
-        num_values_r <= std_logic_vector(unsigned(0, 32));
-        cycle_count_r <= std_logic_vector(unsigned(0, 32));
+        md_uncomp_size_r <= std_logic_vector(to_unsigned(0, 32));
+        md_comp_size_r <= std_logic_vector(to_unsigned(0, 32));
+        md_num_values_r <= std_logic_vector(to_unsigned(0, 32));
+        cycle_count_r <= std_logic_vector(to_unsigned(0, 32));
+        metadata_r <= std_logic_vector(to_unsigned(0, METADATA_WIDTH));
       else
         top_state <= top_state_next;
         metadata_state <= metadata_state_next;
@@ -186,3 +230,4 @@ begin
       end if;
     end if;
   end process;
+end architecture;
