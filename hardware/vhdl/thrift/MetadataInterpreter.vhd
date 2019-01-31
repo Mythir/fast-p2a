@@ -23,8 +23,7 @@ entity MetadataInterpreter is
   generic (
 
     -- Width of the data read with every read request to the memory.
-    -- Standard is 64 bits which is very likely to be able to contain an entire Page header.
-    METADATA_WIDTH              : natural := 64;
+    METADATA_WIDTH              : natural := 512;
 
     -- Bus address width
     BUS_ADDR_WIDTH              : natural;
@@ -33,7 +32,9 @@ entity MetadataInterpreter is
     BUS_DATA_WIDTH              : natural;
 
     -- Bus burst length width
-    BUS_LEN_WIDTH               : natural
+    BUS_LEN_WIDTH               : natural;
+
+    NUM_REGS                    : natural
 
 
   );
@@ -43,7 +44,7 @@ entity MetadataInterpreter is
     clk                         : in  std_logic;
 
     -- Active-high synchronous reset.
-    hw_reset                       : in  std_logic;
+    hw_reset                    : in  std_logic;
 
     -- Master port.
     mst_rreq_valid              : out std_logic;
@@ -64,15 +65,16 @@ entity MetadataInterpreter is
     ctrl_start                  : in std_logic;
 
     -- Metadata output
-    md_uncomp_size                 : out std_logic_vector(31 downto 0);
-    md_comp_size                   : out  std_logic_vector(31 downto 0);
-    md_num_values                  : out std_logic_vector(31 downto 0);
+    md_uncomp_size              : out std_logic_vector(31 downto 0);
+    md_comp_size                : out  std_logic_vector(31 downto 0);
+    md_num_values               : out std_logic_vector(31 downto 0);
 
     -- For debugging purposes
     cycle_count                 : out std_logic_vector(31 downto 0);
+    regs_out_en                 : out std_logic_vector(NUM_REGS-1 downto 0);
 
     -- Pointer to metadata that should be interpreted
-    md_addr               : in std_logic_vector(BUS_ADDR_WIDTH-1 downto 0)
+    md_addr                     : in std_logic_vector(BUS_ADDR_WIDTH-1 downto 0)
 
   );
 end MetadataInterpreter;
@@ -80,7 +82,7 @@ end MetadataInterpreter;
 architecture behv of MetadataInterpreter is
 
   -- Top level state in the state machine
-  type top_state_t is (RESET, IDLE, READ_MEM_REQ, READ_MEM_DAT, INTERPRETING, DONE);
+  type top_state_t is (RESET, IDLE, READ_MEM_REQ, READ_MEM_DAT, INTERPRETING, DONE, FAULT);
       signal top_state, top_state_next : top_state_t;
   
   -- Which Parquet metadata structure is being interpreted
@@ -88,11 +90,11 @@ architecture behv of MetadataInterpreter is
       signal metadata_state, metadata_state_next : metadata_state_t;
 
   -- If in a PageHeader struct, which field is being interpreted
-  type page_header_state_t is (RESET, PAGETYPE, UNCOMPRESSED_SIZE, COMPRESSED_SIZE, CRC, DATA_PAGE_HEADER, DICT_PAGE_HEADER);
+  type page_header_state_t is (START, PAGETYPE, UNCOMPRESSED_SIZE, COMPRESSED_SIZE, CRC, DATA_PAGE_HEADER, DICT_PAGE_HEADER);
       signal page_header_state, page_header_state_next : page_header_state_t;
 
   -- If in a DataPageHeader struct, which field is being interpreted
-  type data_page_header_state_t is (RESET, NUM_VALUES, ENCODING, DEF_LEVEL_ENCODING, REP_LEVEL_ENCODING, STATISTICS);
+  type data_page_header_state_t is (START, NUM_VALUES, ENCODING, DEF_LEVEL_ENCODING, REP_LEVEL_ENCODING, STATISTICS);
       signal data_page_header_state, data_page_header_state_next : data_page_header_state_t;
 
   -- Is the byte we are looking at part of a field header, or field data.
@@ -141,6 +143,12 @@ begin
     md_num_values_r_next <= md_num_values_r;
     metadata_r_next <= metadata_r;
 
+    -- Gross debugging stuff. Allow writing to user regs and status reg.
+    regs_out_en <= (others => '0');
+    regs_out_en(NUM_REGS-1 downto NUM_REGS-3) <= "111";
+    regs_out_en(1) <= '1';
+
+
     -- By default the intepreter is not ready to receive data
     mst_rdat_ready <= '0';
     mst_rreq_valid <= '0';
@@ -185,7 +193,7 @@ begin
         mst_rdat_ready <= '1';
 
         if mst_rdat_valid = '1' then
-          metadata_r_next <= mst_rdat_data(BUS_DATA_WIDTH - 1 downto BUS_DATA_WIDTH - METADATA_WIDTH);
+          metadata_r_next <= mst_rdat_data(BUS_DATA_WIDTH-1 downto BUS_DATA_WIDTH - METADATA_WIDTH);
           top_state_next <= INTERPRETING;
         end if;
 
@@ -196,8 +204,16 @@ begin
         ctrl_done <= '0';
 
         -- Just checking the contents of the metadata register for debugging purposes
-        md_uncomp_size_r_next <= metadata_r(METADATA_WIDTH -1 downto 32);
+        md_uncomp_size_r_next <= metadata_r(METADATA_WIDTH-1 downto 32);
         md_comp_size_r_next <= metadata_r(31 downto 0);
+
+        if(metadata_r(METADATA_WIDTH-1 downto METADATA_WIDTH - 32) = x"15041580") then
+          md_num_values_r_next(0) <= '1';
+        end if;
+
+        if(metadata_r(METADATA_WIDTH-33 downto METADATA_WIDTH-64) = X"7d15807d") then
+          md_num_values_r_next(1) <= '1';
+        end if;
 
         top_state_next <= DONE;
 
@@ -222,8 +238,8 @@ begin
       if hw_reset = '1' or ctrl_reset = '1' then
         top_state <= RESET;
         metadata_state <= PAGE;
-        page_header_state <= RESET;
-        data_page_header_state <= RESET;
+        page_header_state <= START;
+        data_page_header_state <= START;
         field_state <= HEADER;
 
         md_uncomp_size_r <= std_logic_vector(to_unsigned(0, 32));
@@ -240,7 +256,7 @@ begin
 
         md_uncomp_size_r <= md_uncomp_size_r_next;
         md_comp_size_r   <= md_comp_size_r_next;
-        md_num_values_r  <= md_num_values_r;
+        md_num_values_r  <= md_num_values_r_next;
         metadata_r <= metadata_r_next;
       end if;
     end if;
