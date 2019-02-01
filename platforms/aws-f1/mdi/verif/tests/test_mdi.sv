@@ -58,6 +58,9 @@ module test_mdi();
   // Number of bytes to copy to cl buffer
   parameter num_buf_bytes = 100;
 
+
+  int read_data;
+
   //File loading
   int file_descriptor = 0;
   string file_path = "int64array_nosnap_nodict.prq";
@@ -110,8 +113,8 @@ initial begin
 
     if(bytes_read == 100) begin
       for(int c = 0; c < num_buf_bytes; c++) begin
-        tb.hm_put_byte(.addr(host_buffer_address + c), .d(file_data[c]);
-        $display("[DEBUG] : Writing %H to host memory", read_data);
+        tb.hm_put_byte(.addr(host_buffer_address + c), .d(file_data[c]));
+        $display("[DEBUG] : Writing %H to host memory", file_data[c]);
       end
 
 
