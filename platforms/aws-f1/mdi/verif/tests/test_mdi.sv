@@ -56,7 +56,7 @@ module test_mdi();
   import tb_type_defines_pkg::*;
 
   // Number of bytes to copy to cl buffer
-  parameter num_buf_bytes = 100;
+  parameter num_buf_bytes = 1000;
 
 
   int read_data;
