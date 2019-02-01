@@ -204,8 +204,8 @@ begin
         ctrl_done <= '0';
 
         -- Just checking the contents of the metadata register for debugging purposes
-        md_uncomp_size_r_next <= metadata_r(METADATA_WIDTH-1 downto 32);
-        md_comp_size_r_next <= metadata_r(31 downto 0);
+        md_uncomp_size_r_next <= metadata_r(METADATA_WIDTH-1 downto METADATA_WIDTH - 32);
+        md_comp_size_r_next <= metadata_r(METADATA_WIDTH-33 downto METADATA_WIDTH-64);
 
         if(metadata_r(METADATA_WIDTH-1 downto METADATA_WIDTH - 32) = x"15041580") then
           md_num_values_r_next(0) <= '1';
