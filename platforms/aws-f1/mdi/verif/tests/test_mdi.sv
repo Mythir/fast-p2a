@@ -64,7 +64,7 @@ module test_mdi();
   //File loading
   int file_descriptor = 0;
   string file_path = "int64array_nosnap_nodict.prq";
-  byte file_data[0:num_buf_bytes];
+  byte file_data[0:num_buf_bytes-1];
   int bytes_read = 0;
 
 initial begin
@@ -114,17 +114,19 @@ initial begin
     if(bytes_read == num_buf_bytes) begin
       for(int c = 0; c < num_buf_bytes; c++) begin
         tb.hm_put_byte(.addr(host_buffer_address + c), .d(file_data[c]));
-        $display("[DEBUG] : Writing %H to host memory", file_data[c]);
+        if(c<20) begin
+          $display("[DEBUG] : Writing %H to host memory", file_data[c]);
+        end
       end
 
 
     end else begin
-      $display("Failed to read enough bytes from opened file. Only read %d.\n", bytes_read);
+      $display("[ERROR] : Failed to read proper amount of bytes from opened file. Read %d instead of %d.\n", bytes_read, num_buf_bytes);
       $finish;
     end
 
   end else begin
-    $display("Could not open test file.\n");
+    $display("[ERROR] : Could not open test file.\n");
     $finish;
   end
 
