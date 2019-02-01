@@ -52,7 +52,7 @@ architecture tb of MetadataInterpreter_tb is
   signal md_comp_size                :  std_logic_vector(31 downto 0);
   signal md_num_values               :  std_logic_vector(31 downto 0);
   signal cycle_count                 :  std_logic_vector(31 downto 0);
-  signal regs_out_en                 :  std_logic_vector(2 downto 0);
+  signal regs_out_en                 :  std_logic_vector(NUM_REGS downto 0);
   signal md_addr                     :  std_logic_vector(BUS_ADDR_WIDTH-1 downto 0);
 begin
   dut : entity work.MetadataInterpreter

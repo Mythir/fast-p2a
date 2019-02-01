@@ -217,6 +217,14 @@ int main(int argc, char **argv) {
     std::shared_ptr<arrow::Table> int64_table = generate_int64_table(num_values);
     std::shared_ptr<arrow::Table> str_table = generate_str_table(num_values, 2, 10);
 
+    /*
+    const uint8_t* memrep = int64_table->column(0)->data()->chunk(0)->data()->buffers[1]->data();
+
+    for(int i; i<20; i++){
+        std::cout<<"Data: "<<std::hex<<std::setfill('0')<<std::setw(2)<<((const uint64_t*)memrep)[i]<<std::dec<<std::endl;
+    }
+    */
+
     write_parquet_file(*int64_table, "int64array.prq", num_values, true, true);
     write_parquet_file(*int64_table, "int64array_nosnap.prq", num_values, false, true);
     write_parquet_file(*int64_table, "int64array_nodict.prq", num_values, true, false);
