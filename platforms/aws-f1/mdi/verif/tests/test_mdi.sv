@@ -111,7 +111,7 @@ initial begin
   if (file_descriptor) begin
     bytes_read = $fread(file_data, file_descriptor);
 
-    if(bytes_read == 100) begin
+    if(bytes_read == num_buf_bytes) begin
       for(int c = 0; c < num_buf_bytes; c++) begin
         tb.hm_put_byte(.addr(host_buffer_address + c), .d(file_data[c]));
         $display("[DEBUG] : Writing %H to host memory", file_data[c]);
@@ -119,7 +119,7 @@ initial begin
 
 
     end else begin
-      $display("Failed to read enough bytes from opened file.\n");
+      $display("Failed to read enough bytes from opened file. Only read %d.\n", bytes_read);
       $finish;
     end
 
