@@ -16,3 +16,10 @@ Metadata interpreter
 
 ### Simulate everything for AWS
 1. Source env.sh in fletcher repo and fast-p2a repo
+2. source hdk_setup.sh in aws-fpga repo
+3. Execute project-generate.sh in fletcher repo
+4. Copy resulting directory to desired location (and include missing files reported by project-generate)
+5. Change makefile to $(C_SRC_DIR)/test_dram_dma_common.c
+6. set CL_DIR environment variable to top level of simulation project
+7. source generate_ip.sh
+8. make TEST={name_of_sv_testbench}
