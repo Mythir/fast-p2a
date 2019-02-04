@@ -61,6 +61,12 @@ module test_mdi();
 
   int read_data;
 
+  //Error checking
+  int         error_count;
+  int         timeout_count;
+  int         fail;
+  logic [3:0] status;
+
   //File loading
   int file_descriptor = 0;
   string file_path = "int64array_nosnap_nodict.prq";
