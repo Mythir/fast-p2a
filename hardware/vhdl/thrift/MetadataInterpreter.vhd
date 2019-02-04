@@ -168,10 +168,10 @@ begin
         ctrl_busy <= '0';
         ctrl_done <= '0';
 
-        -- TODO REMOVE TEMPORARILY SET TO ZERO FOR DEBUG
-        if ctrl_start = '0' then
+        -- TODO REMOVE TEMPORARILY REMOVED CHECK FOR DEBUG
+        --if ctrl_start = '1' then
           top_state_next <= READ_MEM_REQ;
-        end if;
+        --end if;
 
       when READ_MEM_REQ =>
         -- Send address of metadata to master
