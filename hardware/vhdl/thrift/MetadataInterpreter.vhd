@@ -129,7 +129,7 @@ begin
   mst_rreq_len <= std_logic_vector(to_unsigned(1, BUS_LEN_WIDTH));
 
   logic_p: process (metadata_state, page_header_state, data_page_header_state, field_state, ctrl_start,
-                    top_state) is
+                    top_state, mst_rreq_ready, mst_rdat_valid, metadata_r) is
   begin
     -- Default values
     top_state_next <= top_state;
