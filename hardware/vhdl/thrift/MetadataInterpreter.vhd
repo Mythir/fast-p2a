@@ -149,7 +149,7 @@ begin
     regs_out_en(1) <= '1';
 
 
-    -- By default the intepreter is not ready to receive data
+    -- By default the interpreter is not ready to receive data
     mst_rdat_ready <= '0';
     mst_rreq_valid <= '0';
 
@@ -168,7 +168,8 @@ begin
         ctrl_busy <= '0';
         ctrl_done <= '0';
 
-        if ctrl_start = '1' then
+        -- TODO REMOVE TEMPORARILY SET TO ZERO FOR DEBUG
+        if ctrl_start = '0' then
           top_state_next <= READ_MEM_REQ;
         end if;
 
