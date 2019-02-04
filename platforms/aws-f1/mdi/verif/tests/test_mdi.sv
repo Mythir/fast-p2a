@@ -112,13 +112,13 @@ initial begin
     bytes_read = $fread(file_data, file_descriptor);
 
     if(bytes_read == num_buf_bytes) begin
+      $display("[DEBUG] : First 20 bytes get displayed for debugging purposes.");
       for(int c = 0; c < num_buf_bytes; c++) begin
         tb.hm_put_byte(.addr(host_buffer_address + c), .d(file_data[c]));
         if(c<20) begin
           $display("[DEBUG] : Writing %H to host memory", file_data[c]);
         end
       end
-
 
     end else begin
       $display("[ERROR] : Failed to read proper amount of bytes from opened file. Read %d instead of %d.\n", bytes_read, num_buf_bytes);
@@ -129,6 +129,76 @@ initial begin
     $display("[ERROR] : Could not open test file.\n");
     $finish;
   end
+
+  $display("[%t] : Starting host to CL DMA transfers ", $realtime);
+
+  // Start transfers of data to CL DDR
+  tb.start_que_to_cl(.chan(0));
+
+  timeout_count = 0;
+  do begin
+    status[0] = tb.is_dma_to_cl_done(.chan(0));
+    #10ns;
+    timeout_count++;
+  end while ((status != 4'hf) && (timeout_count < 4000));
+
+  if (timeout_count >= 4000) begin
+    $display("[%t] : *** ERROR *** Timeout waiting for dma transfers from cl", $realtime);
+    error_count++;
+  end
+
+  tb.nsec_delay(1000);
+
+  $display("[%t] : Initializing UserCore ", $realtime);
+
+  // Put the units in reset:
+  tb.poke_bar1(.addr(4*`REG_CONTROL), .data(`CONTROL_RESET));
+
+  // Initialize buffer addressess:
+  tb.poke_bar1(.addr(4*`REG_OFF_ADDR_LO), .data(`OFF_ADDR_LO));
+  tb.poke_bar1(.addr(4*`REG_OFF_ADDR_HI), .data(`OFF_ADDR_HI));
+
+  $display("[%t] : Starting UserCore", $realtime);
+
+  // Start UserCore, taking units out of reset
+  tb.poke_bar1(.addr(4*`REG_CONTROL), .data(`CONTROL_START));
+
+  // Poll status at an interval of 1000 nsec
+  // For the real thing, you should probably increase this to put 
+  // less stress on the PCI interface
+  do
+    begin
+      tb.nsec_delay(1000);
+      tb.peek_bar1(.addr(4*`REG_STATUS), .data(read_data));
+      $display("[%t] : UserCore status: %H", $realtime, read_data);
+    end
+  while(read_data !== `STATUS_DONE);
+
+  $display("[%t] : UserCore completed ", $realtime);
+
+  //Get the custom return register values
+  tb.peek_bar1(.addr(4*`REG_UNCOMP_SIZE), .data(read_data));
+  $display("[%t] : Return register uncomp size: %d", $realtime, read_data);
+  tb.peek_bar1(.addr(4*`REG_COMP_SIZE), .data(read_data));
+  $display("[%t] : Return register comp size: %d", $realtime, read_data);
+  tb.peek_bar1(.addr(4*`REG_NUM_VALUES), .data(read_data));
+  $display("[%t] : Return register num values: %d", $realtime, read_data);
+
+  // Report pass/fail status
+  $display("[%t] : Checking total error count...", $realtime);
+  if (error_count > 0) begin
+    fail = 1;
+  end
+  $display("[%t] : Detected %3d errors during this test", $realtime, error_count);
+
+  if (fail || (tb.chk_prot_err_stat())) begin
+    $display("[%t] : *** TEST FAILED ***", $realtime);
+  end else begin
+    $display("[%t] : *** TEST PASSED ***", $realtime);
+  end
+
+  $finish;
+
 
 end // initial begin
 
