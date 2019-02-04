@@ -38,7 +38,7 @@ architecture tb of axi_top_tb is
   constant NUM_ARROW_BUFFERS           : natural := 1;
   constant NUM_USER_REGS               : natural := 3;
   constant NUM_REGS                    : natural := 11;
-  constant REG_WIDTH                   : natural := SLV_BUS_DATA_WIDTH
+  constant REG_WIDTH                   : natural := SLV_BUS_DATA_WIDTH;
 
   signal acc_clk                     :  std_logic;
   signal acc_reset                   :  std_logic;
@@ -161,14 +161,14 @@ begin
     m_axi_rdata <= (others => '0');
 
     loop
-      wait until rising_edge(clk);
+      wait until rising_edge(bus_clk);
       exit when bus_reset_n = '1';
     end loop;
 
     m_axi_arready <= '1';
 
     loop
-      wait until rising_edge(clk);
+      wait until rising_edge(bus_clk);
       exit when m_axi_arvalid = '1';
     end loop;
 
@@ -182,7 +182,7 @@ begin
     m_axi_rdata(63 downto 0) <= x"deadbeefabcd0000";
 
     loop
-      wait until rising_edge(clk);
+      wait until rising_edge(bus_clk);
       exit when m_axi_rready = '1';
     end loop;
 
@@ -204,7 +204,7 @@ begin
   begin
     bus_reset_n <= '0';
     wait for 10 ns;
-    wait until rising_edge(clk);
+    wait until rising_edge(bus_clk);
     bus_reset_n <= '1';
     wait for 10 ns;
     ctrl_start <= '1';
