@@ -206,8 +206,6 @@ begin
     wait for 10 ns;
     wait until rising_edge(bus_clk);
     bus_reset_n <= '1';
-    wait for 10 ns;
-    ctrl_start <= '1';
     wait;
   end process;
 
