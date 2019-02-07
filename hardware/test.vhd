@@ -5,7 +5,7 @@ use ieee.numeric_std.all;
 
 library work;
 use work.Utils.all;
-use work.Thrift.all;
+use work.Encoding.all;
 
 entity test is
   port(
