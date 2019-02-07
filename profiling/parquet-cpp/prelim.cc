@@ -58,7 +58,15 @@ std::shared_ptr<arrow::Table> generate_int64_table(int num_values) {
     arrow::Int64Builder i64builder;
     for (int i = 0; i < num_values; i++) {
         int number = rand();
+        /*
+        if (i == 60 || i == 62){
+            PARQUET_THROW_NOT_OK(i64builder.AppendNull());
+        }
+        else{
+            PARQUET_THROW_NOT_OK(i64builder.Append(number));
+        }*/
         PARQUET_THROW_NOT_OK(i64builder.Append(number));
+
     }
     std::shared_ptr<arrow::Array> i64array;
     PARQUET_THROW_NOT_OK(i64builder.Finish(&i64array));
@@ -107,9 +115,10 @@ write_parquet_file(const arrow::Table &table, std::string filename, int chunk_si
         builder->disable_dictionary();
     }
 
+    std::shared_ptr<parquet::WriterProperties> props = builder->build();
 
     PARQUET_THROW_NOT_OK(
-            parquet::arrow::WriteTable(table, arrow::default_memory_pool(), outfile, chunk_size, builder->build()));
+            parquet::arrow::WriteTable(table, arrow::default_memory_pool(), outfile, chunk_size, props));
 }
 
 std::shared_ptr<arrow::Table> read_whole_file(std::string file_path) {
@@ -158,17 +167,13 @@ void examine_metadata(std::string file_path) {
     file = parquet::ParquetFileReader::OpenFile(file_path);
 
     md = file->metadata();
+    std::cout << "Version: " << md->version() << std::endl;
     std::cout << md->size() << " " << md->num_columns() << " " << md->num_rows() << std::endl;
 
     rmd = md->RowGroup(0);
     ccmd = rmd->ColumnChunk(0);
 
     std::cout << "Amount of rowgroups: " << md->num_row_groups() << std::endl;
-
-    for (auto &enc : ccmd->encodings()) {
-        std::cout << enc << std::endl;
-    }
-
     std::cout << "compression(): " << ccmd->compression() << std::endl;
     std::cout << "total_compressed_size: " << ccmd->total_compressed_size() << std::endl;
     std::cout << "total_uncompressed_size: " << ccmd->total_uncompressed_size() << std::endl;
@@ -183,7 +188,7 @@ void examine_metadata(std::string file_path) {
     do {
         page = pr->NextPage();
         std::cout << "Page type: " << page->type() << std::endl;
-    } while (page->type() != 0);
+    } while (page->type() == 2);
 
     /*
     std::cout << "num_values: " << std::static_pointer_cast<parquet::DataPage>(page)->num_values() << " size: "
