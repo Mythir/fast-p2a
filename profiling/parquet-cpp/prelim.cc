@@ -54,10 +54,16 @@ std::string gen_random_string(const int length) {
     return result;
 }
 
-std::shared_ptr<arrow::Table> generate_int64_table(int num_values) {
+std::shared_ptr<arrow::Table> generate_int64_table(int num_values, int modulo=0) {
     arrow::Int64Builder i64builder;
+    int number;
+
     for (int i = 0; i < num_values; i++) {
-        int number = rand();
+        if(modulo <= 0){
+            number = rand();
+        } else{
+            number = rand() % modulo;
+        }
         /*
         if (i == 60 || i == 62){
             PARQUET_THROW_NOT_OK(i64builder.AppendNull());
@@ -94,8 +100,7 @@ std::shared_ptr<arrow::Table> generate_str_table(int num_values, int min_length,
 }
 
 // Write out the data as a Parquet file
-void
-write_parquet_file(const arrow::Table &table, std::string filename, int chunk_size, bool compression, bool dictionary) {
+void write_parquet_file(const arrow::Table &table, std::string filename, int chunk_size, bool compression, bool dictionary) {
     std::shared_ptr<arrow::io::FileOutputStream> outfile;
     PARQUET_THROW_NOT_OK(
             arrow::io::FileOutputStream::Open(filename, &outfile));
@@ -205,21 +210,38 @@ void examine_metadata(std::string file_path) {
 
 }
 
+void examine_int64_contents(std::string file_path, int column, int rows){
+    std::shared_ptr<arrow::Table> table;
+    table = read_whole_file(file_path);
+
+    std::cout << "First " << rows << " of " << file_path << " column " << column << ":" << std::endl;
+    std::shared_ptr<arrow::Int64Array> array = std::static_pointer_cast<arrow::Int64Array>(table->column(0)->data()->chunk(0));
+
+    for(int i=0; i<rows; i++){
+        std::cout << array->Value(i) << std::endl;
+    }
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
-        std::cout << "Usage: prelim num_values [iterations]" << std::endl;
+        std::cout << "Usage: prelim num_values [iterations] [modulo]" << std::endl;
         return 1;
     }
 
     int num_values = atoi(argv[1]);
     int iterations = 1;
+    int modulo = 0;
 
-    if (argc == 3) {
+    if (argc >= 3) {
         iterations = atoi(argv[2]);
     }
 
+    if (argc >= 4) {
+        modulo = atoi(argv[3]);
+    }
+
     std::cout << "Size of Arrow table: " << num_values << " values." << std::endl;
-    std::shared_ptr<arrow::Table> int64_table = generate_int64_table(num_values);
+    std::shared_ptr<arrow::Table> int64_table = generate_int64_table(num_values, modulo);
     std::shared_ptr<arrow::Table> str_table = generate_str_table(num_values, 2, 10);
 
     /*
@@ -261,11 +283,4 @@ int main(int argc, char **argv) {
     parquet_to_arrow_benchmark("strarray_nosnap.prq", iterations);
     parquet_to_arrow_benchmark("strarray_nodict.prq", iterations);
     parquet_to_arrow_benchmark("strarray_nosnap_nodict.prq", iterations);
-
-    /*
-    std::shared_ptr<arrow::StringArray> strArray = std::static_pointer_cast<arrow::StringArray>(str_table->column(0)->data()->chunk(0));
-
-    for(int i=0; i<10; i++){
-      std::cout<<strArray->GetString(i)<<std::endl;
-    }*/
 }
