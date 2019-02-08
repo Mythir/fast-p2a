@@ -21,6 +21,22 @@ library work;
 use work.Utils.all;
 
 package Encoding is
+
+  component VarIntDecoder is
+    generic (
+      INT_BIT_WIDTH               : natural;
+      ZIGZAG_ENCODED              : boolean
+    );
+    port (
+      clk                         : in std_logic;
+      reset                       : in std_logic;
+      start                       : in std_logic;
+      in_data                     : in std_logic_vector(7 downto 0);
+      in_valid                    : in std_logic;
+      out_data                    : out std_logic_vector(INT_BIT_WIDTH-1 downto 0)
+    );
+  end component;
+
   -----------------------------------------------------------------------------
   -- Helper functions
   -----------------------------------------------------------------------------
