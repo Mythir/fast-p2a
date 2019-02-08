@@ -22,7 +22,9 @@ use work.Encoding.all;
 -- Fletcher utils, for use of the log2ceil function
 use work.Utils.all;
 
--- Todo: Description
+-- Variable length integer decoder that works by feeding it one byte at a time.
+-- Necessary for deserializing Thrift structures (page headers) and decoding repetition/definition levels.
+-- As the component is implemented now there is no "output ready" signal, any components using the decoder need to figure that out for themselves.
 
 entity VarIntDecoder is
   generic (
