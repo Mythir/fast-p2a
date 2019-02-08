@@ -24,12 +24,13 @@ end VarIntDecoder_tb;
 architecture tb of VarIntDecoder_tb is
   constant INT_BIT_WIDTH         	   : natural := 32;
   constant ZIGZAG_ENCODED        	   : boolean := false;
+  constant clk_period                : time := 10ns;
   signal clk                         : std_logic;
   signal reset                       : std_logic;
   signal start                       : std_logic;
+  signal in_valid                    : std_logic;
   signal in_data                     : std_logic_vector(7 downto 0);
   signal out_data                    : std_logic_vector(INT_BIT_WIDTH-1 downto 0);
-  signal last_byte                   : std_logic;
 
   type state_t is (HEADER, FIELD);
     signal state, state_next : state_t;
@@ -72,40 +73,53 @@ architecture tb of VarIntDecoder_tb is
 begin
   dut: entity work.VarIntDecoder
   generic map(
-    INT_BIT_WIDTH               <= INT_BIT_WIDTH,
-    ZIGZAG_ENCODED              <= ZIGZAG_ENCODED
+    INT_BIT_WIDTH               => INT_BIT_WIDTH,
+    ZIGZAG_ENCODED              => ZIGZAG_ENCODED
   )
   port map(
-    clk                         <=clk,
-    reset                       <=reset,
-    start                       <=start,
-    in_data                     <=in_data,
-    out_data                    <=out_data,
-    last_byte                   <=last_byte 
+    clk                         => clk,
+    reset                       => reset,
+    start                       => start,
+    in_data                     => in_data,
+    in_valid                    => in_valid,
+    out_data                    => out_data
   );
 
   data_p : process
   begin
-    state <= HEADER;
     loop
       wait until rising_edge(clk);
       exit when reset = '0';
     end loop;
 
-    for i in 0 to VarInt_ROM'length loop
+    for i in 0 to VarInt_ROM'length-1 loop
+      in_valid <= '1';
       in_data <= VarInt_ROM(i);
-      if state = HEADER then
+
+      -- 0x00 means the start of a new VarInt in this rom. Unless it's byte index 1 then it's actually a var int... Yeah...
+      if i /= 1 and VarInt_ROM(i) = x"00" then
         start <= '1';
       else
         start <= '0';
       end if;
 
+      -- If a VarInt has it's header at address 21, don't start the decoder (testing start functionality, should skip that varint)
+      if i = 21 then
+        start <= '0';
+      end if;
+
       wait until rising_edge(clk);
-      state <= FIELD;
-      if last_byte = '1' then
-        state <= HEADER;
+
+      -- Stall a couple of cycles at address 28
+      if i = 28 then
+        in_data <= "11111111";
+        in_valid <= '0';
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
+        wait until rising_edge(clk);
       end if;
     end loop;
+    wait;
   end process;
 
   clk_p : process

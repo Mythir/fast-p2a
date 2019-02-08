@@ -45,11 +45,11 @@ entity VarIntDecoder is
     -- Input data (one byte of the varint per clock cycle)
     in_data                     : in std_logic_vector(7 downto 0);
 
-    -- Resulting integer
-    out_data                    : out std_logic_vector(INT_BIT_WIDTH-1 downto 0);
+    -- When in_valid is 0 during the decoding phase the decoder will stall.
+    in_valid                    : in std_logic;
 
-    -- Immediately asserted when the current input byte is the last byte of the varint
-    last_byte                   : out std_logic
+    -- Resulting integer
+    out_data                    : out std_logic_vector(INT_BIT_WIDTH-1 downto 0)
   );
 end VarIntDecoder;
 
@@ -59,7 +59,7 @@ architecture behv of VarIntDecoder is
   constant MAX_VARINT_SIZE            : natural := natural(CEIL(real(INT_BIT_WIDTH)/real(7)));
 
   -- Bit width necessary to count up to MAX_VARINT_SIZE - 1
-  constant COUNT_WIDTH                : natural := log2ceil(MAX_VARINT_SIZE - 1);
+  constant COUNT_WIDTH                : natural := log2ceil(MAX_VARINT_SIZE);
 
   type state_t is (IDLE, DECODING);
       signal state, state_next : state_t;
@@ -75,7 +75,7 @@ begin
   out_data <= std_logic_vector(to_signed(decode_zigzag(out_data_r), out_data'length)) when ZIGZAG_ENCODED else
               out_data_r;
 
-  logic_p: process (in_data, state, byte_count, out_data_r)
+  logic_p: process (in_data, state, byte_count, out_data_r, in_valid)
   begin
     -- Default values
     out_data_r_next <= out_data_r;
@@ -84,33 +84,33 @@ begin
 
     case state is
       when IDLE =>
-        -- Keep last_byte at 0 when decoder is not decoding
-        last_byte <= '0';
 
       when DECODING =>
-        -- Count which byte we are processing
-        byte_count_next <= std_logic_vector(unsigned(byte_count) + 1);
-
-        -- If first bit in a byte is 0, no more bytes are coming
-        if in_data(7) = '0' then
-          last_byte <= '1';
-          state_next <= IDLE;
-        else
-          last_byte <= '0';
+        if in_valid = '1' then
+          -- Count which byte we are processing
+          byte_count_next <= std_logic_vector(unsigned(byte_count) + 1);
+  
+          -- If first bit in a byte is 0, no more bytes are coming
+          if in_data(7) = '0' then
+            state_next <= IDLE;
+          end if;
+  
+          -- Access different part of output register for each input byte
+          for i in 0 to MAX_VARINT_SIZE - 1 loop
+            if byte_count = std_logic_vector(to_unsigned(i, byte_count'length)) then
+  
+              -- On the last loop iteration we might not be able to fit another 7 bits into the register, so cut it short.
+              if i = (MAX_VARINT_SIZE - 1) then
+                out_data_r_next(INT_BIT_WIDTH - 1 downto 7 * i) <= in_data((INT_BIT_WIDTH mod 7) - 1 downto 0);
+              else
+                out_data_r_next(7 * (i + 1) - 1 downto 7 * i) <= in_data(6 downto 0);
+              end if;
+            end if;
+          end loop;
         end if;
 
-        -- Access different part of output register for each input byte
-        for i in 0 to MAX_VARINT_SIZE - 1 loop
-          if byte_count = std_logic_vector(to_unsigned(i, byte_count'length)) then
+        when others =>
 
-            -- On the last loop iteration we might not be able to fit another 7 bits into the register, so cut it short.
-            if i = MAX_VARINT_SIZE - 1 then
-              out_data_r_next(INT_BIT_WIDTH - 1 downto 7 * i) <= in_data(6 - (INT_BIT_WIDTH mod 7) downto 0);
-            else
-              out_data_r_next(7 * (i + 1) downto 7 * i) <= in_data(6 downto 0);
-            end if;
-          end if;
-        end loop;
     end case;
   end process;
 
@@ -123,6 +123,7 @@ begin
         out_data_r <= (others => '0');
         byte_count <= (others => '0');
       elsif start = '1' then
+        -- Get ready for decoding and reset byte_count and output
         state <= DECODING;
         out_data_r <= (others => '0');
         byte_count <= (others => '0');
