@@ -70,10 +70,12 @@ architecture behv of VarIntDecoder is
   signal byte_count_next              : std_logic_vector(COUNT_WIDTH - 1 downto 0);
 
 begin
-  
-  out_data <= out_data_r;
 
-  logic_p: process (in_data, state, byte_count)
+  -- If ZIGZAG_ENCODED is true we add a final decoding step to the result
+  out_data <= std_logic_vector(to_signed(decode_zigzag(out_data_r), out_data'length)) when ZIGZAG_ENCODED else
+              out_data_r;
+
+  logic_p: process (in_data, state, byte_count, out_data_r)
   begin
     -- Default values
     out_data_r_next <= out_data_r;
