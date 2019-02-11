@@ -170,7 +170,7 @@ begin
   mst_rreq_len <= std_logic_vector(to_unsigned(1, BUS_LEN_WIDTH));
 
   logic_p: process (metadata_state, page_header_state, data_page_header_state, field_state, ctrl_start,
-                    top_state, mst_rreq_ready, mst_rdat_valid, metadata_r) is
+                    top_state, mst_rreq_ready, mst_rdat_valid, metadata_r, current_byte, start_varint, current_byte_valid, varint_dec_out_data) is
   begin
     -- Default values
     top_state_next <= top_state;
@@ -182,6 +182,7 @@ begin
     md_uncomp_size_r_next <= md_uncomp_size_r;
     md_comp_size_r_next <= md_comp_size_r;
     md_num_values_r_next <= md_num_values_r;
+    cycle_count_r_next <= cycle_count_r;
     metadata_r_next <= metadata_r;
 
     -- Gross debugging stuff. Allow writing to user regs and status reg.
@@ -235,6 +236,7 @@ begin
         mst_rdat_ready <= '1';
 
         if mst_rdat_valid = '1' then
+          -- Swap the bytes to their correct order (first byte of metadata on the left). Todo: Implement this in the ingester/aligner instead.
           metadata_r_next <= mst_rdat_data(BUS_DATA_WIDTH-1 downto BUS_DATA_WIDTH - METADATA_WIDTH);
           top_state_next <= INTERPRETING;
         end if;
@@ -265,7 +267,7 @@ begin
 
         case metadata_state is
           when PAGE =>
-            case page_header_state =>
+            case page_header_state is
               when START =>
                 case field_state is
                   when HEADER =>
@@ -431,14 +433,23 @@ begin
     
                         if current_byte = x"00" then -- End of DataPageHeader struct
                           data_page_header_state_next <= DONE;
+                        elsif current_byte = x"1c" then
+                          data_page_header_state_next <= STATISTICS;
                         else
                           top_state_next <= FAULT;
                         end if;
                     end case; -- REP_LEVEL_ENCODING field_state
   
                   when STATISTICS =>
-                    -- Not supported
-                    top_state_next <= FAULT;
+                    -- Not supported. For some reason parquet-cpp prints an empty statistics struct instead of no statistics struct when statistics are disabled.
+                    -- This bypass sends the state machine back to REP_LEVEL_ENCODING as if there were no statistics struct if it detects an empty statistics struct.
+                    -- If the struct is not empty, than the hw goes into error state.
+                    -- Cycle_count does of course still reflect the extra two bytes an empty statistics struct takes up in the header.
+                    if current_byte = x"00" then -- End of Statistics struct
+                      data_page_header_state_next <= REP_LEVEL_ENCODING;
+                    else
+                      top_state_next <= FAULT;
+                    end if;
 
                   when DONE =>
                     if current_byte = x"00" then -- End of PageHeader struct
@@ -477,7 +488,6 @@ begin
         page_header_state_next <= START;
         data_page_header_state_next <= START;
         field_state_next <= HEADER;
-        cycle_count_r_next <= std_logic_vector(to_unsigned(0, CYCLE_COUNT_WIDTH));
 
         -- Todo: implement restart of MetadataInterpreter
 

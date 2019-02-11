@@ -25,12 +25,13 @@ entity MetadataInterpreter_tb is
 end MetadataInterpreter_tb;
 
 architecture tb of MetadataInterpreter_tb is
-  constant clk_period     : time    := 10 ns;
-  constant METADATA_WIDTH : natural := 64;
-  constant BUS_ADDR_WIDTH : natural := 64;
-  constant BUS_DATA_WIDTH : natural := 512;
-  constant BUS_LEN_WIDTH  : natural := 8;
-  constant NUM_REGS       : natural := 11;
+  constant clk_period                : time    := 10 ns;
+  constant METADATA_WIDTH            : natural := 512;
+  constant BUS_ADDR_WIDTH            : natural := 64;
+  constant BUS_DATA_WIDTH            : natural := 512;
+  constant BUS_LEN_WIDTH             : natural := 8;
+  constant NUM_REGS                  : natural := 11;
+  constant CYCLE_COUNT_WIDTH         : natural := 8;
 
   signal clk                         :  std_logic;
   signal hw_reset                    :  std_logic;
@@ -51,7 +52,7 @@ architecture tb of MetadataInterpreter_tb is
   signal md_uncomp_size              :  std_logic_vector(31 downto 0);
   signal md_comp_size                :  std_logic_vector(31 downto 0);
   signal md_num_values               :  std_logic_vector(31 downto 0);
-  signal cycle_count                 :  std_logic_vector(31 downto 0);
+  signal cycle_count                 :  std_logic_vector(CYCLE_COUNT_WIDTH-1 downto 0);
   signal regs_out_en                 :  std_logic_vector(NUM_REGS-1 downto 0);
   signal md_addr                     :  std_logic_vector(BUS_ADDR_WIDTH-1 downto 0);
 begin
@@ -114,9 +115,9 @@ begin
     mst_rreq_ready <= '0';
 
     mst_rdat_valid <= '1';
-    -- A dictionary page header pulled from a random Parquet file
-    mst_rdat_data(BUS_DATA_WIDTH - 1 downto BUS_DATA_WIDTH - (34 * 4)) <= x"150415807d15807d4c15d00f1504120000";
-    mst_rdat_data(BUS_DATA_WIDTH - (34 * 4) -1 downto 64) <= (others => '0');
+    -- Page header of a plain encoded and SNAPPY compressed data page with 10000 values.
+    mst_rdat_data(BUS_DATA_WIDTH - 1 downto BUS_DATA_WIDTH - (50 * 4)) <= x"15001590e20915dcc3072c15a09c011500150615061c000000";
+    mst_rdat_data(BUS_DATA_WIDTH - (50 * 4) -1 downto 64) <= (others => '0');
     -- Write a value to other side of bus to check if correct side of bus is being read
     mst_rdat_data(63 downto 0) <= x"deadbeefabcd0000";
 
