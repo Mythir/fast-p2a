@@ -1,6 +1,3 @@
-
--- Copyright 2018 Delft University of Technology
---
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
 -- You may obtain a copy of the License at
@@ -20,7 +17,10 @@ use ieee.numeric_std.all;
 library work;
 use work.Encoding.all;
 
--- Todo: Description
+-- This unit is responsible for getting relevant values from the Parquet page header metadata. 
+-- At this point only num_values, comp_size, uncomp_size are needed by the rest of the hardware.
+-- Includes simple hardware for AXI communication but this will be removed in the future in favour of a centralised ingester.
+-- Will in the future also require handshakes with components that need data from this interpreter.
 
 entity MetadataInterpreter is
   generic (

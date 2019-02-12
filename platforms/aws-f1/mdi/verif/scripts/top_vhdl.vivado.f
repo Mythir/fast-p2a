@@ -75,4 +75,6 @@ ${FLETCHER_HARDWARE_DIR}/vhdl/axi/axi_write_converter.vhd
 ${PTOA_HARDWARE_DIR}/vhdl/ptoa_wrapper.vhd
 ${PTOA_HARDWARE_DIR}/vhdl/axi_top.vhd
 ${PTOA_HARDWARE_DIR}/vhdl/thrift/MetadataInterpreter.vhd
+${PTOA_HARDWARE_DIR}/vhdl/encoding/Encoding.vhd
+${PTOA_HARDWARE_DIR}/vhdl/encoding/VarIntDecoder.vhd
 

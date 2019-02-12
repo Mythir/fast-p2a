@@ -95,6 +95,8 @@ file copy -force $FLETCHER_HARDWARE_DIR/vhdl/axi/axi_write_converter.vhd        
 file copy -force ${PTOA_HARDWARE_DIR}/vhdl/ptoa_wrapper.vhd 						 $TARGET_DIR
 file copy -force ${PTOA_HARDWARE_DIR}/vhdl/axi_top.vhd 								 $TARGET_DIR
 file copy -force ${PTOA_HARDWARE_DIR}/vhdl/thrift/MetadataInterpreter.vhd 			 $TARGET_DIR
+file copy -force ${PTOA_HARDWARE_DIR}/encoding/Encoding.vhd 						 $TARGET_DIR
+file copy -force ${PTOA_HARDWARE_DIR}/encoding/VarIntDecoder.vhd 		 			 $TARGET_DIR
 
 # AWS EC2 F1 files:
 file copy -force $CL_DIR/design/cl_arrow_defines.vh                   $TARGET_DIR
