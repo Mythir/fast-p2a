@@ -72,6 +72,9 @@ architecture behv of ShifterRecombiner is
   signal recombiner_r_out_data        : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
   signal recombiner_r_out_valid       : std_logic;
 
+  -- Signal copy of out_valid output
+  signal s_out_valid                  : std_logic;
+
 begin
   
   -- Pipeline can be flushed/cleared by both the hardware reset or the clear signal
@@ -82,8 +85,8 @@ begin
 
   -- Data presented at the output is a combination of the shifter output and the recombiner register.
   -- In other words: a new (aligned) bus word is created from parts of two AXI bus words.
-  out_data <= recombiner_r when alignment = std_logic_vector(to_unsigned(0, BUS_DATA_WIDTH)) else
-              recombiner_r(BUS_DATA_WIDTH-1 downto ELEMENT_WIDTH*unsigned(alignment)) & shifter_out_data(ELEMENT_WIDTH*unsigned(alignment)-1 downto 0);
+  out_data <= recombiner_r_out_data when alignment = std_logic_vector(to_unsigned(0, BUS_DATA_WIDTH)) else
+              recombiner_r_out_data(BUS_DATA_WIDTH-1 downto ELEMENT_WIDTH*to_integer(unsigned(alignment))) & shifter_out_data(ELEMENT_WIDTH*to_integer(unsigned(alignment))-1 downto 0);
 
   shifter_ctrl_inst: StreamPipelineControl
     generic map (
@@ -128,14 +131,16 @@ begin
   -- Recombiner_r is ready to receive data when downstream can consume its stored data or when no stored data is present (recombiner_r_out_valid = '0')
   recombiner_r_in_ready <= out_ready or not recombiner_r_out_valid;
 
-  -- The output of the entire entity is only valid when both the shifter and the recombiner register have valid data.
-  out_valid <= recombiner_r_out_valid and shifter_out_valid;
-  
+  -- The output of the entire entity is only valid when both the shifter and the recombiner register have valid data. Unless alignment is 0, in which case no recombining is needed.
+  s_out_valid <= recombiner_r_out_valid when alignment = std_logic_vector(to_unsigned(0, BUS_DATA_WIDTH)) else
+                 recombiner_r_out_valid and shifter_out_valid;
+  out_valid <= s_out_valid;
+
   reg_p: process (clk)
   begin
     if rising_edge(clk) then
       -- Both the shifter and the recombiner register have valid data on their output, and downstream is ready to consume
-      if out_valid = '1' and out_ready = '1' then
+      if s_out_valid = '1' and out_ready = '1' then
         recombiner_r_out_valid <= '0';
       end if;
 
@@ -146,7 +151,7 @@ begin
       end if;
 
       if reset_pipeline = '1' then
-        recombiner_r_out_data <= (others => 0);
+        recombiner_r_out_data <= (others => '0');
         recombiner_r_out_valid <= '0';
       end if;
     end if;

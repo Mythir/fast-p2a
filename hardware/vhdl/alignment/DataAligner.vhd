@@ -91,52 +91,7 @@ architecture behv of DataAligner is
   signal shifter_out_valid            : std_logic;
   signal shifter_out_ready            : std_logic;
 
-  signal s_pipe_delete                : std_logic;
-  signal s_pipe_valid                 : std_logic_vector(0 to NUM_SHIFT_STAGES);
-  signal s_pipe_input                 : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
-  signal s_pipe_output                : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
-
 begin
-
-  shifter_ctrl_inst: StreamPipelineControl
-    generic map (
-      IN_DATA_WIDTH             => BUS_DATA_WIDTH,
-      OUT_DATA_WIDTH            => BUS_DATA_WIDTH,
-      NUM_PIPE_REGS             => NUM_SHIFT_STAGES,
-      INPUT_SLICE               => false, -- Todo: Maybe supposed to be true?
-      RAM_CONFIG                => ""
-    )
-    port map (
-      clk                       => clk,
-      reset                     => reset,
-      in_valid                  => shifter_in_valid,
-      in_ready                  => shifter_in_ready,
-      in_data                   => shifter_in_data,
-      out_valid                 => shifter_out_valid,
-      out_ready                 => shifter_out_ready,
-      out_data                  => shifter_out_data,
-      pipe_delete               => s_pipe_delete,
-      pipe_valid                => s_pipe_valid,
-      pipe_input                => s_pipe_input,
-      pipe_output               => s_pipe_output
-    );
-
-    shifter_barrel_inst: StreamPipelineBarrel
-    generic map (
-      ELEMENT_WIDTH             => 8,
-      ELEMENT_COUNT             => BUS_DATA_WIDTH/8,
-      AMOUNT_WIDTH              => SHIFT_WIDTH,
-      DIRECTION                 => "left",
-      OPERATION                 => "rotate",
-      NUM_STAGES                => NUM_SHIFT_STAGES
-    )
-    port map (
-      clk                       => clk,
-      reset                     => reset,
-      in_data                   => s_pipe_input,
-      in_amount                 => alignment,
-      out_data                  => s_pipe_output
-    );
 
     -- Todo: map
     -- Todo: Check max amount of bus words in the shifter (this should be min_depth)
