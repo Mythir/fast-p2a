@@ -24,11 +24,11 @@ for misalignment in misalignments:
     for i in range(misalignment[0]):
         next_nibble = (current_nibble + 1) % 10
         new_string = str(current_nibble)*misalignment[1]*2 + str(next_nibble)*(bytes_in_bus_word-misalignment[1])*2
-        next_nibble = current_nibble
+        current_nibble = next_nibble
         rom_strings.append(new_string)
 
 file = open("ShifterRecombiner_ROM.vhd", "w+")
-file.write("type mem is array (0 to {rom_size}) of std_logic_vector(511 downto 0);\n".format(encoded_len=len(rom_strings)-1))
+file.write("type mem is array (0 to {rom_size}) of std_logic_vector(511 downto 0);\n".format(rom_size=len(rom_strings)-1))
 file.write("constant ShifterRecombiner_ROM : mem := (\n")
 
 numbers_counter = 0
