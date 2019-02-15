@@ -85,7 +85,7 @@ begin
 
   -- Data presented at the output is a combination of the shifter output and the recombiner register.
   -- In other words: a new (aligned) bus word is created from parts of two AXI bus words.
-  out_data <= recombiner_r_out_data when alignment = std_logic_vector(to_unsigned(0, BUS_DATA_WIDTH)) else
+  out_data <= recombiner_r_out_data when alignment = std_logic_vector(to_unsigned(0, SHIFT_WIDTH)) else
               recombiner_r_out_data(BUS_DATA_WIDTH-1 downto ELEMENT_WIDTH*to_integer(unsigned(alignment))) & shifter_out_data(ELEMENT_WIDTH*to_integer(unsigned(alignment))-1 downto 0);
 
   shifter_ctrl_inst: StreamPipelineControl
@@ -132,7 +132,7 @@ begin
   recombiner_r_in_ready <= out_ready or not recombiner_r_out_valid;
 
   -- The output of the entire entity is only valid when both the shifter and the recombiner register have valid data. Unless alignment is 0, in which case no recombining is needed.
-  s_out_valid <= recombiner_r_out_valid when alignment = std_logic_vector(to_unsigned(0, BUS_DATA_WIDTH)) else
+  s_out_valid <= recombiner_r_out_valid when alignment = std_logic_vector(to_unsigned(0, SHIFT_WIDTH)) else
                  recombiner_r_out_valid and shifter_out_valid;
   out_valid <= s_out_valid;
 
