@@ -281,6 +281,7 @@ begin
   begin
     num_consumed_words <= 0;
     clear <= '0';
+    out_ready <= '0';
     loop
       wait until rising_edge(clk);
       exit when reset = '0';

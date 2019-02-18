@@ -17,7 +17,21 @@ use ieee.numeric_std.all;
 library work;
 use work.Streams.all;
 
--- Todo: description
+-- The ShifterRecombiner can shift and recombine its input words with an arbitrary amount of bits. For this it uses the PipelineBarrelShifter from the Fletcher streams library.
+-- To be used when unaligned data crosses bus word boundaries as seen in this example:
+--                  INPUT                                 ->                                OUTPUT
+-- -----------------------------------------              ->              -----------------------------------------
+-- -    X      |             bw1           -              ->              -                  bw1                  -
+-- -----------------------------------------              ->              -----------------------------------------
+-- -----------------------------------------              ->              -----------------------------------------
+-- -     bw1   |             bw2           -              ->              -                  bw2                  -
+-- -----------------------------------------              ->              -----------------------------------------
+-- -----------------------------------------              ->              -----------------------------------------
+-- -     bw2   |             bw3           -              ->              -                  bw3                  -
+-- -----------------------------------------              ->              -----------------------------------------
+-- -----------------------------------------              ->              
+-- -     bw3   |              X            -              ->              
+-- -----------------------------------------              ->              
 
 entity ShifterRecombiner is
   generic (
