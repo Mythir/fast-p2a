@@ -84,13 +84,6 @@ architecture behv of DataAligner is
   signal alignment                    : std_logic_vector(SHIFT_WIDTH-1 downto 0);
   signal alignment_next               : std_logic_vector(SHIFT_WIDTH-1 downto 0);
 
-  signal shifter_in_data              : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
-  signal shifter_in_valid             : std_logic;
-  signal shifter_in_ready             : std_logic;
-  signal shifter_out_data             : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
-  signal shifter_out_valid            : std_logic;
-  signal shifter_out_ready            : std_logic;
-
 begin
 
     -- Todo: map
