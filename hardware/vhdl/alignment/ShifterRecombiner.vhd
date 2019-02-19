@@ -98,7 +98,7 @@ begin
   s_pipe_delete <= '0';
 
   -- Data presented at the output is a combination of the shifter output and the recombiner register.
-  -- In other words: a new (aligned) bus word is created from parts of two AXI bus words.
+  -- In other words: a new (aligned) bus word is created from parts of two input bus words.
   out_data <= recombiner_r_out_data when alignment = std_logic_vector(to_unsigned(0, SHIFT_WIDTH)) else
               recombiner_r_out_data(BUS_DATA_WIDTH-1 downto ELEMENT_WIDTH*to_integer(unsigned(alignment))) & shifter_out_data(ELEMENT_WIDTH*to_integer(unsigned(alignment))-1 downto 0);
 

@@ -16,14 +16,21 @@ use ieee.numeric_std.all;
 
 library work;
 -- Include Fletcher Utils for use of the 1-read 1-write RAM
-use work.Utils.all;          
+use work.Utils.all;
+
+-- Stream data into this buffer for possible later re-use. At any point the HistoryBuffer can be signaled to start rewind mode via start_rewind, in which case it will transmit
+-- all of its content to the output stream. The end of rewind mode is signaled by asserting end_rewind when this unit has determined that there is nothing left to output.
+-- If delete_oldest is high at the rising edge of clk the oldest entry in the history buffer will be invalidated.
+--
+-- Warning: this unit does not check for buffer overflow. Any hardware that uses the HistoryBuffer should make sure that it never streams more data into the HistoryBuffer than
+-- the size of the buffer allows without deleting older entries.
 
 entity HistoryBuffer is
   generic (
     -- Bus data width
     BUS_DATA_WIDTH              : natural := 512;
 
-    -- Depth of FiFo needed (as log2)
+    -- Depth of RAM needed (as log2 of needed depth)
     DEPTH_LOG2                  : natural
   );
   port (

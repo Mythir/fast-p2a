@@ -15,9 +15,9 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 library work;
-use work.Streams.all;
 -- Fletcher utils, for use of log2ceil function.
 use work.Utils.all;
+use work.Alignment.all;
 
 -- Todo: description
 
@@ -76,6 +76,10 @@ architecture behv of DataAligner is
   constant CONSUMER_INDEX_WIDTH       : natural := log2ceil(NUM_CONSUMERS);
   constant SHIFT_WIDTH                : natural := log2ceil(BUS_DATA_WIDTH/8);
 
+  -- The StreamPipelineControl in ShifterRecombiner can buffer an amount of data words equal to 2**(log2ceil(NUM_PIPE_REGS+1)+1) (see StreamPipelineControl.vhd in the Fletcher repo).
+  -- Therefore, the HistoryBuffer should be able to buffer that many data words plus 1 for the recombiner register in ShifterRecombiner.
+  constant HISTORY_BUFFER_DEPTH_LOG2  : natural := log2ceil(NUM_SHIFT_STAGES+1)+2
+
   -- Index of current consumer
   signal c                            : integer range 0 to NUM_CONSUMERS-1;
   signal c_next                       : integer range 0 to NUM_CONSUMERS-1;
@@ -85,25 +89,6 @@ architecture behv of DataAligner is
   signal alignment_next               : std_logic_vector(SHIFT_WIDTH-1 downto 0);
 
 begin
-
-    -- Todo: map
-    -- Todo: Check max amount of bus words in the shifter (this should be min_depth)
-    recent_history_inst: StreamBuffer
-    generic map (
-      MIN_DEPTH                 => NUM_SHIFT_STAGES,
-      DATA_WIDTH                => BUS_DATA_WIDTH,
-      RAM_CONFIG                => ""
-    )
-    port map (
-      clk                       => clk,
-      reset                     => reset,
-      in_valid                  => cin_valid,
-      in_ready                  => cin_ready,
-      in_data                   => cin_concat,
-      out_valid                 => cib_valid,
-      out_ready                 => cib_ready,
-      out_data                  => cib_concat
-    );
 
 
   logic_p: process(c, alignment, state, bc_valid, pa_valid, prod_alignment, bytes_consumed)

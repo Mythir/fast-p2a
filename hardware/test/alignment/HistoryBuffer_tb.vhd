@@ -122,6 +122,7 @@ begin
     wait;
   end process;
 
+  -- This process reads the data coming out of the buffer in case of a rewind
   rewind_read_p : process
   begin
     out_ready <= '0';
@@ -145,6 +146,7 @@ begin
     wait;
   end process;
 
+  -- This process reads the instruction rom and deletes data or starts rewinds accordingly
   control_p: process
     variable j : integer := 0;
   begin
