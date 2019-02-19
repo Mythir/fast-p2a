@@ -74,7 +74,13 @@ architecture behv of HistoryBuffer is
 
   signal write_enable           : std_logic;
 
-  signal s_out_valid            : std_logic;
+  signal s_out_valid            : std_logic;  
+
+  --pragma translate_off
+  shared variable DEBUG_ENTRY_COUNT      : integer := 0;
+  shared variable DEBUG_ENTRY_COUNT_INC  : boolean := false;
+  shared variable DEBUG_ENTRY_COUNT_DEC  : boolean := false;
+  --pragma translate_on
 
 
 
@@ -96,11 +102,9 @@ begin
     );
 
   out_valid <= s_out_valid;
+  read_ptr_prev_inc <= std_logic_vector(unsigned(read_ptr_prev) + 1);
 
-  logic_p: process(start_rewind, in_valid, in_data, delete_oldest, write_ptr, oldest_valid_ptr, state, read_ptr, s_out_valid, read_ptr_prev)  
-    --pragma translate_off
-    variable DEBUG_ENTRY_COUNT      : integer := 0;
-    --pragma translate_on
+  logic_p: process(start_rewind, in_valid, in_data, delete_oldest, write_ptr, oldest_valid_ptr, state, read_ptr, s_out_valid, read_ptr_prev, read_ptr_prev_inc)
   begin
     state_next <= state;
     write_ptr_next <= write_ptr;
@@ -117,7 +121,7 @@ begin
       oldest_valid_ptr_next <= std_logic_vector(unsigned(oldest_valid_ptr) + 1);
 
       --pragma translate_off
-      DEBUG_ENTRY_COUNT := DEBUG_ENTRY_COUNT - 1;
+      DEBUG_ENTRY_COUNT_DEC := true;
       --pragma translate_on
     end if;
 
@@ -133,7 +137,7 @@ begin
           write_ptr_next <= std_logic_vector(unsigned(write_ptr) + 1);
 
           --pragma translate_off
-          DEBUG_ENTRY_COUNT := DEBUG_ENTRY_COUNT + 1;
+          DEBUG_ENTRY_COUNT_INC := true;
           --pragma translate_on
         end if;
   
@@ -164,12 +168,6 @@ begin
         end if;
     end case;
 
-    assert DEBUG_ENTRY_COUNT >= 0
-      report "HistoryBuffer underflow." severity failure;
-
-    assert DEBUG_ENTRY_COUNT <= 2**DEPTH_LOG2
-      report "HistoryBuffer overflow." severity failure;
-
   end process;
 
   state_p: process(clk)
@@ -179,16 +177,41 @@ begin
         oldest_valid_ptr <= (others => '0');
         write_ptr <= (others => '0');
         state <= STANDARD;
+
+        --pragma translate_off
+        DEBUG_ENTRY_COUNT     := 0;
+        DEBUG_ENTRY_COUNT_INC := false;
+        DEBUG_ENTRY_COUNT_DEC := false;
+        --pragma translate_on
       else
         state <= state_next;
         oldest_valid_ptr <= oldest_valid_ptr_next;
         write_ptr <= write_ptr_next;
+
+        --pragma translate_off
+        if DEBUG_ENTRY_COUNT_INC then
+          DEBUG_ENTRY_COUNT := DEBUG_ENTRY_COUNT + 1;
+        end if;
+
+        if DEBUG_ENTRY_COUNT_DEC then
+          DEBUG_ENTRY_COUNT := DEBUG_ENTRY_COUNT - 1;
+        end if;
+
+        DEBUG_ENTRY_COUNT_INC := false;
+        DEBUG_ENTRY_COUNT_DEC := false;
+        --pragma translate_on
       end if;
 
       read_ptr_prev <= read_ptr;
 
       assert (start_rewind and delete_oldest) = '0'
         report "Entry deleted from HistoryBuffer in the same cycle as a switch to the REWIND state." severity failure;
+
+      assert DEBUG_ENTRY_COUNT >= 0
+        report "HistoryBuffer underflow." severity failure;
+  
+      assert DEBUG_ENTRY_COUNT <= 2**DEPTH_LOG2
+        report "HistoryBuffer overflow." severity failure;
     end if;
   end process;
 
