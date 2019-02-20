@@ -89,8 +89,6 @@ architecture behv of HistoryBuffer is
   shared variable DEBUG_ENTRY_COUNT_DEC  : boolean := false;
   --pragma translate_on
 
-
-
 begin
   ram_inst: Ram1R1W
     generic map(

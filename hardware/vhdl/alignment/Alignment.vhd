@@ -33,7 +33,6 @@ package Alignment is
       out_valid                   : out std_logic;
       out_ready                   : in  std_logic;
       out_data                    : out std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
-  
       alignment                   : in  std_logic_vector(SHIFT_WIDTH-1 downto 0)
     );
   end component;
