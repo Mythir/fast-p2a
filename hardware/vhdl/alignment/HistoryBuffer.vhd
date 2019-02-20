@@ -76,8 +76,11 @@ architecture behv of HistoryBuffer is
   signal read_ptr               : std_logic_vector(DEPTH_LOG2-1 downto 0);
   -- This signal always contains the value read_ptr had the clock cycle before this one.
   signal read_ptr_prev          : std_logic_vector(DEPTH_LOG2-1 downto 0);
+
   -- This signal is always read_ptr_prev + 1
   signal read_ptr_prev_inc      : std_logic_vector(DEPTH_LOG2-1 downto 0);
+  -- This signal is always oldest_valid_ptr + 1
+  signal oldest_valid_ptr_inc   : std_logic_vector(DEPTH_LOG2-1 downto 0);
 
   signal write_enable           : std_logic;
 
@@ -108,8 +111,10 @@ begin
 
   out_valid <= s_out_valid;
   read_ptr_prev_inc <= std_logic_vector(unsigned(read_ptr_prev) + 1);
+  oldest_valid_ptr_inc <= std_logic_vector(unsigned(oldest_valid_ptr) + 1);
 
-  logic_p: process(start_rewind, in_valid, in_data, delete_oldest, write_ptr, oldest_valid_ptr, state, read_ptr, s_out_valid, read_ptr_prev, read_ptr_prev_inc)
+  logic_p: process(start_rewind, in_valid, in_data, delete_oldest, write_ptr, oldest_valid_ptr, state, read_ptr, s_out_valid, read_ptr_prev, 
+                   read_ptr_prev_inc, oldest_valid_ptr_inc)
   begin
     state_next <= state;
     write_ptr_next <= write_ptr;
@@ -121,9 +126,8 @@ begin
     read_ptr <= oldest_valid_ptr;
     
     -- No matter what state we are in, delete_oldest can always invalidate an entry in the RAM.
-    -- Note that the HistoryBuffer functions under the assumption that start_rewind and delete_oldest can never be high at the same time.
     if delete_oldest = '1' then
-      oldest_valid_ptr_next <= std_logic_vector(unsigned(oldest_valid_ptr) + 1);
+      oldest_valid_ptr_next <= oldest_valid_ptr_inc;
 
       --pragma translate_off
       DEBUG_ENTRY_COUNT_DEC := true;
@@ -148,6 +152,11 @@ begin
   
         if start_rewind = '1' then
           state_next <= REWIND;
+
+          -- If the oldest entry gets deleted in the same cycle as a switch to rewind, we need to make sure that entry does not get read from RAM in the next cycle
+          if delete_oldest = '1' then
+            read_ptr <= oldest_valid_ptr_inc;
+          end if;
         end if;
   
       when REWIND =>
@@ -159,6 +168,11 @@ begin
         if start_rewind = '1' then
           -- start_rewind signals a restart of the REWIND state, set read_ptr to oldest entry
           read_ptr <= oldest_valid_ptr;
+
+          -- If the oldest entry gets deleted in the same cycle as a switch to rewind, we need to make sure that entry does not get read from RAM in the next cycle
+          if delete_oldest = '1' then
+            read_ptr <= oldest_valid_ptr_inc;
+          end if;
         elsif out_ready = '1' then
           -- The output is ready so next cycle we can present new data on the output
           read_ptr <= read_ptr_prev_inc;
@@ -208,9 +222,6 @@ begin
       end if;
 
       read_ptr_prev <= read_ptr;
-
-      assert (start_rewind and delete_oldest) = '0'
-        report "Entry deleted from HistoryBuffer in the same cycle as a switch to the REWIND state." severity failure;
 
       assert DEBUG_ENTRY_COUNT >= 0
         report "HistoryBuffer underflow." severity failure;

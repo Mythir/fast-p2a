@@ -64,4 +64,23 @@ begin
     pa_ready                    => pa_ready
   );
 
+  
+
+  clk_p : process
+  begin
+    clk <= '0';
+    wait for clk_period/2;
+    clk <= '1';
+    wait for clk_period/2;
+  end process;
+
+  reset_p : process is
+  begin
+    reset <= '1';
+    wait for 20 ns;
+    wait until rising_edge(clk);
+    reset <= '0';
+    wait;
+  end process;
+
 end architecture;

@@ -39,7 +39,7 @@ architecture tb of HistoryBuffer_tb is
 
   signal consumed_word               : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
 
-  -- Input for the control_p what it should do per clock cycle (after reset goes low). 0: nothing, 1: start_rewind, 2: delete_oldest
+  -- Input for the control_p what it should do per clock cycle (after reset goes low). 0: nothing, 1: start_rewind, 2: delete_oldest, 3: start_rewind and delete_oldest
   type mem is array (0 to 29) of integer;
     constant Instruction_ROM : mem := (
       0 => 0,
@@ -48,9 +48,9 @@ architecture tb of HistoryBuffer_tb is
       3 => 0,
       4 => 0,
       5 => 0,
-      6 => 2,
+      6 => 0,
       7 => 2,
-      8 => 1,
+      8 => 3,
       9 => 0,
       10 => 0,
       11 => 2,
@@ -65,8 +65,8 @@ architecture tb of HistoryBuffer_tb is
       20 => 0,
       21 => 1,
       22 => 0,
-      23 => 2,
-      24 => 1,
+      23 => 0,
+      24 => 3,
       25 => 0,
       26 => 0,
       27 => 0,
@@ -164,6 +164,9 @@ begin
       if Instruction_ROM(j) = 1 then
         start_rewind <= '1';
       elsif Instruction_ROM(j) = 2 then
+        delete_oldest <= '1';
+      elsif Instruction_ROM(j) = 3 then
+        start_rewind <= '1';
         delete_oldest <= '1';
       end if;
 
