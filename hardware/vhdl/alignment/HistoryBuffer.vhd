@@ -119,8 +119,9 @@ begin
     state_next <= state;
     write_ptr_next <= write_ptr;
     oldest_valid_ptr_next <= oldest_valid_ptr;
-
-    end_rewind <= '0';
+    
+    -- End_rewind is only '0' when in the HistoryBuffer is in REWIND state in the current and the next cycle.
+    end_rewind <= '1';
     write_enable <= '0';
 
     read_ptr <= oldest_valid_ptr;
@@ -153,9 +154,14 @@ begin
         if start_rewind = '1' then
           state_next <= REWIND;
 
-          -- If the oldest entry gets deleted in the same cycle as a switch to rewind, we need to make sure that entry does not get read from RAM in the next cycle
+          -- If the oldest entry gets deleted in the same cycle as a switch to REWIND, we need to make sure that entry does not get read from RAM in the next cycle
           if delete_oldest = '1' then
             read_ptr <= oldest_valid_ptr_inc;
+
+            -- Buffer is empty
+            if oldest_valid_ptr_inc = write_ptr then
+              state_next <= STANDARD;
+            end if;
           end if;
         end if;
   
@@ -164,12 +170,13 @@ begin
         -- Once the entire history buffer has been read it will revert to standard mode.
         in_ready <= '0';
         s_out_valid <= '1';
+        end_rewind <= '0';
 
         if start_rewind = '1' then
           -- start_rewind signals a restart of the REWIND state, set read_ptr to oldest entry
           read_ptr <= oldest_valid_ptr;
 
-          -- If the oldest entry gets deleted in the same cycle as a switch to rewind, we need to make sure that entry does not get read from RAM in the next cycle
+          -- If the oldest entry gets deleted in the same cycle as a switch to REWIND, we need to make sure that entry does not get read from RAM in the next cycle
           if delete_oldest = '1' then
             read_ptr <= oldest_valid_ptr_inc;
           end if;

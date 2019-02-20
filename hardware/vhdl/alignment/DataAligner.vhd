@@ -74,7 +74,7 @@ architecture behv of DataAligner is
   constant SHIFT_WIDTH                : natural := log2ceil(BUS_DATA_WIDTH/8);
 
   -- The StreamPipelineControl in ShifterRecombiner can buffer an amount of data words equal to 2**(log2ceil(NUM_PIPE_REGS+1)+1) (see StreamPipelineControl.vhd in the Fletcher repo).
-  -- Therefore, the HistoryBuffer should be able to buffer that many data words plus 1 for the recombiner register in ShifterRecombiner.
+  -- Therefore, the HistoryBuffer should be able to buffer that many data words plus 1 for the recombiner register in ShifterRecombiner and 1 for the most recently consumed data word.
   constant HISTORY_BUFFER_DEPTH_LOG2  : natural := log2ceil(NUM_SHIFT_STAGES+1)+2;
 
   -- Index of current consumer
@@ -83,7 +83,8 @@ architecture behv of DataAligner is
 
   -- How many bytes to shift the data for alignment
   signal alignment                    : std_logic_vector(SHIFT_WIDTH-1 downto 0);
-  signal alignment_next               : std_logic_vector(SHIFT_WIDTH-1 downto 0);
+  -- 1 wider to check for overflow
+  signal alignment_next               : std_logic_vector(SHIFT_WIDTH downto 0);
 
   -- Shift_rec input stream
   signal shift_rec_in_valid           : std_logic;
@@ -106,6 +107,10 @@ architecture behv of DataAligner is
   signal start_realignment            : std_logic;
   signal end_realignment              : std_logic;
   signal hist_buffer_delete_oldest    : std_logic;
+
+  -- Signal used to indicate if just outputted bus word was the first to that consumer
+  signal first_in_align_group         : std_logic;
+  signal first_in_align_group_next    : std_logic;
 
 begin
   
@@ -148,12 +153,15 @@ begin
     alignment                => alignment
   );
 
-  -- Whenever data is consumed from the DataAligner, the oldest entry in the hist_buf can be deleted
-  hist_buffer_delete_oldest <= shift_rec_out_valid and shift_rec_out_ready;
+  -- Whenever data is consumed from the DataAligner and it is not the first consumed by this consumer, the oldest entry in the hist_buf can be deleted
+  -- OR
+  -- There has been a rollover calculating the new alignment so we need to delete an entry from the history buffer.
+  hist_buffer_delete_oldest <= (shift_rec_out_valid and shift_rec_out_ready and not first_in_align_group) or alignment_next(alignment_next'high);
 
   logic_p: process(c, alignment, state, bc_valid, pa_valid, prod_alignment, bytes_consumed, in_data, 
                    shift_rec_in_ready, hist_buffer_in_ready, in_valid, shift_rec_out_valid, out_ready, 
-                   hist_buffer_out_data, hist_buffer_out_valid, end_realignment)
+                   hist_buffer_out_data, hist_buffer_out_valid, end_realignment, shift_rec_out_ready,
+                   first_in_align_group)
   begin
     -- Default values
     bc_ready <= (others => '0');
@@ -170,7 +178,8 @@ begin
     hist_buffer_out_ready <= '0';
 
     c_next <= c;
-    alignment_next <= alignment;
+    alignment_next <= '0' & alignment;
+    first_in_align_group_next <= first_in_align_group;
 
     out_valid <= (others => '0');
     shift_rec_out_ready <= '0';
@@ -190,7 +199,7 @@ begin
 
         if bc_valid(c) = '1' then
           state_next <= REALIGNING;
-          alignment_next <= std_logic_vector(unsigned(alignment) + unsigned(bytes_consumed(SHIFT_WIDTH*c + SHIFT_WIDTH-1 downto SHIFT_WIDTH*c)));
+          alignment_next <= std_logic_vector(unsigned('0' & alignment) + unsigned('0' & bytes_consumed(SHIFT_WIDTH*c + SHIFT_WIDTH-1 downto SHIFT_WIDTH*c)));
           start_realignment <= '1';
 
             -- Rollover to first consumer after last consumer is done
@@ -208,6 +217,11 @@ begin
 
         out_valid(c) <= shift_rec_out_valid;
         shift_rec_out_ready <= out_ready(c);
+
+        if shift_rec_out_valid = '1' and shift_rec_out_ready = '1' then
+          -- A data word will be transmitted to the consumer
+          first_in_align_group_next <= '0';
+        end if;
 
       when REALIGNING =>
         bc_ready(c) <= '1';
@@ -234,6 +248,7 @@ begin
 
         if end_realignment = '1' then
           state_next <= STANDARD;
+          first_in_align_group_next <= '1';
         end if;
 
     end case;
@@ -246,10 +261,12 @@ begin
         c <= 0;
         alignment <= std_logic_vector(to_unsigned(0, SHIFT_WIDTH));
         state <= IDLE;
+        first_in_align_group <= '1';
       else
         c <= c_next;
         alignment <= alignment_next;
         state <= state_next;
+        first_in_align_group <= first_in_align_group_next;
       end if;
     end if;
   end process;
