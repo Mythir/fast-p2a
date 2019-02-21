@@ -22,7 +22,7 @@
 # Every time there is not enough (randomized) data left to write an entire bus word to the expected output file
 # instead a bus word will be written that encodes the length of this remaining data as a null_byte followed by
 # the length as an int32 followed by null_bytes to fill up to the remaining data length. This will allow the consumers
-# to report back to the DataAligner
+# to report back to the DataAligner how it should adjust its alignment to correctly align for the next consumer.
 
 import random
 
