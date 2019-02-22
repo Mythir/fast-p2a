@@ -93,6 +93,10 @@ full_concatenated_data = init_filler_data + "".join(ordered_data)
 
 DA_input_file = open("DataAligner_input.hex", "w+")
 
-while full_concatenated_data != "":
+while len(full_concatenated_data) >= bytes_in_bus_word*2:
     DA_input_file.write(full_concatenated_data[:bytes_in_bus_word*2]+"\n")
     full_concatenated_data = full_concatenated_data[bytes_in_bus_word*2:]
+
+# Add filler
+DA_input_file.write(full_concatenated_data + "1"*(bytes_in_bus_word*2-len(full_concatenated_data)) + "\n")
+DA_input_file.write("11"*bytes_in_bus_word + "\n")
