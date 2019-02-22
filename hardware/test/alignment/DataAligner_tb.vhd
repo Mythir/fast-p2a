@@ -17,6 +17,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use ieee.std_logic_textio.all;
+use ieee.math_real.all;
 
 library work;
 -- Fletcher utils for use of the log2ceil function
@@ -33,8 +34,11 @@ architecture tb of DataAligner_tb is
   constant last_word_enc_width  : natural := 40;
   constant clk_period           : time    := 10 ns;
 
+  constant stream_stop_p        : real    := 0.05;
+  constant max_stopped_cycles   : real    := 16.0;
+
   -- This constant should be changed when a new DataAligner_input file is created
-  constant init_misalignment    : natural := 44;
+  constant init_misalignment    : natural := 23;
 
   signal clk                    : std_logic;
   signal reset                  : std_logic;
@@ -80,6 +84,12 @@ begin
 
     variable input_line         : line;
     variable bus_word           : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
+
+    variable seed1              : positive := 1337;
+    variable seed2              : positive := 4242;
+
+    variable stream_stop        : real;
+    variable num_stopped_cycles : real;
   begin
     file_open(input_data, "./test/alignment/DataAligner_input.hex", read_mode);
 
@@ -93,6 +103,7 @@ begin
       exit when reset = '0';
     end loop;
 
+    -- Transfer initial alignment
     pa_valid <= '1';
     prod_alignment <= std_logic_vector(to_unsigned(init_misalignment, prod_alignment'length));
 
@@ -117,6 +128,15 @@ begin
       end loop;
 
       in_valid <= '0';
+
+      -- Delay for a random amount of clock cycles to simulate a non-continuous stream
+      uniform(seed1, seed2, stream_stop);
+      if stream_stop < stream_stop_p then
+        uniform(seed1, seed2, num_stopped_cycles);
+        for i in 0 to integer(floor(num_stopped_cycles*max_stopped_cycles)) loop
+          wait until rising_edge(clk);
+        end loop;
+      end if;
     end loop;
 
     report "All input data has been processed.";
@@ -126,10 +146,18 @@ begin
 
   gen_consumers : for i in 0 to NUM_CONSUMERS-1 generate
     consumer_p : process
-      file output_check         : text;
+      file output_check           : text;
+  
+      variable check_line         : line;
+      variable expected_output    : std_logic_vector(BUS_DATA_WIDTH-1 downto 0); 
 
-      variable check_line       : line;
-      variable expected_output  : std_logic_vector(BUS_DATA_WIDTH-1 downto 0); 
+      variable seed1              : positive := 137;
+      variable seed2              : positive := 442;
+  
+      variable stream_stop        : real;
+      variable num_stopped_cycles : real;
+
+      variable v_out_data         : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
     begin
       file_open(output_check, "./test/alignment/DataAligner_out" & integer'image(i) & ".hex", read_mode);
 
@@ -152,10 +180,21 @@ begin
         end loop;
   
         out_ready(i) <= '0';
+        v_out_data := out_data;
 
-        if out_data(BUS_DATA_WIDTH-1 downto BUS_DATA_WIDTH-8) = x"00" then
+        -- After receiving data from DataAligner, wait for a random amount of cycles to simulate backpressure from downstream slowdowns
+        uniform(seed1, seed2, stream_stop);
+        if stream_stop < stream_stop_p then
+          uniform(seed1, seed2, num_stopped_cycles);
+          for i in 0 to integer(floor(num_stopped_cycles*max_stopped_cycles)) loop
+            wait until rising_edge(clk);
+          end loop;
+        end if;
+
+        -- Check if this is the last word of this alignment block, if yes, tell the DataAligner to realign with bytes_consumed
+        if v_out_data(BUS_DATA_WIDTH-1 downto BUS_DATA_WIDTH-8) = x"00" then
           bc_valid(i) <= '1';
-          bytes_consumed((SHIFT_WIDTH+1)*(i+1)-1 downto (SHIFT_WIDTH+1)*i) <= std_logic_vector(resize(unsigned(out_data(BUS_DATA_WIDTH-9 downto BUS_DATA_WIDTH-last_word_enc_width)), SHIFT_WIDTH+1));
+          bytes_consumed((SHIFT_WIDTH+1)*(i+1)-1 downto (SHIFT_WIDTH+1)*i) <= std_logic_vector(resize(unsigned(v_out_data(BUS_DATA_WIDTH-9 downto BUS_DATA_WIDTH-last_word_enc_width)), SHIFT_WIDTH+1));
 
           loop
             wait until rising_edge(clk);
@@ -164,11 +203,22 @@ begin
 
           bc_valid(i) <= '0';
         else
+          -- Verify DataAligner output
           hread(check_line, expected_output);
 
-          assert out_data = expected_output
+          assert v_out_data = expected_output
             report "Incorrect bus word received from DataAligner in consumer " & integer'image(i);
         end if;
+
+        -- Wait for a random amount of cycles to simulate backpressure from downstream slowdowns
+        uniform(seed1, seed2, stream_stop);
+        if stream_stop < stream_stop_p then
+          uniform(seed1, seed2, num_stopped_cycles);
+          for i in 0 to integer(floor(num_stopped_cycles*max_stopped_cycles)) loop
+            wait until rising_edge(clk);
+          end loop;
+        end if;
+
       end loop;
 
       report "Consumer " & integer'image(i) & " has received all expected data.";
