@@ -64,11 +64,11 @@ class Consumer:
 
 # Parameters
 bus_data_width = 512
-num_consumers = 3
-data_blocks_per_consumer = 4
+num_consumers = 5
+data_blocks_per_consumer = 20
 min_words_per_block = 0
 max_words_per_block = 20
-init_misalignment = random.randint(0, 63)
+init_misalignment = random.randint(0, bus_data_width//8-1)
 
 bytes_in_bus_word = bus_data_width//8
 
@@ -89,6 +89,7 @@ for i in range(data_blocks_per_consumer):
 
 init_filler_data = "11"*init_misalignment
 print("The initial misalignment in bytes is {init_misalignment}.".format(init_misalignment=init_misalignment))
+print("Please change the proper constant in the DataAligner_tb file to reflect this.")
 full_concatenated_data = init_filler_data + "".join(ordered_data)
 
 DA_input_file = open("DataAligner_input.hex", "w+")

@@ -52,7 +52,7 @@ entity DataAligner is
 
     -- Consumer alignment information
     -- Each consumer reports back how many bytes of the last bus word it actually needed
-    bytes_consumed              : in  std_logic_vector(NUM_CONSUMERS*log2ceil(BUS_DATA_WIDTH/8)-1 downto 0);
+    bytes_consumed              : in  std_logic_vector(NUM_CONSUMERS*(log2ceil(BUS_DATA_WIDTH/8)+1)-1 downto 0);
     bc_valid                    : in  std_logic_vector(NUM_CONSUMERS-1 downto 0);
     bc_ready                    : out std_logic_vector(NUM_CONSUMERS-1 downto 0);
 
@@ -205,7 +205,7 @@ begin
 
         if bc_valid(c) = '1' then
           state_next <= REALIGNING;
-          alignment_next <= std_logic_vector(unsigned('0' & alignment) + unsigned('0' & bytes_consumed(SHIFT_WIDTH*c + SHIFT_WIDTH-1 downto SHIFT_WIDTH*c)));
+          alignment_next <= std_logic_vector(unsigned('0' & alignment) + unsigned(bytes_consumed((SHIFT_WIDTH+1)*(c+1)-1 downto (SHIFT_WIDTH+1)*c)));
           start_realignment <= '1';
           first_in_align_group_next <= '1';
 
@@ -229,8 +229,9 @@ begin
         bc_ready(c) <= '1';
 
         if bc_valid(c) = '1' then
-          alignment_next <= std_logic_vector(unsigned(alignment) + unsigned(bytes_consumed(SHIFT_WIDTH*c + SHIFT_WIDTH-1 downto SHIFT_WIDTH*c)));
+          alignment_next <= std_logic_vector(unsigned('0' & alignment) + unsigned(bytes_consumed((SHIFT_WIDTH+1)*(c+1)-1 downto (SHIFT_WIDTH+1)*c)));
           start_realignment <= '1';
+          first_in_align_group_next <= '1';
 
             -- Rollover to first consumer after last consumer is done
           if c = NUM_CONSUMERS-1 then

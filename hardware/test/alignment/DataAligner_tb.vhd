@@ -27,12 +27,14 @@ end DataAligner_tb;
 
 architecture tb of DataAligner_tb is
   constant BUS_DATA_WIDTH       : natural := 512;
-  constant NUM_CONSUMERS        : natural := 3;
+  constant NUM_CONSUMERS        : natural := 5;
   constant NUM_SHIFT_STAGES     : natural := 6;
   constant SHIFT_WIDTH          : natural := log2ceil(BUS_DATA_WIDTH/8);
   constant last_word_enc_width  : natural := 40;
   constant clk_period           : time    := 10 ns;
-  constant init_misalignment    : natural := 15;
+
+  -- This constant should be changed when a new DataAligner_input file is created
+  constant init_misalignment    : natural := 44;
 
   signal clk                    : std_logic;
   signal reset                  : std_logic;
@@ -42,7 +44,7 @@ architecture tb of DataAligner_tb is
   signal out_valid              : std_logic_vector(NUM_CONSUMERS-1 downto 0);
   signal out_ready              : std_logic_vector(NUM_CONSUMERS-1 downto 0);
   signal out_data               : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
-  signal bytes_consumed         : std_logic_vector(NUM_CONSUMERS*SHIFT_WIDTH-1 downto 0);
+  signal bytes_consumed         : std_logic_vector(NUM_CONSUMERS*(SHIFT_WIDTH+1)-1 downto 0);
   signal bc_valid               : std_logic_vector(NUM_CONSUMERS-1 downto 0);
   signal bc_ready               : std_logic_vector(NUM_CONSUMERS-1 downto 0);
   signal prod_alignment         : std_logic_vector(SHIFT_WIDTH-1 downto 0);
@@ -127,15 +129,13 @@ begin
       file output_check         : text;
 
       variable check_line       : line;
-      variable last_word_check  : std_logic_vector(last_word_enc_width-1 downto 0);
-      variable remaining_data   : std_logic_vector(BUS_DATA_WIDTH-last_word_enc_width-1 downto 0);
       variable expected_output  : std_logic_vector(BUS_DATA_WIDTH-1 downto 0); 
     begin
       file_open(output_check, "./test/alignment/DataAligner_out" & integer'image(i) & ".hex", read_mode);
 
       out_ready(i) <= '0';
       bc_valid(i) <= '0';
-      bytes_consumed(SHIFT_WIDTH*(i+1)-1 downto SHIFT_WIDTH*i) <= (others => '0');
+      bytes_consumed((SHIFT_WIDTH+1)*(i+1)-1 downto (SHIFT_WIDTH+1)*i) <= (others => '0');
 
       loop
         wait until rising_edge(clk);
@@ -153,11 +153,9 @@ begin
   
         out_ready(i) <= '0';
 
-        hread(check_line, last_word_check);
-
-        if last_word_check(last_word_enc_width-1 downto last_word_enc_width-8) = x"00" then
+        if out_data(BUS_DATA_WIDTH-1 downto BUS_DATA_WIDTH-8) = x"00" then
           bc_valid(i) <= '1';
-          bytes_consumed(SHIFT_WIDTH*(i+1)-1 downto SHIFT_WIDTH*i) <= std_logic_vector(resize(unsigned(last_word_check(last_word_enc_width-9 downto 0)), SHIFT_WIDTH));
+          bytes_consumed((SHIFT_WIDTH+1)*(i+1)-1 downto (SHIFT_WIDTH+1)*i) <= std_logic_vector(resize(unsigned(out_data(BUS_DATA_WIDTH-9 downto BUS_DATA_WIDTH-last_word_enc_width)), SHIFT_WIDTH+1));
 
           loop
             wait until rising_edge(clk);
@@ -166,8 +164,7 @@ begin
 
           bc_valid(i) <= '0';
         else
-          hread(check_line, remaining_data);
-          expected_output := last_word_check & remaining_data;
+          hread(check_line, expected_output);
 
           assert out_data = expected_output
             report "Incorrect bus word received from DataAligner in consumer " & integer'image(i);
