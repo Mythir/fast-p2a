@@ -107,6 +107,8 @@ void write_parquet_file(const arrow::Table &table, std::string filename, int chu
 
     auto builder = std::make_shared<parquet::WriterProperties::Builder>();
 
+    builder->disable_statistics();
+
     //Parquet options
     if (compression) {
         builder->compression(parquet::Compression::SNAPPY);
@@ -272,6 +274,7 @@ int main(int argc, char **argv) {
     examine_metadata("strarray_nodict.prq");
     examine_metadata("strarray_nosnap_nodict.prq");
     */
+    examine_metadata("int64array_nodict.prq");
     
 
     parquet_to_arrow_benchmark("int64array.prq", iterations);
