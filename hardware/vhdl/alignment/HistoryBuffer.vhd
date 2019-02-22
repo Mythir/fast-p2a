@@ -114,7 +114,7 @@ begin
   oldest_valid_ptr_inc <= std_logic_vector(unsigned(oldest_valid_ptr) + 1);
 
   logic_p: process(start_rewind, in_valid, in_data, delete_oldest, write_ptr, oldest_valid_ptr, state, read_ptr, s_out_valid, read_ptr_prev, 
-                   read_ptr_prev_inc, oldest_valid_ptr_inc)
+                   read_ptr_prev_inc, oldest_valid_ptr_inc, out_ready)
   begin
     state_next <= state;
     write_ptr_next <= write_ptr;
@@ -125,6 +125,11 @@ begin
     write_enable <= '0';
 
     read_ptr <= oldest_valid_ptr;
+
+    -- pragma translate_off
+    DEBUG_ENTRY_COUNT_INC := false;
+    DEBUG_ENTRY_COUNT_DEC := false;
+    -- pragma translate_on
     
     -- No matter what state we are in, delete_oldest can always invalidate an entry in the RAM.
     if delete_oldest = '1' then
@@ -206,8 +211,6 @@ begin
 
         --pragma translate_off
         DEBUG_ENTRY_COUNT     := 0;
-        DEBUG_ENTRY_COUNT_INC := false;
-        DEBUG_ENTRY_COUNT_DEC := false;
         --pragma translate_on
       else
         state <= state_next;
@@ -222,9 +225,6 @@ begin
         if DEBUG_ENTRY_COUNT_DEC then
           DEBUG_ENTRY_COUNT := DEBUG_ENTRY_COUNT - 1;
         end if;
-
-        DEBUG_ENTRY_COUNT_INC := false;
-        DEBUG_ENTRY_COUNT_DEC := false;
         --pragma translate_on
       end if;
 

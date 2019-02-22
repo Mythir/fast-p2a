@@ -180,18 +180,24 @@ begin
     c_next <= c;
     alignment_next <= '0' & alignment;
     first_in_align_group_next <= first_in_align_group;
+    state_next <= state;
 
     out_valid <= (others => '0');
     shift_rec_out_ready <= '0';
 
+    -- Upon transmission of a data word to a consumer, the next word offered to the consumer won't be the first in the align group
+    if shift_rec_out_valid = '1' and shift_rec_out_ready = '1' then
+      first_in_align_group_next <= '0';
+    end if;
+
     case state is
       when IDLE =>
-      -- Get initial alignment from producer
+      -- Get initial alignment from producer. In the current implementation a change in the producer alignment is not allowed.
       pa_ready <= '1';
 
       if pa_valid = '1' then
         state_next <= STANDARD;
-        alignment_next <= std_logic_vector(unsigned(alignment) + unsigned(prod_alignment));
+        alignment_next <= '0' & std_logic_vector(unsigned(alignment) + unsigned(prod_alignment));
       end if;
 
       when STANDARD =>
@@ -201,6 +207,7 @@ begin
           state_next <= REALIGNING;
           alignment_next <= std_logic_vector(unsigned('0' & alignment) + unsigned('0' & bytes_consumed(SHIFT_WIDTH*c + SHIFT_WIDTH-1 downto SHIFT_WIDTH*c)));
           start_realignment <= '1';
+          first_in_align_group_next <= '1';
 
             -- Rollover to first consumer after last consumer is done
           if c = NUM_CONSUMERS-1 then
@@ -217,11 +224,6 @@ begin
 
         out_valid(c) <= shift_rec_out_valid;
         shift_rec_out_ready <= out_ready(c);
-
-        if shift_rec_out_valid = '1' and shift_rec_out_ready = '1' then
-          -- A data word will be transmitted to the consumer
-          first_in_align_group_next <= '0';
-        end if;
 
       when REALIGNING =>
         bc_ready(c) <= '1';
@@ -248,7 +250,6 @@ begin
 
         if end_realignment = '1' then
           state_next <= STANDARD;
-          first_in_align_group_next <= '1';
         end if;
 
     end case;
@@ -264,7 +265,7 @@ begin
         first_in_align_group <= '1';
       else
         c <= c_next;
-        alignment <= alignment_next;
+        alignment <= alignment_next(SHIFT_WIDTH-1 downto 0);
         state <= state_next;
         first_in_align_group <= first_in_align_group_next;
       end if;
