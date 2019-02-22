@@ -50,7 +50,7 @@ class Consumer:
         # a null byte followed by the length as an int32. An amount of null bytes follows to fill up to the
         # randomly generated length.
         for block in self.blocks:
-            last_word_num_bytes = random.randint(5, bytes_in_bus_word-1)
+            last_word_num_bytes = random.randint(5, bytes_in_bus_word)
             block.append("00"+hex(last_word_num_bytes)[2:].zfill(8)+"00"*(last_word_num_bytes-5))
 
     def concatenate_block_data(self, block_index):
