@@ -50,7 +50,7 @@ class Consumer:
         # a null byte followed by the length as an int32. An amount of null bytes follows to fill up to the
         # randomly generated length.
         for block in self.blocks:
-            last_word_num_bytes = random.randint(5, bytes_in_bus_word-1)
+            last_word_num_bytes = random.randint(5, bytes_in_bus_word)
             block.append("00"+hex(last_word_num_bytes)[2:].zfill(8)+"00"*(last_word_num_bytes-5))
 
     def concatenate_block_data(self, block_index):
@@ -93,6 +93,10 @@ full_concatenated_data = init_filler_data + "".join(ordered_data)
 
 DA_input_file = open("DataAligner_input.hex", "w+")
 
-while full_concatenated_data != "":
+while len(full_concatenated_data) >= bytes_in_bus_word*2:
     DA_input_file.write(full_concatenated_data[:bytes_in_bus_word*2]+"\n")
     full_concatenated_data = full_concatenated_data[bytes_in_bus_word*2:]
+
+# Add filler
+DA_input_file.write(full_concatenated_data + "1"*(bytes_in_bus_word*2-len(full_concatenated_data)) + "\n")
+DA_input_file.write("11"*bytes_in_bus_word)
