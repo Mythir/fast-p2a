@@ -99,4 +99,4 @@ while len(full_concatenated_data) >= bytes_in_bus_word*2:
 
 # Add filler
 DA_input_file.write(full_concatenated_data + "1"*(bytes_in_bus_word*2-len(full_concatenated_data)) + "\n")
-DA_input_file.write("11"*bytes_in_bus_word + "\n")
+DA_input_file.write("11"*bytes_in_bus_word)
