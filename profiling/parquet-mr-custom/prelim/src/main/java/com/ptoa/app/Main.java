@@ -29,8 +29,8 @@ public class Main {
    public static void main(String[] args) throws IOException {
 
       Path file = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/parquet-cpp/debug/int64array_nosnap.prq");
-      Path outUncompressed = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/parquet-mr/java.uncompressed.parquet");
-      Path outGzipped = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/parquet-mr/java.snappy.parquet");
+      Path outUncompressed = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/parquet-mr-custom/java.uncompressed.parquet");
+      Path outGzipped = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/parquet-mr-custom/java.snappy.parquet");
 
       List<GenericRecord> allRecords = new ArrayList<GenericRecord>();
       Schema schema = null;
@@ -82,7 +82,8 @@ public class Main {
          .withSchema(schema)
          .enableDictionaryEncoding()
          .withDictionaryPageSize(10000000)
-         .withWriterVersion(WriterVersion.PARQUET_1_0)
+         .withPageSize(8000)
+         .withWriterVersion(WriterVersion.PARQUET_2_0)
          .build();
       for(GenericRecord wr: records) {
          writer.write(wr);
