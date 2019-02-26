@@ -12,6 +12,8 @@ import org.apache.parquet.column.ParquetProperties.WriterVersion;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 
 import java.io.File;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,7 +30,7 @@ public class Main {
 
    public static void main(String[] args) throws IOException {
 
-      Path file = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/parquet-cpp/debug/int64array_nosnap.prq");
+      Path file = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/parquet-cpp/debug/intstr_table.prq");
       Path outUncompressed = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/parquet-mr-custom/java.uncompressed.parquet");
       Path outGzipped = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/parquet-mr-custom/java.snappy.parquet");
 
@@ -51,19 +53,6 @@ public class Main {
          }
          reader.close();
 
-         //write (uncompressed)
-         File t = new File(outUncompressed.toString());
-         t.delete();
-         ParquetWriter<GenericRecord> writer = AvroParquetWriter
-            .<GenericRecord>builder(outUncompressed)
-            .withCompressionCodec(CompressionCodecName.UNCOMPRESSED)
-            .withSchema(schema)
-            .build();
-         for(GenericRecord wr: allRecords) {
-            writer.write(wr);
-         }
-         writer.close();
-
          writeTest(i, CompressionCodecName.UNCOMPRESSED, outUncompressed,
             schema, allRecords);
 
@@ -82,21 +71,13 @@ public class Main {
          .withSchema(schema)
          .enableDictionaryEncoding()
          .withDictionaryPageSize(10000000)
-         .withPageSize(8000)
+         .withPageSize(1000)
+         .withRowGroupSize(5000)
          .withWriterVersion(WriterVersion.PARQUET_2_0)
          .build();
       for(GenericRecord wr: records) {
          writer.write(wr);
       }
       writer.close();
-   }
-
-   private static Long avg(List<Long> list) {
-      long sum = 0;
-      for(Long time : list) {
-         sum += time;
-      }
-
-      return sum / list.size();
    }
 }
