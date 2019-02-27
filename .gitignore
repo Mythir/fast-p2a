@@ -9,6 +9,11 @@ release/
 .settings/
 .project
 
+# Vivado stuff
+*.mti
+*.mpf
+*.jou
+
 # VSIM stuff
 work/
 transcript
@@ -46,7 +51,7 @@ platforms/aws-f1/regexp/design/ip/axi_interconnect_top/*
 *.tar.gz
 *.rar
 
-#Maven stuff (for Parquet-MR)
+# Maven stuff (for Parquet-MR)
 target/
 pom.xml.tag
 pom.xml.releaseBackup
@@ -57,3 +62,6 @@ dependency-reduced-pom.xml
 buildNumber.properties
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
+
+# Generated files
+*.hex
