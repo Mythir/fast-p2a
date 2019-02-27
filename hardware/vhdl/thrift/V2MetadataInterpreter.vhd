@@ -21,7 +21,7 @@ use work.Encoding.all;
 
 -- Todo: description
 
-entity MetadataInterpreter is
+entity V2MetadataInterpreter is
   generic (
     -- Bus data width
     BUS_DATA_WIDTH              : natural;
@@ -60,9 +60,9 @@ entity MetadataInterpreter is
     -- Output number of values in page to data decoder
     dd_num_values               : out std_logic_vector(31 downto 0)
   );
-end MetadataInterpreter;
+end V2MetadataInterpreter;
 
-architecture behv of MetadataInterpreter is
+architecture behv of V2MetadataInterpreter is
 
   -- Top level state in the state machine
   type top_state_t is (IDLE, INTERPRETING, DONE, FAULT);
@@ -140,7 +140,8 @@ begin
   current_byte <= metadata_r(BUS_DATA_WIDTH-1 downto BUS_DATA_WIDTH-8);
 
   logic_p: process (page_header_state, data_page_header_state, field_state, uncomp_size_r, comp_size_r, rep_lvl_size_r, def_lvl_size_r,
-                    top_state, metadata_r, current_byte, start_varint, num_values_r, cycle_count_r, varint_dec_out_data) is
+                    top_state, metadata_r, current_byte, num_values_r, cycle_count_r, varint_dec_out_data,
+                    in_valid, in_data, da_ready) is
   begin
     -- Default values
     top_state_next <= top_state;
@@ -481,8 +482,8 @@ begin
         field_state <= HEADER;
 
         uncomp_size_r <= (others => '0');
-        rep_lvl_size_r <= (others => '0');
-        rep_lvl_size_r <= (others => '0');
+        num_values_r <= (others => '0');
+        comp_size_r <= (others => '0');
         rep_lvl_size_r <= (others => '0');
         def_lvl_size_r <= (others => '0');
         cycle_count_r <= (others => '0');
