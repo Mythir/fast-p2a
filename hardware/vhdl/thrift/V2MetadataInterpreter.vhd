@@ -59,7 +59,6 @@ entity MetadataInterpreter is
 
     -- Output number of values in page to data decoder
     dd_num_values               : out std_logic_vector(31 downto 0)
-
   );
 end MetadataInterpreter;
 
@@ -106,6 +105,8 @@ architecture behv of MetadataInterpreter is
 
   -- The byte of the input that is currently being inspected
   signal current_byte               : std_logic_vector(7 downto 0);
+
+  signal current_byte_valid         : std_logic;
 
   -- Used to signal the varint_decoder it will have to start decoding in the next clock cycle
   signal start_varint               : std_logic;
@@ -161,6 +162,8 @@ begin
 
     start_varint <= '0';
 
+    current_byte_valid <= '0';
+
     -- State machine
     case top_state is
       when IDLE =>
@@ -175,18 +178,20 @@ begin
       when INTERPRETING =>
         if cycle_count_r = std_logic_vector(to_unsigned(BUS_DATA_WIDTH/8, cycle_count_r'length)) then
           -- If all bytes in metadata_r have been processed and we are still not done, request new data
-          in_ready = '1';
+          in_ready <= '1';
 
           if in_valid = '1' then
             metadata_r_next <= in_data;
-            cycle_count_r_next <= (others => 0);
+            cycle_count_r_next <= (others => '0');
           end if;
 
         else
+          current_byte_valid <= '1';
+
           cycle_count_r_next <= std_logic_vector(unsigned(cycle_count_r) + 1);
   
           -- Shift the metadata register with one byte to the left every clock cycle.
-          metadata_r_next <= metadata_r(METADATA_WIDTH-9 downto 0) & "00000000";
+          metadata_r_next <= metadata_r(BUS_DATA_WIDTH-9 downto 0) & "00000000";
 
           case page_header_state is
             when START =>
@@ -309,7 +314,7 @@ begin
 
                     when HEADER =>
                       -- Move decoded num_values data to proper register
-                      md_num_values_r_next <= varint_dec_out_data;
+                      num_values_r_next <= varint_dec_out_data;
                       field_state_next <= DATA;
   
                       if current_byte = x"15" then
@@ -456,13 +461,10 @@ begin
 
         if da_ready <= '1' then
           top_state_next <= IDLE;
-          cycle_count_r_next <= (others => 0);
+          cycle_count_r_next <= (others => '0');
         end if;
 
       when others =>
-        ctrl_idle <= '0';
-        ctrl_busy <= '0';
-        ctrl_done <= '0';
 
     end case;
 
@@ -478,13 +480,13 @@ begin
         data_page_header_state <= START;
         field_state <= HEADER;
 
-        uncomp_size_r <= (others => 0);
-        rep_lvl_size_r <= (others => 0);
-        rep_lvl_size_r <= (others => 0);
-        rep_lvl_size_r <= (others => 0);
-        def_lvl_size_r <= (others => 0);
-        cycle_count_r <= (others => 0);
-        metadata_r <= (others => 0);
+        uncomp_size_r <= (others => '0');
+        rep_lvl_size_r <= (others => '0');
+        rep_lvl_size_r <= (others => '0');
+        rep_lvl_size_r <= (others => '0');
+        def_lvl_size_r <= (others => '0');
+        cycle_count_r <= (others => '0');
+        metadata_r <= (others => '0');
       else
         top_state <= top_state_next;
         page_header_state <= page_header_state_next;
