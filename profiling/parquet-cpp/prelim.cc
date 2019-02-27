@@ -24,6 +24,8 @@
 #include <stdlib.h>
 #include <cstdlib>
 #include <iomanip>
+#include <iostream>
+#include <fstream>
 #include <ctime>
 
 #include <arrow/api.h>
@@ -99,6 +101,48 @@ std::shared_ptr<arrow::Table> generate_str_table(int num_values, int min_length,
     return arrow::Table::Make(schema, {strarray});
 }
 
+std::shared_ptr<arrow::Table> generate_int64_str_table(int num_values, int min_length, int max_length, int modulo=0) {
+
+
+    //Generate ints
+    arrow::Int64Builder i64builder;
+    int number;
+
+    for (int i = 0; i < num_values; i++) {
+        if(modulo <= 0){
+            number = rand();
+        } else{
+            number = rand() % modulo;
+        }
+        /*
+        if (i == 60 || i == 62){
+            PARQUET_THROW_NOT_OK(i64builder.AppendNull());
+        }
+        else{
+            PARQUET_THROW_NOT_OK(i64builder.Append(number));
+        }*/
+        PARQUET_THROW_NOT_OK(i64builder.Append(number));
+
+    }
+    std::shared_ptr<arrow::Array> i64array;
+    PARQUET_THROW_NOT_OK(i64builder.Finish(&i64array));
+
+    //Generate strings
+    arrow::StringBuilder strbuilder;
+    for (int i = 0; i < num_values; i++) {
+        int length = rand() % (max_length - min_length + 1) + min_length;
+        std::string rand_string = gen_random_string(length);
+        PARQUET_THROW_NOT_OK(strbuilder.Append(rand_string));
+    }
+    std::shared_ptr<arrow::Array> strarray;
+    PARQUET_THROW_NOT_OK(strbuilder.Finish(&strarray));
+
+    std::shared_ptr<arrow::Schema> schema = arrow::schema(
+            {arrow::field("int", arrow::int64(), true), arrow::field("str", arrow::utf8(), true)});
+
+    return arrow::Table::Make(schema, {i64array, strarray});
+}
+
 // Write out the data as a Parquet file
 void write_parquet_file(const arrow::Table &table, std::string filename, int chunk_size, bool compression, bool dictionary) {
     std::shared_ptr<arrow::io::FileOutputStream> outfile;
@@ -106,6 +150,8 @@ void write_parquet_file(const arrow::Table &table, std::string filename, int chu
             arrow::io::FileOutputStream::Open(filename, &outfile));
 
     auto builder = std::make_shared<parquet::WriterProperties::Builder>();
+
+    builder->disable_statistics();
 
     //Parquet options
     if (compression) {
@@ -272,6 +318,7 @@ int main(int argc, char **argv) {
     examine_metadata("strarray_nodict.prq");
     examine_metadata("strarray_nosnap_nodict.prq");
     */
+    examine_metadata("int64array_nodict.prq");
     
 
     parquet_to_arrow_benchmark("int64array.prq", iterations);
