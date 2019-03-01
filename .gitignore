@@ -2,13 +2,17 @@
 cmake-build-debug/
 .idea/
 debug/
-build/
 release/
 
 *.pyc
 .cproject
 .settings/
 .project
+
+# Vivado stuff
+*.mti
+*.mpf
+*.jou
 
 # VSIM stuff
 work/
@@ -24,3 +28,40 @@ platforms/aws-f1/cl_arrow/software/runtime/regexp/output\.csv
 
 platforms/aws-f1/regexp/design/ip/axi_interconnect_top/*
 !platforms/aws-f1/regexp/design/ip/axi_interconnect_top/axi_interconnect_top\.xci
+
+#Java stuff (for Parquet-MR)
+# Compiled class file
+*.class
+
+# Log file
+*.log
+
+# BlueJ files
+*.ctxt
+
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
+
+# Package Files #
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Maven stuff (for Parquet-MR)
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Generated files
+*.hex

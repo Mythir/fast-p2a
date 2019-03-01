@@ -107,7 +107,7 @@ architecture Implementation of ptoa_wrapper is
       md_comp_size                             : out  std_logic_vector(31 downto 0);
       md_num_values                            : out std_logic_vector(31 downto 0);
       cycle_count                              : out std_logic_vector(31 downto 0);
-      regs_out_en                              : out std_logic_vector(2 downto 0);
+      regs_out_en                              : out std_logic_vector(NUM_REGS-1 downto 0);
       md_addr                                  : in std_logic_vector(BUS_ADDR_WIDTH-1 downto 0)
   
     );

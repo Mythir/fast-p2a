@@ -1,5 +1,3 @@
--- Copyright 2018 Delft University of Technology
---
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
 -- You may obtain a copy of the License at
@@ -20,7 +18,23 @@ use ieee.numeric_std.all;
 library work;
 use work.Utils.all;
 
-package Thrift is
+package Encoding is
+
+  component VarIntDecoder is
+    generic (
+      INT_BIT_WIDTH               : natural;
+      ZIGZAG_ENCODED              : boolean
+    );
+    port (
+      clk                         : in std_logic;
+      reset                       : in std_logic;
+      start                       : in std_logic;
+      in_data                     : in std_logic_vector(7 downto 0);
+      in_valid                    : in std_logic;
+      out_data                    : out std_logic_vector(INT_BIT_WIDTH-1 downto 0)
+    );
+  end component;
+
   -----------------------------------------------------------------------------
   -- Helper functions
   -----------------------------------------------------------------------------
@@ -29,9 +43,9 @@ package Thrift is
   -- Encodes integers to zigzag.
   function encode_zigzag(a : in std_logic_vector) return integer;
 
-end Thrift;
+end Encoding;
 
-package body Thrift is
+package body Encoding is
   function encode_zigzag(a : in std_logic_vector) return integer is
     variable x : signed(a'length - 1 downto 0);
     variable y : signed(a'length - 1 downto 0);
@@ -49,4 +63,4 @@ package body Thrift is
     y := std_logic_vector(-signed(a and slv(1, a'length)));
     return to_integer(signed(x xor y));
   end function;
-end Thrift;
+end Encoding;

@@ -24,6 +24,8 @@
 #include <stdlib.h>
 #include <cstdlib>
 #include <iomanip>
+#include <iostream>
+#include <fstream>
 #include <ctime>
 
 #include <arrow/api.h>
@@ -54,11 +56,25 @@ std::string gen_random_string(const int length) {
     return result;
 }
 
-std::shared_ptr<arrow::Table> generate_int64_table(int num_values) {
+std::shared_ptr<arrow::Table> generate_int64_table(int num_values, int modulo=0) {
     arrow::Int64Builder i64builder;
+    int number;
+
     for (int i = 0; i < num_values; i++) {
-        int number = rand();
+        if(modulo <= 0){
+            number = rand();
+        } else{
+            number = rand() % modulo;
+        }
+        /*
+        if (i == 60 || i == 62){
+            PARQUET_THROW_NOT_OK(i64builder.AppendNull());
+        }
+        else{
+            PARQUET_THROW_NOT_OK(i64builder.Append(number));
+        }*/
         PARQUET_THROW_NOT_OK(i64builder.Append(number));
+
     }
     std::shared_ptr<arrow::Array> i64array;
     PARQUET_THROW_NOT_OK(i64builder.Finish(&i64array));
@@ -85,14 +101,57 @@ std::shared_ptr<arrow::Table> generate_str_table(int num_values, int min_length,
     return arrow::Table::Make(schema, {strarray});
 }
 
+std::shared_ptr<arrow::Table> generate_int64_str_table(int num_values, int min_length, int max_length, int modulo=0) {
+
+
+    //Generate ints
+    arrow::Int64Builder i64builder;
+    int number;
+
+    for (int i = 0; i < num_values; i++) {
+        if(modulo <= 0){
+            number = rand();
+        } else{
+            number = rand() % modulo;
+        }
+        /*
+        if (i == 60 || i == 62){
+            PARQUET_THROW_NOT_OK(i64builder.AppendNull());
+        }
+        else{
+            PARQUET_THROW_NOT_OK(i64builder.Append(number));
+        }*/
+        PARQUET_THROW_NOT_OK(i64builder.Append(number));
+
+    }
+    std::shared_ptr<arrow::Array> i64array;
+    PARQUET_THROW_NOT_OK(i64builder.Finish(&i64array));
+
+    //Generate strings
+    arrow::StringBuilder strbuilder;
+    for (int i = 0; i < num_values; i++) {
+        int length = rand() % (max_length - min_length + 1) + min_length;
+        std::string rand_string = gen_random_string(length);
+        PARQUET_THROW_NOT_OK(strbuilder.Append(rand_string));
+    }
+    std::shared_ptr<arrow::Array> strarray;
+    PARQUET_THROW_NOT_OK(strbuilder.Finish(&strarray));
+
+    std::shared_ptr<arrow::Schema> schema = arrow::schema(
+            {arrow::field("int", arrow::int64(), true), arrow::field("str", arrow::utf8(), true)});
+
+    return arrow::Table::Make(schema, {i64array, strarray});
+}
+
 // Write out the data as a Parquet file
-void
-write_parquet_file(const arrow::Table &table, std::string filename, int chunk_size, bool compression, bool dictionary) {
+void write_parquet_file(const arrow::Table &table, std::string filename, int chunk_size, bool compression, bool dictionary) {
     std::shared_ptr<arrow::io::FileOutputStream> outfile;
     PARQUET_THROW_NOT_OK(
             arrow::io::FileOutputStream::Open(filename, &outfile));
 
     auto builder = std::make_shared<parquet::WriterProperties::Builder>();
+
+    builder->disable_statistics();
 
     //Parquet options
     if (compression) {
@@ -107,9 +166,10 @@ write_parquet_file(const arrow::Table &table, std::string filename, int chunk_si
         builder->disable_dictionary();
     }
 
+    std::shared_ptr<parquet::WriterProperties> props = builder->build();
 
     PARQUET_THROW_NOT_OK(
-            parquet::arrow::WriteTable(table, arrow::default_memory_pool(), outfile, chunk_size, builder->build()));
+            parquet::arrow::WriteTable(table, arrow::default_memory_pool(), outfile, chunk_size, props));
 }
 
 std::shared_ptr<arrow::Table> read_whole_file(std::string file_path) {
@@ -158,17 +218,13 @@ void examine_metadata(std::string file_path) {
     file = parquet::ParquetFileReader::OpenFile(file_path);
 
     md = file->metadata();
+    std::cout << "Version: " << md->version() << std::endl;
     std::cout << md->size() << " " << md->num_columns() << " " << md->num_rows() << std::endl;
 
     rmd = md->RowGroup(0);
     ccmd = rmd->ColumnChunk(0);
 
     std::cout << "Amount of rowgroups: " << md->num_row_groups() << std::endl;
-
-    for (auto &enc : ccmd->encodings()) {
-        std::cout << enc << std::endl;
-    }
-
     std::cout << "compression(): " << ccmd->compression() << std::endl;
     std::cout << "total_compressed_size: " << ccmd->total_compressed_size() << std::endl;
     std::cout << "total_uncompressed_size: " << ccmd->total_uncompressed_size() << std::endl;
@@ -183,7 +239,7 @@ void examine_metadata(std::string file_path) {
     do {
         page = pr->NextPage();
         std::cout << "Page type: " << page->type() << std::endl;
-    } while (page->type() != 0);
+    } while (page->type() == 2);
 
     /*
     std::cout << "num_values: " << std::static_pointer_cast<parquet::DataPage>(page)->num_values() << " size: "
@@ -200,22 +256,47 @@ void examine_metadata(std::string file_path) {
 
 }
 
+void examine_int64_contents(std::string file_path, int column, int rows){
+    std::shared_ptr<arrow::Table> table;
+    table = read_whole_file(file_path);
+
+    std::cout << "First " << rows << " of " << file_path << " column " << column << ":" << std::endl;
+    std::shared_ptr<arrow::Int64Array> array = std::static_pointer_cast<arrow::Int64Array>(table->column(0)->data()->chunk(0));
+
+    for(int i=0; i<rows; i++){
+        std::cout << array->Value(i) << std::endl;
+    }
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
-        std::cout << "Usage: prelim num_values [iterations]" << std::endl;
+        std::cout << "Usage: prelim num_values [iterations] [modulo]" << std::endl;
         return 1;
     }
 
     int num_values = atoi(argv[1]);
     int iterations = 1;
+    int modulo = 0;
 
-    if (argc == 3) {
+    if (argc >= 3) {
         iterations = atoi(argv[2]);
     }
 
+    if (argc >= 4) {
+        modulo = atoi(argv[3]);
+    }
+
     std::cout << "Size of Arrow table: " << num_values << " values." << std::endl;
-    std::shared_ptr<arrow::Table> int64_table = generate_int64_table(num_values);
+    std::shared_ptr<arrow::Table> int64_table = generate_int64_table(num_values, modulo);
     std::shared_ptr<arrow::Table> str_table = generate_str_table(num_values, 2, 10);
+
+    /*
+    const uint8_t* memrep = int64_table->column(0)->data()->chunk(0)->data()->buffers[1]->data();
+
+    for(int i; i<20; i++){
+        std::cout<<"Data: "<<std::hex<<std::setfill('0')<<std::setw(2)<<((const uint64_t*)memrep)[i]<<std::dec<<std::endl;
+    }
+    */
 
     write_parquet_file(*int64_table, "int64array.prq", num_values, true, true);
     write_parquet_file(*int64_table, "int64array_nosnap.prq", num_values, false, true);
@@ -237,6 +318,7 @@ int main(int argc, char **argv) {
     examine_metadata("strarray_nodict.prq");
     examine_metadata("strarray_nosnap_nodict.prq");
     */
+    examine_metadata("int64array_nodict.prq");
     
 
     parquet_to_arrow_benchmark("int64array.prq", iterations);
@@ -248,11 +330,4 @@ int main(int argc, char **argv) {
     parquet_to_arrow_benchmark("strarray_nosnap.prq", iterations);
     parquet_to_arrow_benchmark("strarray_nodict.prq", iterations);
     parquet_to_arrow_benchmark("strarray_nosnap_nodict.prq", iterations);
-
-    /*
-    std::shared_ptr<arrow::StringArray> strArray = std::static_pointer_cast<arrow::StringArray>(str_table->column(0)->data()->chunk(0));
-
-    for(int i=0; i<10; i++){
-      std::cout<<strArray->GetString(i)<<std::endl;
-    }*/
 }
