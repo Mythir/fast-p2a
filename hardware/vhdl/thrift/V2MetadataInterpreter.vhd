@@ -19,7 +19,10 @@ library work;
 use work.Utils.all;
 use work.Encoding.all;
 
--- Todo: description
+-- This unit extracts relevant information from Parquet 2.0 page headers. Currently only the uncompressed size, compressed size,
+-- num values, definition level byte length, and repetition level byte length fields are needed by the hardware. Once the
+-- V2MetadataInterpreter has read a full thrift structure it will stream out (via bytes_consumed) how many bytes in the last bus word
+-- were part of the metadata structure.
 
 entity V2MetadataInterpreter is
   generic (
