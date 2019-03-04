@@ -106,7 +106,7 @@ architecture behv of Ingester is
   signal bus_aligned_base_addr  : std_logic_vector(BUS_ADDR_WIDTH-1 downto 0);
 
   -- The first address that does not contain any data intended for this hardware
-  signal end_address            : std_logic_vector(BUS_ADDR_WIDTH-1 downto 0);
+  signal end_address            : unsigned(BUS_ADDR_WIDTH-1 downto 0);
 
 begin
   -- When doing an AXI unaligned transfer the DataAligner must know where in the first bus word the actual data starts
@@ -115,7 +115,7 @@ begin
   bus_aligned_base_addr(BUS_ADDR_WIDTH-1 downto log2ceil(BUS_DATA_WIDTH/8)) <= base_address(BUS_ADDR_WIDTH-1 downto log2ceil(BUS_DATA_WIDTH/8));
   bus_aligned_base_addr(log2ceil(BUS_DATA_WIDTH/8)-1 downto 0) <= (others => '0');
 
-  end_address <= std_logic_vector(unsigned(base_address) + unsigned(data_size));
+  end_address <= unsigned(base_address) + unsigned(data_size);
 
   -- This unit comes from the Fletcher interconnect library and is used here to make sure that one Ingester cannot DOS the entire bus by spamming
   -- read requests without reading the responses from the bus. The BusReadBuffer only passes a request from this Ingester to the bus if it has room in its
@@ -156,14 +156,13 @@ begin
     );
 
 
-  logic_p: process (state, start, base_address, current_address, ingester_req_ready, bus_aligned_base_addr, end_address)
+  logic_p: process (state, start, current_address, ingester_req_ready, bus_aligned_base_addr, end_address, pa_ready)
     variable next_burst_address : unsigned(BUS_ADDR_WIDTH-1 downto 0);
   begin
     pa_valid <= '0';
     ingester_req_valid <= '0';
-    ingester_req_data <= (others => '0');
+    ingester_req_addr <= (others => '0');
     ingester_req_len <= (others => '0');
-    next_burst_address <= (others => '0');
 
     state_next <= state;
     current_address_next <= current_address;
@@ -176,7 +175,7 @@ begin
 
         -- Transfer producer alignment (misalignment in starting address) to DataAligner
         if pa_ready = '1' and start = '1' then
-          if is_aligned(bus_aligned_base_addr, log2floor(BYTE_ALIGN)) and unsigned(bus_aligned_base_addr) + BYTES_PER_BURST <= end_address then
+          if is_aligned(unsigned(bus_aligned_base_addr), log2floor(BYTE_ALIGN)) and ((unsigned(bus_aligned_base_addr) + BYTES_PER_BURST) <= end_address) then
             state_next <= FULL_BURST;
           else
             state_next <= STEP;
@@ -191,7 +190,7 @@ begin
 
         ingester_req_valid <= '1';
         ingester_req_len <= std_logic_vector(to_unsigned(1, BUS_LEN_WIDTH));
-        ingester_req_data <= current_address;
+        ingester_req_addr <= current_address;
 
         if ingester_req_ready = '1' then
           -- If the next request would cause us to request memory that we are not supposed to access, we are done.
@@ -213,7 +212,7 @@ begin
 
         ingester_req_valid <= '1';
         ingester_req_len <= std_logic_vector(to_unsigned(BUS_BURST_MAX_LEN, BUS_LEN_WIDTH));
-        ingester_req_data <= current_address;
+        ingester_req_addr <= current_address;
 
         if ingester_req_ready = '1' then
           -- If the next request would cause us to request memory that we are not supposed to access, we are done.
