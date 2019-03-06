@@ -85,6 +85,35 @@ std::shared_ptr<arrow::Table> generate_int64_table(int num_values, int modulo=0)
     return arrow::Table::Make(schema, {i64array});
 }
 
+std::shared_ptr<arrow::Table> generate_listint64_table(int num_values, int modulo=0) {
+    arrow::MemoryPool* pool = arrow::default_memory_pool();
+    std::shared_ptr<arrow::Int64Builder> i64builder(new arrow::Int64Builder());
+    arrow::ListBuilder listbuilder(pool, i64builder);
+    int number;
+    listbuilder.Append();
+
+    for (int i = 0; i < num_values; i++) {
+        if(modulo <= 0){
+            number = rand();
+        } else{
+            number = rand() % modulo;
+        }
+        PARQUET_THROW_NOT_OK(i64builder->Append(number));
+
+        if(i != num_values-1 && rand() % 5 == 0){
+            // Start a new list roughly every 5 numbers
+            PARQUET_THROW_NOT_OK(listbuilder.Append());
+        }
+    }
+    std::shared_ptr<arrow::Array> listarray;
+    PARQUET_THROW_NOT_OK(listbuilder.Finish(&listarray));
+
+    std::shared_ptr<arrow::Schema> schema = arrow::schema(
+            {arrow::field("list", arrow::list(arrow::field("int", arrow::int64(), false)), false)});
+
+    return arrow::Table::Make(schema, {listarray});
+}
+
 
 std::shared_ptr<arrow::Table> generate_str_table(int num_values, int min_length, int max_length) {
     arrow::StringBuilder strbuilder;
@@ -289,6 +318,7 @@ int main(int argc, char **argv) {
     std::cout << "Size of Arrow table: " << num_values << " values." << std::endl;
     std::shared_ptr<arrow::Table> int64_table = generate_int64_table(num_values, modulo);
     std::shared_ptr<arrow::Table> str_table = generate_str_table(num_values, 2, 10);
+    std::shared_ptr<arrow::Table> listint_table = generate_listint64_table(num_values, modulo);
 
     /*
     const uint8_t* memrep = int64_table->column(0)->data()->chunk(0)->data()->buffers[1]->data();
@@ -307,6 +337,8 @@ int main(int argc, char **argv) {
     write_parquet_file(*str_table, "strarray_nosnap.prq", num_values, false, true);
     write_parquet_file(*str_table, "strarray_nodict.prq", num_values, true, false);
     write_parquet_file(*str_table, "strarray_nosnap_nodict.prq", num_values, false, false);
+
+    write_parquet_file(*listint_table, "listintarray_nosnap_nodict.prq", num_values, false, false);
 
     /*
     examine_metadata("int64array.prq");
