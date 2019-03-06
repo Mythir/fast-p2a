@@ -17,7 +17,7 @@ Ingester_gen.py can be used to generate input data for the Ingester VHDL testben
 
 This script takes an input file and converts its binary data to:
 1. test.srec: An SREC file that contains the entire contents of the input binary file starting at address 0.
-2. test.hex: A hex string file with on each line the expected output of the ingester for the given bus_data_width,
+2. test.hex1: A hex string file with on each line the expected output of the ingester for the given bus_data_width,
 base_address and data_size input. Because both base_address and data_size do not have to be aligned the hex string file
 will contain more data than data_size would suggest on first glance.
 3. full.hex: The entire input_file as hex strings for script debugging purposes.
@@ -37,7 +37,7 @@ f.add_binary_file(input_file)
 with open("test.srec", "w") as output:
     output.write(f.as_srec())
 
-with open("test.hex", "w") as output:
+with open("test.hex1", "w") as output:
     bin_data = "".join('{:02x}'.format(x) for x in f.as_binary())
 
     # Find aligned base and end adress so each line in test.hex will contain exactly 64 bytes
