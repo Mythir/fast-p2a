@@ -26,8 +26,8 @@ import bincopy as bc
 
 # Parameters
 bus_data_width = 512  # In bits
-base_address = 250  # In bytes
-data_size = 200  # In bytes
+base_address = 128  # In bytes
+data_size = 1024  # In bytes
 input_file = "../../../profiling/parquet-cpp/debug/strarray_nosnap_nodict.prq"
 
 f = bc.BinFile()
@@ -43,8 +43,9 @@ with open("test.hex1", "w") as output:
     # Find aligned base and end adress so each line in test.hex will contain exactly 64 bytes
     aligned_base_address = base_address - (base_address % (bus_data_width//8))
 
-    end_address = base_address + data_size
+    end_address = base_address + data_size - 1
     aligned_end_address = end_address + bus_data_width//8 - (end_address % (bus_data_width//8))
+    print(aligned_end_address)
 
     if aligned_end_address*2 >= len(bin_data):
         print("Error: Input file too small.")
@@ -62,3 +63,9 @@ with open("full.hex", "w") as output:
     while len(bin_data) > 0:
         output.write(bin_data[:bus_data_width//8*2] + "\n")
         bin_data = bin_data[bus_data_width//8*2:]
+
+print("Generated testbench input files with the following parameters:")
+print("bus_data_width = {bus_data_width} bits".format(bus_data_width=bus_data_width))
+print("base_address = {base_address} bytes".format(base_address=base_address))
+print("data_size = {data_size} bytes".format(data_size=data_size))
+print("Please edit the Ingester testbench constants to reflect this.")
