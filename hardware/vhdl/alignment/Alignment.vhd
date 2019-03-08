@@ -15,7 +15,35 @@ use ieee.std_logic_1164.all;
 use ieee.std_logic_misc.all;
 use ieee.numeric_std.all;
 
+library work;
+-- Fletcher utils for use of log2ceil function.
+use work.Utils.all;
+
 package Alignment is
+  component DataAligner is
+    generic (
+      BUS_DATA_WIDTH              : natural := 512;
+      NUM_CONSUMERS               : natural;
+      NUM_SHIFT_STAGES            : natural
+    );
+    port (
+      clk                         : in  std_logic;
+      reset                       : in  std_logic;
+      in_valid                    : in  std_logic;
+      in_ready                    : out std_logic;
+      in_data                     : in  std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
+      out_valid                   : out std_logic_vector(NUM_CONSUMERS-1 downto 0);
+      out_ready                   : in  std_logic_vector(NUM_CONSUMERS-1 downto 0);
+      out_data                    : out std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
+      bytes_consumed              : in  std_logic_vector(NUM_CONSUMERS*(log2ceil(BUS_DATA_WIDTH/8)+1)-1 downto 0);
+      bc_valid                    : in  std_logic_vector(NUM_CONSUMERS-1 downto 0);
+      bc_ready                    : out std_logic_vector(NUM_CONSUMERS-1 downto 0);
+      prod_alignment              : in  std_logic_vector(log2ceil(BUS_DATA_WIDTH/8)-1 downto 0);
+      pa_valid                    : in  std_logic;
+      pa_ready                    : out std_logic
+    );
+  end component;
+
   component ShifterRecombiner is
     generic (
       BUS_DATA_WIDTH              : natural := 512;
