@@ -19,7 +19,11 @@ library work;
 use work.Utils.all;
 use work.Interconnect.all;
 
--- Todo: description
+-- The ingester is responsible for sending AXI compliant read requests and offering up the responses to the DataAligner for further processing.
+-- AXI requires that a burst does not cross 4KB address boundaries. Logic for avoiding these boundaries is included in the ingester, inspired by
+-- the Fletcher BufferReaders (https://github.com/johanpel/fletcher/blob/develop/hardware/vhdl/buffers/BufferReaderCmdGenBusReq.vhd).
+--
+-- This unit uses a Fletcher BusReadBuffer to ensure that a read request is only sent to the AXI bus if we can buffer the entire response.
 
 entity Ingester is
   generic (
