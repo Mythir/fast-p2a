@@ -30,8 +30,8 @@ entity Ingester_tb is
 end Ingester_tb;
 
 architecture tb of Ingester_tb is
-  constant p_base_address       : natural := 250;
-  constant p_data_size          : natural := 200;
+  constant p_base_address       : natural := 128;
+  constant p_data_size          : natural := 1024;
 
   constant BUS_DATA_WIDTH       : natural := 512;
   constant BUS_ADDR_WIDTH       : natural := 64;
@@ -196,10 +196,12 @@ begin
       rand_wait_cycles(clk, seed1, seed2, p_wait, min_cyc, max_cyc);
     end loop;
 
+    report "Reached end of expected output file" severity note;
+
     loop
+      wait until rising_edge(clk);
       assert out_valid = '0'
         report "Ingester outputting more data than required" severity failure;
-      wait until rising_edge(clk);
     end loop;
     wait;
   end process;
