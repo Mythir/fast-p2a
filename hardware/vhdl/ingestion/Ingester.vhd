@@ -15,6 +15,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 library work;
+-- Fletcher utils for use of log2ceil and endian_swap functions
 use work.Utils.all;
 use work.Interconnect.all;
 
@@ -77,7 +78,7 @@ entity Ingester is
 
     -- Pointer to start of data and size of data, received from host via MMIO
     base_address                : in  std_logic_vector(BUS_ADDR_WIDTH-1 downto 0);
-    data_size                   : in  std_logic_vector(BUS_DATA_WIDTH-1 downto 0)
+    data_size                   : in  std_logic_vector(BUS_ADDR_WIDTH-1 downto 0)
 
 
   );
@@ -151,12 +152,12 @@ begin
       mst_rreq_len                      => bus_rreq_len,
       mst_rdat_valid                    => bus_rdat_valid,
       mst_rdat_ready                    => bus_rdat_ready,
-      mst_rdat_data                     => bus_rdat_data,
+      mst_rdat_data                     => endian_swap(bus_rdat_data),
       mst_rdat_last                     => bus_rdat_last
     );
 
 
-  logic_p: process (state, start, current_address, ingester_req_ready, bus_aligned_base_addr, end_address, pa_ready)
+  logic_p: process (state, start, current_address, ingester_req_ready, bus_aligned_base_addr, end_address, pa_ready, stop)
     variable next_burst_address : unsigned(BUS_ADDR_WIDTH-1 downto 0);
   begin
     pa_valid <= '0';
@@ -232,6 +233,11 @@ begin
 
 
       end case;
+
+      -- If stop is asserted, stop requesting data from memory
+      if stop = '1' then
+        state_next <= DONE;
+      end if;
   end process;
 
   state_p: process (clk)
