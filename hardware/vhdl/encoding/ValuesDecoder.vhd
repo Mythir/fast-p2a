@@ -34,6 +34,12 @@ entity ValuesDecoder is
     -- Fletcher command stream tag width
     CMD_TAG_WIDTH               : natural;
 
+    -- RAM config string
+    RAM_CONFIG                  : string := "";
+
+    -- Compression
+    COMPRESSION_CODEC           : string;
+
     -- Bit width of a single primitive value
     PRIM_WIDTH                  : natural
   );
