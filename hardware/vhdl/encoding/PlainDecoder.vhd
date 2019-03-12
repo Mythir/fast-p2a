@@ -19,6 +19,7 @@ library work;
 use work.Utils.all;
 
 -- Todo: description
+-- Todo: implement out_last
 
 entity PlainDecoder is
   generic (
