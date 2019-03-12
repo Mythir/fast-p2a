@@ -43,3 +43,9 @@ with open("PageData_input.hex", "w") as f:
             for j in range(ints_per_bus_word-(size % ints_per_bus_word)):
                 f.write(hex(0)[2:].zfill(int_width_bytes*2))
             f.write("\n")
+
+print("Generated testbench input files with the following parameters:")
+print("bus_data_width = {bus_data_width} bits".format(bus_data_width=bus_data_width))
+print("prim_width = {prim_width} bits".format(prim_width=int_width_bits))
+print("total_num_values = {total_num_values}".format(total_num_values=sum(page_sizes)))
+print("Please edit the Ingester testbench constants to reflect this.")
