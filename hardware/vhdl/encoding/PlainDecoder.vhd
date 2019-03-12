@@ -65,14 +65,14 @@ architecture behv of PlainDecoder is
   -- The amount of values transferred to the ColumnWriter every cycle
   constant ELEMENTS_PER_CYCLE : natural := BUS_DATA_WIDTH/PRIM_WIDTH;
 
-  type state_t is (IDLE, DECODING);
+  type state_t is (IDLE, IN_PAGE, PAGE_END, FINAL_TRANSFER, DONE);
 
   type reg_record is record 
     state             : state_t;
     page_val_counter  : unsigned(31 downto 0);
     total_val_counter : unsigned(31 downto 0);
     m_page_num_values : unsigned(31 downto 0);
-    val_reg_count     : integer range (0 to ELEMENTS_PER_CYCLE-1);
+    val_reg_count     : integer range 0 to ELEMENTS_PER_CYCLE-1;
     val_reg           : std_logic_vector((ELEMENTS_PER_CYCLE-1)*PRIM_WIDTH-1 downto 0);
   end record;
 
@@ -85,14 +85,15 @@ begin
 
   s_in_data <= endian_swap(in_data);
 
-  logic_p: process(r)
-    constant val_misalignment     : unsigned(log2ceil(ELEMENTS_PER_CYCLE)-1 downto 0) := r.m_page_num_values(log2ceil(ELEMENTS_PER_CYCLE)-1 downto 0);
-
+  logic_p: process(r, page_num_values, total_num_values, in_valid, out_ready, in_data, new_page_valid)
     variable v                    : reg_record;
     variable page_val_counter_inc : unsigned(31 downto 0);
-    variable new_val_reg_count    : integer range (0 to (ELEMENTS_PER_CYCLE-1)*2);
+    variable new_val_reg_count    : unsigned(log2ceil((ELEMENTS_PER_CYCLE-1)*2) downto 0);
+    variable val_misalignment     : unsigned(log2ceil(ELEMENTS_PER_CYCLE)-1 downto 0);
   begin
     v := r;
+
+    val_misalignment := r.m_page_num_values(log2ceil(ELEMENTS_PER_CYCLE)-1 downto 0);
 
     new_page_ready <= '0';
     in_ready <= '0';
@@ -105,13 +106,13 @@ begin
       when IDLE =>
         new_page_ready <= '1';
         if new_page_valid = '1' then
-          v.state             := DECODING;
+          v.state             := IN_PAGE;
           v.m_page_num_values := unsigned(page_num_values);
           v.page_val_counter  := (others => '0');
         end if;
 
       when IN_PAGE =>
-        if page_val_counter_inc + r.total_val_counter > total_num_values then
+        if page_val_counter_inc > r.m_page_num_values then
           v.state := PAGE_END;
         else
           in_ready <= out_ready;
@@ -121,10 +122,10 @@ begin
               out_data <= in_data;
             else
               out_data <= in_data(PRIM_WIDTH*(ELEMENTS_PER_CYCLE-r.val_reg_count)-1 downto 0) & r.val_reg(PRIM_WIDTH*r.val_reg_count-1 downto 0);
-              v.val_reg := in_data(BUS_DATA_WIDTH-1 downto PRIM_WIDTH*(ELEMENTS_PER_CYCLE-r.val_reg_count));
+              v.val_reg(PRIM_WIDTH*r.val_reg_count-1 downto 0) := in_data(BUS_DATA_WIDTH-1 downto PRIM_WIDTH*(ELEMENTS_PER_CYCLE-r.val_reg_count));
             end if;
   
-            if page_val_counter_inc + r.total_val_counter > total_num_values then
+            if page_val_counter_inc + r.total_val_counter > unsigned(total_num_values) then
               v.state := DONE;
             else
               v.page_val_counter := page_val_counter_inc;
@@ -133,22 +134,47 @@ begin
         end if;
 
       when PAGE_END =>
-        new_val_reg_count := r.val_reg_count + val_misalignment;
+        new_val_reg_count   := r.val_reg_count + val_misalignment;
+        v.val_reg_count     := to_integer(new_val_reg_count(val_misalignment'length-1 downto 0));
+        v.total_val_counter := r.total_val_counter + r.m_page_num_values;
 
         if new_val_reg_count > (ELEMENTS_PER_CYCLE-1) then
           in_ready <= out_ready;
           out_valid <= in_valid;
           if in_valid = '1' and out_ready = '1' then
-            v.val_reg_count := unsigned(new_val_reg_count(val_misalignment'length-1 downto 0))
             out_data <= in_data(PRIM_WIDTH*(ELEMENTS_PER_CYCLE-r.val_reg_count)-1 downto 0) & r.val_reg(PRIM_WIDTH*r.val_reg_count-1 downto 0);
-            v.val_reg := in_data(BUS_DATA_WIDTH-1 downto PRIM_WIDTH*(ELEMENTS_PER_CYCLE-v.val_reg_count));
-            -- Todo: finish this
+            v.val_reg(PRIM_WIDTH*v.val_reg_count-1 downto 0) := in_data(PRIM_WIDTH*to_integer(val_misalignment)-1 downto PRIM_WIDTH*(ELEMENTS_PER_CYCLE-v.val_reg_count));
+            if v.total_val_counter > unsigned(total_num_values) then
+              v.state := FINAL_TRANSFER;
+            else
+              v.state := IDLE;
+            end if;
           end if;
-          -- Todo: finish this
+        elsif v.val_reg_count > r.val_reg_count then
+          in_ready <= '1';
+          if in_valid = '1' then
+            v.val_reg(PRIM_WIDTH*v.val_reg_count-1 downto PRIM_WIDTH*r.val_reg_count) := in_data(PRIM_WIDTH*to_integer(val_misalignment)-1 downto 0);
+            if v.total_val_counter > unsigned(total_num_values) then
+              v.state := FINAL_TRANSFER;
+            else
+              v.state := IDLE;
+            end if;
+          end if;          
         end if;
 
+      when FINAL_TRANSFER =>
+        if r.val_reg_count > 0 then
+          out_valid <= '1';
+          out_data(r.val_reg'length-1 downto 0) <= r.val_reg;
+          if out_ready = '1' then
+            v.state := DONE;
+          end if;
+        else
+          v.state := DONE;
+        end if;
 
       when DONE =>
+        ctrl_done <= '1';
 
 
     end case;
@@ -163,7 +189,7 @@ begin
         r.state             <= IDLE;
         r.page_val_counter  <= (others => '0');
         r.total_val_counter <= (others => '0');
-        val_reg_count       <= 0;
+        r.val_reg_count       <= 0;
       else
         r <= d;
       end if;
