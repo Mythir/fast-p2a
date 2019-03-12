@@ -33,16 +33,18 @@ with open("PageNumValues_input.hex", "w") as f:
 with open("PageData_input.hex", "w") as f:
     counter = 0
     for size in page_sizes:
+        bus_word = ""
         for i in range(size):
-            f.write(hex(counter)[2:].zfill(int_width_bytes*2))
+            bus_word = hex(counter)[2:].zfill(int_width_bytes*2) + bus_word
             counter += 1
             if (i+1) % ints_per_bus_word == 0:
-                f.write("\n")
+                f.write(bus_word + "\n")
+                bus_word = ""
 
         if size % ints_per_bus_word != 0:
             for j in range(ints_per_bus_word-(size % ints_per_bus_word)):
-                f.write(hex(0)[2:].zfill(int_width_bytes*2))
-            f.write("\n")
+                bus_word = hex(0)[2:].zfill(int_width_bytes*2) + bus_word
+            f.write(bus_word + "\n")
 
 print("Generated testbench input files with the following parameters:")
 print("bus_data_width = {bus_data_width} bits".format(bus_data_width=bus_data_width))
