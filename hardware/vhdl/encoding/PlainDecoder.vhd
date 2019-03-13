@@ -126,7 +126,7 @@ begin
         else
           in_ready <= out_ready;
           out_valid <= in_valid;
-          if page_val_counter_inc + r.total_val_counter > unsigned(total_num_values) then
+          if page_val_counter_inc + r.total_val_counter - r.val_reg_count >= unsigned(total_num_values) then
             s_out_last <= '1';
           end if;
 
@@ -151,7 +151,7 @@ begin
         new_val_reg_count     := to_unsigned(r.val_reg_count, new_val_reg_count'length) + resize(val_misalignment, new_val_reg_count'length);
         new_total_val_counter := r.total_val_counter + r.m_page_num_values;
         if new_total_val_counter >= unsigned(total_num_values) then
-          if to_integer(new_val_reg_count(val_misalignment'length-1 downto 0)) = 0 then
+          if r.page_val_counter + resize(val_misalignment, r.page_val_counter'length) + r.total_val_counter - r.val_reg_count >= unsigned(total_num_values) then
             new_state := DONE;
           else
             new_state := FINAL_TRANSFER;

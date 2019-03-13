@@ -29,7 +29,7 @@ end PlainDecoder_tb;
 architecture tb of PlainDecoder_tb is
   constant BUS_DATA_WIDTH       : natural := 512;
   constant PRIM_WIDTH           : natural := 64;
-  constant TOTAL_NUM_VALUES     : natural := 17336;
+  constant TOTAL_NUM_VALUES     : natural := 3; -- 15428
   constant clk_period           : time    := 10 ns;
 
   signal clk                    : std_logic;
