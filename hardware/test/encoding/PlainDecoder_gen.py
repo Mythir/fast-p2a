@@ -22,7 +22,7 @@ ints_per_bus_word = bus_data_width//int_width_bits
 min_page_size = 10
 max_page_size = 300
 
-page_amount = 50
+page_amount = 100
 
 page_sizes = [random.randint(min_page_size, max_page_size) for _ in range(page_amount)]
 

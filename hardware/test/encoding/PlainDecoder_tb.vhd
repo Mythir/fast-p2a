@@ -29,7 +29,7 @@ end PlainDecoder_tb;
 architecture tb of PlainDecoder_tb is
   constant BUS_DATA_WIDTH       : natural := 512;
   constant PRIM_WIDTH           : natural := 64;
-  constant TOTAL_NUM_VALUES     : natural := 7598;
+  constant TOTAL_NUM_VALUES     : natural := 17336;
   constant clk_period           : time    := 10 ns;
 
   signal clk                    : std_logic;
@@ -118,7 +118,7 @@ begin
       end if;
     end loop;
 
-    report "All pages have been handshaked";
+    report "All pages have been handshaked" severity note;
 
     wait;
   end process;
@@ -179,8 +179,9 @@ begin
     constant stream_stop_p      : real    := 0.05;
     constant max_stopped_cycles : real    := 10.0;
 
-    variable counter   : natural := 0;
-    variable read_data : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
+    variable counter            : natural := 0;
+    variable read_data          : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
+    variable check_out_last     : std_logic;
 
     variable seed1              : positive := 1227;
     variable seed2              : positive := 4422;
@@ -204,13 +205,24 @@ begin
       end loop;
   
       out_ready <= '0';
-      read_data := out_data;
+
+      read_data      := out_data;
+      check_out_last := out_last;
   
       for i in 0 to integer(floor(real(BUS_DATA_WIDTH)/real(PRIM_WIDTH)))-1 loop
         assert read_data(PRIM_WIDTH*(i+1)-1 downto PRIM_WIDTH*i) = std_logic_vector(to_unsigned(counter, PRIM_WIDTH))
           report "Incorrect out_data. Read " & integer'image(to_integer(unsigned(read_data(PRIM_WIDTH*(i+1)-1 downto PRIM_WIDTH*i)))) & " expected " & integer'image(counter) severity failure;
   
         counter := counter + 1;
+
+        if counter = TOTAL_NUM_VALUES then
+          assert check_out_last = '1'
+            report "Out_last not asserted on last transaction" severity failure;
+
+          report "All values read" severity note;
+          counter := 0;
+          exit;
+        end if;
         wait for 0 ns;
       end loop;
   

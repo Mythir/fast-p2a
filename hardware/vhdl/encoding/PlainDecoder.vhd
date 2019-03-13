@@ -82,15 +82,21 @@ architecture behv of PlainDecoder is
 
   -- Signal with in_data in correct byte order
   signal s_in_data : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
+
+  -- Out_last internal copy
+  signal s_out_last : std_logic;
 begin
 
   s_in_data <= endian_swap(in_data);
+  out_last <= s_out_last;
 
-  logic_p: process(r, page_num_values, total_num_values, in_valid, out_ready, in_data, new_page_valid)
-    variable v                    : reg_record;
-    variable page_val_counter_inc : unsigned(31 downto 0);
-    variable new_val_reg_count    : unsigned(log2ceil((ELEMENTS_PER_CYCLE-1)*2) downto 0);
-    variable val_misalignment     : unsigned(log2ceil(ELEMENTS_PER_CYCLE)-1 downto 0);
+  logic_p: process(r, page_num_values, total_num_values, in_valid, out_ready, in_data, new_page_valid, s_out_last)
+    variable v                      : reg_record;
+    variable page_val_counter_inc   : unsigned(31 downto 0);
+    variable new_val_reg_count      : unsigned(log2ceil((ELEMENTS_PER_CYCLE-1)*2) downto 0);
+    variable new_total_val_counter  : unsigned (31 downto 0);
+    variable new_state              : state_t;
+    variable val_misalignment       : unsigned(log2ceil(ELEMENTS_PER_CYCLE)-1 downto 0);
   begin
     v := r;
 
@@ -100,6 +106,8 @@ begin
     in_ready <= '0';
     out_valid <= '0';
     out_data <= (others => '0');
+    s_out_last <= '0';
+    ctrl_done <= '0';
 
     page_val_counter_inc := r.page_val_counter + ELEMENTS_PER_CYCLE;
 
@@ -118,6 +126,11 @@ begin
         else
           in_ready <= out_ready;
           out_valid <= in_valid;
+          if page_val_counter_inc + r.total_val_counter > unsigned(total_num_values) then
+            s_out_last <= '1';
+          end if;
+
+
           if in_valid = '1' and out_ready = '1' then
             if r.val_reg_count = 0 then
               out_data <= in_data;
@@ -126,7 +139,7 @@ begin
               v.val_reg(PRIM_WIDTH*r.val_reg_count-1 downto 0) := in_data(BUS_DATA_WIDTH-1 downto PRIM_WIDTH*(ELEMENTS_PER_CYCLE-r.val_reg_count));
             end if;
   
-            if page_val_counter_inc + r.total_val_counter > unsigned(total_num_values) then
+            if s_out_last = '1' then
               v.state := DONE;
             else
               v.page_val_counter := page_val_counter_inc;
@@ -135,37 +148,53 @@ begin
         end if;
 
       when PAGE_END =>
-        new_val_reg_count   := r.val_reg_count + val_misalignment;
-        v.val_reg_count     := to_integer(new_val_reg_count(val_misalignment'length-1 downto 0));
-        v.total_val_counter := r.total_val_counter + r.m_page_num_values;
+        new_val_reg_count     := to_unsigned(r.val_reg_count, new_val_reg_count'length) + resize(val_misalignment, new_val_reg_count'length);
+        new_total_val_counter := r.total_val_counter + r.m_page_num_values;
+        if new_total_val_counter >= unsigned(total_num_values) then
+          if to_integer(new_val_reg_count(val_misalignment'length-1 downto 0)) = 0 then
+            new_state := DONE;
+          else
+            new_state := FINAL_TRANSFER;
+          end if;
+        else
+          new_state := IDLE;
+        end if;
 
         if new_val_reg_count > (ELEMENTS_PER_CYCLE-1) then
+          --report "Page end. Misalignment overflow" severity note;
           in_ready <= out_ready;
           out_valid <= in_valid;
-          if in_valid = '1' and out_ready = '1' then
-            out_data <= in_data(PRIM_WIDTH*(ELEMENTS_PER_CYCLE-r.val_reg_count)-1 downto 0) & r.val_reg(PRIM_WIDTH*r.val_reg_count-1 downto 0);
-            v.val_reg(PRIM_WIDTH*v.val_reg_count-1 downto 0) := in_data(PRIM_WIDTH*to_integer(val_misalignment)-1 downto PRIM_WIDTH*(ELEMENTS_PER_CYCLE-v.val_reg_count));
-            if v.total_val_counter > unsigned(total_num_values) then
-              v.state := FINAL_TRANSFER;
-            else
-              v.state := IDLE;
-            end if;
+          if new_state = DONE then
+            s_out_last <= '1';
           end if;
-        elsif v.val_reg_count > r.val_reg_count then
+
+          if in_valid = '1' and out_ready = '1' then
+            v.val_reg_count     := to_integer(new_val_reg_count(val_misalignment'length-1 downto 0));
+            v.total_val_counter := new_total_val_counter;
+            out_data <= in_data(PRIM_WIDTH*(ELEMENTS_PER_CYCLE-r.val_reg_count)-1 downto 0) & r.val_reg(PRIM_WIDTH*r.val_reg_count-1 downto 0);
+            v.val_reg(PRIM_WIDTH*v.val_reg_count-1 downto 0) := in_data(PRIM_WIDTH*to_integer(val_misalignment)-1 downto PRIM_WIDTH*(ELEMENTS_PER_CYCLE-r.val_reg_count));
+            v.state := new_state;
+          end if;
+        elsif new_val_reg_count > r.val_reg_count then
+          --report "Page end. Misalignment increased" severity note;
           in_ready <= '1';
           if in_valid = '1' then
+            v.val_reg_count     := to_integer(new_val_reg_count(val_misalignment'length-1 downto 0));
+            v.total_val_counter := new_total_val_counter;
             v.val_reg(PRIM_WIDTH*v.val_reg_count-1 downto PRIM_WIDTH*r.val_reg_count) := in_data(PRIM_WIDTH*to_integer(val_misalignment)-1 downto 0);
-            if v.total_val_counter > unsigned(total_num_values) then
-              v.state := FINAL_TRANSFER;
-            else
-              v.state := IDLE;
-            end if;
+            v.state := new_state;
           end if;          
+        else
+          --report "Page end. Misalignment unchanged" severity note;
+          v.val_reg_count     := to_integer(new_val_reg_count(val_misalignment'length-1 downto 0));
+          v.total_val_counter := new_total_val_counter;
+          v.state := new_state;
         end if;
 
       when FINAL_TRANSFER =>
         if r.val_reg_count > 0 then
           out_valid <= '1';
+          s_out_last <= '1';
           out_data(r.val_reg'length-1 downto 0) <= r.val_reg;
           if out_ready = '1' then
             v.state := DONE;
