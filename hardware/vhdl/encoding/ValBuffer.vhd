@@ -36,7 +36,7 @@ entity ValBuffer is
     -- Data in stream from Decompressor
     in_valid                    : in  std_logic;
     in_ready                    : out std_logic;
-    in_count                    : in  std_logic_vector(log2ceil(BUS_DATA_WIDTH/PRIM_WIDTH)-1 downto 0);
+    in_count                    : in  std_logic_vector(log2floor(BUS_DATA_WIDTH/PRIM_WIDTH) downto 0);
     in_last                     : in  std_logic;
     in_data                     : in  std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
 

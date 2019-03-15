@@ -66,15 +66,13 @@ architecture behv of PlainDecoder is
   -- The amount of values transferred to the ColumnWriter every cycle
   constant ELEMENTS_PER_CYCLE : natural := BUS_DATA_WIDTH/PRIM_WIDTH;
 
-  type state_t is (IDLE, IN_PAGE, PAGE_END, FINAL_TRANSFER, DONE);
+  type state_t is (IDLE, IN_PAGE, DONE);
 
   type reg_record is record 
     state             : state_t;
-    page_val_counter  : unsigned(31 downto 0);
+    bus_word_counter  : unsigned(32 - log2ceil(ELEMENTS_PER_CYCLE) downto 0);
     total_val_counter : unsigned(31 downto 0);
     m_page_num_values : unsigned(31 downto 0);
-    val_reg_count     : integer range 0 to ELEMENTS_PER_CYCLE-1;
-    val_reg           : std_logic_vector((ELEMENTS_PER_CYCLE-1)*PRIM_WIDTH-1 downto 0);
   end record;
 
   signal r : reg_record;
@@ -83,33 +81,57 @@ architecture behv of PlainDecoder is
   -- Signal with in_data in correct byte order
   signal s_in_data : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
 
-  -- Out_last internal copy
-  signal s_out_last : std_logic;
+  -- Amount of valid values in a bus word
+  signal val_count : std_logic_vector(log2floor(ELEMENTS_PER_CYCLE) downto 0);
+
+  signal full_bus_words_in_page : unsigned(32 - log2ceil(ELEMENTS_PER_CYCLE) downto 0);
+  signal val_misalignment : unsigned(log2floor(ELEMENTS_PER_CYCLE)-1 downto 0);
+
+  signal buffer_in_valid : std_logic;
+  signal buffer_in_ready : std_logic;
+  signal buffer_in_last  : std_logic;
 begin
 
   s_in_data <= endian_swap(in_data);
-  out_last <= s_out_last;
 
-  logic_p: process(r, page_num_values, total_num_values, in_valid, out_ready, in_data, new_page_valid, s_out_last)
+  valbuffer_inst: entity work.ValBuffer
+  generic map(
+    BUS_DATA_WIDTH              => BUS_DATA_WIDTH,
+    PRIM_WIDTH                  => PRIM_WIDTH
+  )
+  port map(
+    clk                         => clk,
+    reset                       => reset,
+    in_valid                    => buffer_in_valid,
+    in_ready                    => buffer_in_ready,
+    in_count                    => val_count,
+    in_last                     => buffer_in_last,
+    in_data                     => s_in_data,
+    out_valid                   => out_valid,
+    out_ready                   => out_ready,
+    out_last                    => out_last,
+    out_data                    => out_data
+  );
+
+  full_bus_words_in_page <= resize(r.m_page_num_values(31 downto log2ceil(ELEMENTS_PER_CYCLE)), full_bus_words_in_page'length);
+  val_misalignment <= r.m_page_num_values(log2floor(ELEMENTS_PER_CYCLE)-1 downto 0);
+
+  logic_p: process(r, page_num_values, total_num_values, in_valid, new_page_valid, buffer_in_last, val_count,
+                   buffer_in_ready, full_bus_words_in_page, val_misalignment)
     variable v                      : reg_record;
-    variable page_val_counter_inc   : unsigned(31 downto 0);
-    variable new_val_reg_count      : unsigned(log2ceil((ELEMENTS_PER_CYCLE-1)*2) downto 0);
-    variable new_total_val_counter  : unsigned (31 downto 0);
-    variable new_state              : state_t;
-    variable val_misalignment       : unsigned(log2ceil(ELEMENTS_PER_CYCLE)-1 downto 0);
+    variable bus_word_counter_inc   : unsigned(32 - log2ceil(ELEMENTS_PER_CYCLE) downto 0);
+    variable total_val_counter_inc  : unsigned(31 downto 0);
   begin
     v := r;
-
-    val_misalignment := r.m_page_num_values(log2ceil(ELEMENTS_PER_CYCLE)-1 downto 0);
+    bus_word_counter_inc := r.bus_word_counter + 1;
 
     new_page_ready <= '0';
-    in_ready <= '0';
-    out_valid <= '0';
-    out_data <= (others => '0');
-    s_out_last <= '0';
     ctrl_done <= '0';
+    val_count <= std_logic_vector(to_unsigned(ELEMENTS_PER_CYCLE, val_count'length));
 
-    page_val_counter_inc := r.page_val_counter + ELEMENTS_PER_CYCLE;
+    buffer_in_valid <= '0';
+    in_ready <= '0';
+    buffer_in_last  <= '0';
 
     case r.state is
       when IDLE =>
@@ -117,95 +139,36 @@ begin
         if new_page_valid = '1' then
           v.state             := IN_PAGE;
           v.m_page_num_values := unsigned(page_num_values);
-          v.page_val_counter  := (others => '0');
+          v.bus_word_counter  := (others => '0');
         end if;
 
       when IN_PAGE =>
-        if page_val_counter_inc > r.m_page_num_values then
-          v.state := PAGE_END;
-        else
-          in_ready <= out_ready;
-          out_valid <= in_valid;
-          if page_val_counter_inc + r.total_val_counter - r.val_reg_count >= unsigned(total_num_values) then
-            s_out_last <= '1';
-          end if;
+        buffer_in_valid <= in_valid;
+        in_ready <= buffer_in_ready;
 
-
-          if in_valid = '1' and out_ready = '1' then
-            if r.val_reg_count = 0 then
-              out_data <= in_data;
-            else
-              out_data <= in_data(PRIM_WIDTH*(ELEMENTS_PER_CYCLE-r.val_reg_count)-1 downto 0) & r.val_reg(PRIM_WIDTH*r.val_reg_count-1 downto 0);
-              v.val_reg(PRIM_WIDTH*r.val_reg_count-1 downto 0) := in_data(BUS_DATA_WIDTH-1 downto PRIM_WIDTH*(ELEMENTS_PER_CYCLE-r.val_reg_count));
-            end if;
-  
-            if s_out_last = '1' then
-              v.state := DONE;
-            else
-              v.page_val_counter := page_val_counter_inc;
-            end if;
-          end if;
+        if r.bus_word_counter = full_bus_words_in_page then
+          val_count <= std_logic_vector(val_misalignment);
         end if;
 
-      when PAGE_END =>
-        new_val_reg_count     := to_unsigned(r.val_reg_count, new_val_reg_count'length) + resize(val_misalignment, new_val_reg_count'length);
-        new_total_val_counter := r.total_val_counter + r.m_page_num_values;
-        if new_total_val_counter >= unsigned(total_num_values) then
-          if r.page_val_counter + resize(val_misalignment, r.page_val_counter'length) + r.total_val_counter - r.val_reg_count >= unsigned(total_num_values) then
-            new_state := DONE;
-          else
-            new_state := FINAL_TRANSFER;
-          end if;
-        else
-          new_state := IDLE;
+        total_val_counter_inc := r.total_val_counter + unsigned(val_count);
+
+        if total_val_counter_inc >= unsigned(total_num_values) then
+          buffer_in_last <= '1';
         end if;
 
-        if new_val_reg_count > (ELEMENTS_PER_CYCLE-1) then
-          --report "Page end. Misalignment overflow" severity note;
-          in_ready <= out_ready;
-          out_valid <= in_valid;
-          if new_state = DONE then
-            s_out_last <= '1';
-          end if;
+        if in_valid = '1' and buffer_in_ready = '1' then
+          v.bus_word_counter := bus_word_counter_inc;
+          v.total_val_counter := total_val_counter_inc;
 
-          if in_valid = '1' and out_ready = '1' then
-            v.val_reg_count     := to_integer(new_val_reg_count(val_misalignment'length-1 downto 0));
-            v.total_val_counter := new_total_val_counter;
-            out_data <= in_data(PRIM_WIDTH*(ELEMENTS_PER_CYCLE-r.val_reg_count)-1 downto 0) & r.val_reg(PRIM_WIDTH*r.val_reg_count-1 downto 0);
-            v.val_reg(PRIM_WIDTH*v.val_reg_count-1 downto 0) := in_data(PRIM_WIDTH*to_integer(val_misalignment)-1 downto PRIM_WIDTH*(ELEMENTS_PER_CYCLE-r.val_reg_count));
-            v.state := new_state;
-          end if;
-        elsif new_val_reg_count > r.val_reg_count then
-          --report "Page end. Misalignment increased" severity note;
-          in_ready <= '1';
-          if in_valid = '1' then
-            v.val_reg_count     := to_integer(new_val_reg_count(val_misalignment'length-1 downto 0));
-            v.total_val_counter := new_total_val_counter;
-            v.val_reg(PRIM_WIDTH*v.val_reg_count-1 downto PRIM_WIDTH*r.val_reg_count) := in_data(PRIM_WIDTH*to_integer(val_misalignment)-1 downto 0);
-            v.state := new_state;
-          end if;          
-        else
-          --report "Page end. Misalignment unchanged" severity note;
-          v.val_reg_count     := to_integer(new_val_reg_count(val_misalignment'length-1 downto 0));
-          v.total_val_counter := new_total_val_counter;
-          v.state := new_state;
-        end if;
-
-      when FINAL_TRANSFER =>
-        if r.val_reg_count > 0 then
-          out_valid <= '1';
-          s_out_last <= '1';
-          out_data(r.val_reg'length-1 downto 0) <= r.val_reg;
-          if out_ready = '1' then
+          if buffer_in_last = '1' then
             v.state := DONE;
+          elsif v.bus_word_counter = full_bus_words_in_page and val_misalignment = to_unsigned(0, val_misalignment'length) then
+            v.state := IDLE;
           end if;
-        else
-          v.state := DONE;
         end if;
 
       when DONE =>
         ctrl_done <= '1';
-
 
     end case;
 
@@ -217,9 +180,8 @@ begin
     if rising_edge(clk) then
       if reset = '1' then
         r.state             <= IDLE;
-        r.page_val_counter  <= (others => '0');
+        r.bus_word_counter  <= (others => '0');
         r.total_val_counter <= (others => '0');
-        r.val_reg_count       <= 0;
       else
         r <= d;
       end if;
