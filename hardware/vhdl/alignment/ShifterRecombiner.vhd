@@ -40,13 +40,13 @@ entity ShifterRecombiner is
     BUS_DATA_WIDTH              : natural := 512;
 
     -- Width of shifting amount input (alignment)
-    SHIFT_WIDTH                 : natural;
+    SHIFT_WIDTH                 : natural := 6;
 
     -- Width of elements to shift. (A byte for the ptoa use case).
     ELEMENT_WIDTH               : natural := 8;
 
     -- Number of stages in the barrel shifter pipeline
-    NUM_SHIFT_STAGES            : natural
+    NUM_SHIFT_STAGES            : natural := 6
   );
   port (
 
@@ -100,8 +100,18 @@ begin
 
   -- Data presented at the output is a combination of the shifter output and the recombiner register.
   -- In other words: a new (aligned) bus word is created from parts of two input bus words.
-  out_data <= recombiner_r_out_data when alignment = std_logic_vector(to_unsigned(0, SHIFT_WIDTH)) else
-              recombiner_r_out_data(BUS_DATA_WIDTH-1 downto ELEMENT_WIDTH*to_integer(unsigned(alignment))) & shifter_out_data(ELEMENT_WIDTH*to_integer(unsigned(alignment))-1 downto 0);
+  -- out_data <= recombiner_r_out_data when alignment = std_logic_vector(to_unsigned(0, SHIFT_WIDTH)) else
+  --             recombiner_r_out_data(BUS_DATA_WIDTH-1 downto ELEMENT_WIDTH*to_integer(unsigned(alignment))) & shifter_out_data(ELEMENT_WIDTH*to_integer(unsigned(alignment))-1 downto 0);
+              
+  out_data_p: process(alignment, recombiner_r_out_data, shifter_out_data)
+  begin
+    out_data <= recombiner_r_out_data;
+    for i in 1 to BUS_DATA_WIDTH/8-1 loop
+      if i = to_integer(unsigned(alignment)) then
+        out_data <= recombiner_r_out_data(BUS_DATA_WIDTH-1 downto ELEMENT_WIDTH*i) & shifter_out_data(ELEMENT_WIDTH*i-1 downto 0);
+      end if;
+    end loop;
+  end process;
 
   shifter_ctrl_inst: StreamPipelineControl
     generic map (

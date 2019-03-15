@@ -31,7 +31,7 @@ entity HistoryBuffer is
     BUS_DATA_WIDTH              : natural := 512;
 
     -- Depth of RAM needed (as log2 of needed depth)
-    DEPTH_LOG2                  : natural
+    DEPTH_LOG2                  : natural := 5
   );
   port (
 
@@ -230,11 +230,13 @@ begin
 
       read_ptr_prev <= read_ptr;
 
+      --pragma translate_off
       assert DEBUG_ENTRY_COUNT >= 0
         report "HistoryBuffer underflow." severity failure;
   
       assert DEBUG_ENTRY_COUNT <= 2**DEPTH_LOG2
         report "HistoryBuffer overflow." severity failure;
+      --pragma translate_on
     end if;
   end process;
 

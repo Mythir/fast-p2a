@@ -92,6 +92,7 @@ begin
     variable num_stopped_cycles : real;
   begin
     file_open(input_data, "./test/alignment/DataAligner_input.hex", read_mode);
+    --file_open(input_data, "DataAligner_input.hex", read_mode);
 
     in_valid <= '0';
     in_data <= (others => '0');
@@ -104,6 +105,7 @@ begin
     end loop;
 
     -- Transfer initial alignment
+    wait for 1 ns;
     pa_valid <= '1';
     prod_alignment <= std_logic_vector(to_unsigned(init_misalignment, prod_alignment'length));
 
@@ -111,6 +113,7 @@ begin
       wait until rising_edge(clk);
       exit when pa_ready = '1';
     end loop;
+    wait for 1 ps;
 
     pa_valid <= '0';
     prod_alignment <= (others => '0');
@@ -126,6 +129,7 @@ begin
         wait until rising_edge(clk);
         exit when in_ready = '1';
       end loop;
+      wait for 1 ps;
 
       in_valid <= '0';
 
@@ -160,6 +164,7 @@ begin
       variable v_out_data         : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
     begin
       file_open(output_check, "./test/alignment/DataAligner_out" & integer'image(i) & ".hex", read_mode);
+      --file_open(output_check, "DataAligner_out" & integer'image(i) & ".hex", read_mode);
 
       out_ready(i) <= '0';
       bc_valid(i) <= '0';
@@ -178,6 +183,7 @@ begin
           wait until rising_edge(clk);
           exit when out_valid(i) = '1';
         end loop;
+        wait for 1 ps;
   
         out_ready(i) <= '0';
         v_out_data := out_data;
@@ -200,7 +206,8 @@ begin
             wait until rising_edge(clk);
             exit when bc_ready(i) = '1';
           end loop;
-
+          wait for 1 ps;
+          
           bc_valid(i) <= '0';
         else
           -- Verify DataAligner output

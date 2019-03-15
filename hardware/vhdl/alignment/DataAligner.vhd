@@ -27,10 +27,10 @@ entity DataAligner is
     BUS_DATA_WIDTH              : natural := 512;
 
     -- Number of consumers requesting aligned data.
-    NUM_CONSUMERS               : natural;
+    NUM_CONSUMERS               : natural := 5;
 
     -- Number of stages in the barrel shifter pipeline
-    NUM_SHIFT_STAGES            : natural
+    NUM_SHIFT_STAGES            : natural := 6
   );
   port (
 

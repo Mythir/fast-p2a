@@ -28,16 +28,16 @@ use work.Interconnect.all;
 entity Ingester is
   generic (
     -- Bus data width
-    BUS_DATA_WIDTH              : natural;
+    BUS_DATA_WIDTH              : natural := 512;
 
     -- Bus address width
-    BUS_ADDR_WIDTH              : natural;
+    BUS_ADDR_WIDTH              : natural := 64;
 
     -- Bus length width
-    BUS_LEN_WIDTH               : natural;
+    BUS_LEN_WIDTH               : natural := 8;
 
     -- Number of beats in a burst.
-    BUS_BURST_MAX_LEN           : natural;
+    BUS_BURST_MAX_LEN           : natural := 16;
 
     -- Depth of the FiFo in the Fletcher BusReadBuffer used to buffer data read from memory.
     -- A larger FiFo allows for more outstanding read requests (approximately FIFO_DEPTH/BURST_MAX_LEN requests.)

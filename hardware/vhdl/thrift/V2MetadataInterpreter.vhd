@@ -27,7 +27,7 @@ use work.Encoding.all;
 entity V2MetadataInterpreter is
   generic (
     -- Bus data width
-    BUS_DATA_WIDTH              : natural;
+    BUS_DATA_WIDTH              : natural := 512;
 
     -- Width of the register that stores the amount of bytes processed. 8 bits should be plenty for page metadata
     CYCLE_COUNT_WIDTH           : natural := 8
@@ -195,7 +195,7 @@ begin
           cycle_count_r_next <= std_logic_vector(unsigned(cycle_count_r) + 1);
   
           -- Shift the metadata register with one byte to the left every clock cycle.
-          metadata_r_next <= metadata_r(BUS_DATA_WIDTH-9 downto 0) & "00000000";
+          metadata_r_next <= std_logic_vector(shift_left(unsigned(metadata_r), 8));
 
           case page_header_state is
             when START =>
@@ -463,7 +463,7 @@ begin
 
         da_valid <= '1';
 
-        if da_ready <= '1' then
+        if da_ready = '1' then
           top_state_next <= IDLE;
           cycle_count_r_next <= (others => '0');
         end if;
