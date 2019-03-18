@@ -62,14 +62,14 @@ architecture behv of ValBuffer is
   signal scaled_r_ptr : unsigned(1 downto 0);
   signal w_ptr        : unsigned(LOG2_VAL_CAPACITY downto 0);
 
-  signal val_count          : unsigned(LOG2_VAL_CAPACITY-1 downto 0);
+  signal val_count          : unsigned(LOG2_VAL_CAPACITY downto 0);
   signal is_full            : std_logic;
   signal full_bw_available  : std_logic;
   signal final_bw_available : std_logic;
   signal r_out_last         : std_logic;
 
 begin
-  val_count           <=  w_ptr(LOG2_VAL_CAPACITY-1 downto 0) - r_ptr(LOG2_VAL_CAPACITY-1 downto 0);
+  val_count           <=  w_ptr(LOG2_VAL_CAPACITY downto 0) - r_ptr(LOG2_VAL_CAPACITY downto 0);
   is_full             <= '1' when val_count > to_unsigned(VAL_CAPACITY-ELEMENTS_PER_CYCLE, val_count'length)
                              else '0';
   full_bw_available   <= '1' when val_count >= to_unsigned(ELEMENTS_PER_CYCLE, val_count'length)
@@ -113,19 +113,21 @@ begin
       if in_valid = '1' and is_full = '0' then
         for i in 0 to VAL_CAPACITY-1 loop
           for j in 0 to ELEMENTS_PER_CYCLE-1 loop
-            if (w_ptr + j = i) and (j < unsigned(in_count)) then
+            if (w_ptr(LOG2_VAL_CAPACITY-1 downto 0) + j = i) and (j < unsigned(in_count)) then
               mem(i) <= in_data(PRIM_WIDTH*(j+1)-1 downto PRIM_WIDTH*j);
             end if;
           end loop;
         end loop;
+        w_ptr <= w_ptr + unsigned(in_count);
+
+        if in_last = '1' then
+          r_out_last <= '1';
+        end if;
       end if;
 
       if reset = '1' then
         w_ptr <= (others => '0');
         r_out_last <= '0';
-      else
-        w_ptr <= w_ptr + unsigned(in_count);
-        r_out_last <= '1';
       end if;
     end if;
   end process;
@@ -135,8 +137,10 @@ begin
     if rising_edge(clk) then
       if reset = '1' then
         r_ptr <= (others => '0');
-      elsif (full_bw_available = '1' or final_bw_available = '1') and out_ready = '1' then
-        r_ptr <= r_ptr + 8;
+      elsif full_bw_available = '1' and out_ready = '1' then
+        r_ptr <= r_ptr + ELEMENTS_PER_CYCLE;
+      elsif final_bw_available = '1' and out_ready = '1' then
+        r_ptr <= w_ptr;
       end if;
     end if;
   end process;

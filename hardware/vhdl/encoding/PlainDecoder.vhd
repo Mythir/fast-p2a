@@ -116,11 +116,12 @@ begin
   full_bus_words_in_page <= resize(r.m_page_num_values(31 downto log2ceil(ELEMENTS_PER_CYCLE)), full_bus_words_in_page'length);
   val_misalignment <= r.m_page_num_values(log2floor(ELEMENTS_PER_CYCLE)-1 downto 0);
 
-  logic_p: process(r, page_num_values, total_num_values, in_valid, new_page_valid, buffer_in_last, val_count,
+  logic_p: process(r, page_num_values, total_num_values, in_valid, buffer_in_last, new_page_valid, val_count,
                    buffer_in_ready, full_bus_words_in_page, val_misalignment)
     variable v                      : reg_record;
     variable bus_word_counter_inc   : unsigned(32 - log2ceil(ELEMENTS_PER_CYCLE) downto 0);
     variable total_val_counter_inc  : unsigned(31 downto 0);
+    variable total_remaining_values : unsigned(31 downto 0);
   begin
     v := r;
     bus_word_counter_inc := r.bus_word_counter + 1;
@@ -136,9 +137,18 @@ begin
     case r.state is
       when IDLE =>
         new_page_ready <= '1';
+
+        total_remaining_values := unsigned(total_num_values) - r.total_val_counter;
+
         if new_page_valid = '1' then
           v.state             := IN_PAGE;
-          v.m_page_num_values := unsigned(page_num_values);
+
+          if total_remaining_values <= unsigned(page_num_values) then
+            v.m_page_num_values := total_remaining_values;
+          else
+            v.m_page_num_values := unsigned(page_num_values);
+          end if;
+
           v.bus_word_counter  := (others => '0');
         end if;
 
@@ -147,12 +157,12 @@ begin
         in_ready <= buffer_in_ready;
 
         if r.bus_word_counter = full_bus_words_in_page then
-          val_count <= std_logic_vector(val_misalignment);
+          val_count      <= "0" & std_logic_vector(val_misalignment);
         end if;
 
         total_val_counter_inc := r.total_val_counter + unsigned(val_count);
 
-        if total_val_counter_inc >= unsigned(total_num_values) then
+        if total_val_counter_inc = unsigned(total_num_values) then
           buffer_in_last <= '1';
         end if;
 
@@ -162,7 +172,7 @@ begin
 
           if buffer_in_last = '1' then
             v.state := DONE;
-          elsif v.bus_word_counter = full_bus_words_in_page and val_misalignment = to_unsigned(0, val_misalignment'length) then
+          elsif (v.bus_word_counter = full_bus_words_in_page and val_misalignment = to_unsigned(0, val_misalignment'length)) or r.bus_word_counter = full_bus_words_in_page then
             v.state := IDLE;
           end if;
         end if;

@@ -27,9 +27,9 @@ entity PlainDecoder_tb is
 end PlainDecoder_tb;
 
 architecture tb of PlainDecoder_tb is
-  constant BUS_DATA_WIDTH       : natural := 512;
+  constant BUS_DATA_WIDTH       : natural := 256;
   constant PRIM_WIDTH           : natural := 64;
-  constant TOTAL_NUM_VALUES     : natural := 3; -- 15428
+  constant TOTAL_NUM_VALUES     : natural := 15573;
   constant clk_period           : time    := 10 ns;
 
   signal clk                    : std_logic;
@@ -235,7 +235,13 @@ begin
         end loop;
       end if;
 
-      exit when ctrl_done = '1';
+      exit when ctrl_done = '1' and counter = 0;
+    end loop;
+
+    loop
+      wait until rising_edge(clk);
+      assert out_valid = '0'
+        report "ValBuffer offers data on its output despite all values having been read" severity failure;
     end loop;
     wait;
   end process;
