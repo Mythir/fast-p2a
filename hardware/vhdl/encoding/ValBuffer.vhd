@@ -18,6 +18,11 @@ library work;
 -- Fletcher utils for use of log2ceil function.
 use work.Utils.all;
 
+-- The ValBuffer can take a variable (determined by in_count) amount of values per cycle on its input. Once it has accumulated BUS_DATA_WIDTH/PRIM_WIDTH values
+-- it will offer those values at its output. If in_last is ever asserted the ValBuffer will output all values it has stored (even if this requires sending an incomplete
+-- final bus word). After this the ValBuffer will have to be reset if it needs to be used again. The ValBuffer can buffer a maximum of 4*BUS_DATA_WIDTH/PRIM_WIDTH
+-- values at a time.
+
 entity ValBuffer is
   generic (
     -- Bus data width

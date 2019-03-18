@@ -18,8 +18,11 @@ library work;
 -- Fletcher utils for use of log2ceil function.
 use work.Utils.all;
 
--- Todo: description
--- Todo: implement out_last
+-- This PlainDecoder does not actually have to decode anything because the "PLAIN" encoding just stores the values as normal integers or floats. Instead
+-- the complexity comes from the fact that each page can have an arbitrary number of values and we always want to sent <elements_per_cycle> values
+-- to the ColumnWriter per transaction. Every time we start a new page, the PreDecBuffer in the ValuesDecoder handshakes the PlainDecoder to let it know it should
+-- store that page's relevant metadata, which the PlainDecoder will use to send the correct amount of values to the ValBuffer. The ValBuffer stores the values until
+-- it has enough to send to the ColumnWriter.
 
 entity PlainDecoder is
   generic (
@@ -84,7 +87,10 @@ architecture behv of PlainDecoder is
   -- Amount of valid values in a bus word
   signal val_count : std_logic_vector(log2floor(ELEMENTS_PER_CYCLE) downto 0);
 
+  -- Amount of bus words in a page that contain exactly elements_per_cycle values
   signal full_bus_words_in_page : unsigned(32 - log2ceil(ELEMENTS_PER_CYCLE) downto 0);
+
+  -- If the last bus word of the page does not contain the max amount of elements per cycle, it will instead contain this much.
   signal val_misalignment : unsigned(log2floor(ELEMENTS_PER_CYCLE)-1 downto 0);
 
   signal buffer_in_valid : std_logic;
@@ -136,6 +142,7 @@ begin
 
     case r.state is
       when IDLE =>
+        -- IDLE: wait for a new page to be handshaked, after which we can store the relevant metadata and reset the bus_word_counter to 0.
         new_page_ready <= '1';
 
         total_remaining_values := unsigned(total_num_values) - r.total_val_counter;
@@ -153,15 +160,18 @@ begin
         end if;
 
       when IN_PAGE =>
+        -- IN_PAGE: The state where data in the page is actually processed
         buffer_in_valid <= in_valid;
         in_ready <= buffer_in_ready;
 
+        -- If the last bus word is not a full bus word (implied) and this is the last bus word: set val_count to the amount of values in this bus word.
         if r.bus_word_counter = full_bus_words_in_page then
           val_count      <= "0" & std_logic_vector(val_misalignment);
         end if;
 
         total_val_counter_inc := r.total_val_counter + unsigned(val_count);
 
+        -- If this bus word contains the very last value, assert buffer_in_last
         if total_val_counter_inc = unsigned(total_num_values) then
           buffer_in_last <= '1';
         end if;
@@ -173,6 +183,7 @@ begin
           if buffer_in_last = '1' then
             v.state := DONE;
           elsif (v.bus_word_counter = full_bus_words_in_page and val_misalignment = to_unsigned(0, val_misalignment'length)) or r.bus_word_counter = full_bus_words_in_page then
+            -- The new state will be idle either when a final transfer with val_count < elements_per_cycle is not required or we just had that final transfer.
             v.state := IDLE;
           end if;
         end if;

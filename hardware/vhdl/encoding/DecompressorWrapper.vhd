@@ -17,6 +17,7 @@ use ieee.numeric_std.all;
 library work;
 -- Fletcher utils for use of log2ceil function.
 use work.Utils.all;
+use work.Encoding.all;
 
 -- Todo: description
 

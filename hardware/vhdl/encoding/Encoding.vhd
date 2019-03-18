@@ -35,6 +35,102 @@ package Encoding is
     );
   end component;
 
+  component DecompressorWrapper is
+    generic (
+      BUS_DATA_WIDTH              : natural;
+      COMPRESSION_CODEC           : string := "UNCOMPRESSED"
+    );
+    port (
+      clk                         : in  std_logic;
+      reset                       : in  std_logic;
+      in_valid                    : in  std_logic;
+      in_ready                    : out std_logic;
+      in_data                     : in  std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
+      new_page_valid              : in  std_logic;
+      new_page_ready              : out std_logic;
+      compressed_size             : in  std_logic_vector(31 downto 0);
+      uncompressed_size           : in  std_logic_vector(31 downto 0);
+      out_valid                   : out std_logic;
+      out_ready                   : in  std_logic;
+      out_data                    : out std_logic_vector(BUS_DATA_WIDTH-1 downto 0)
+    );
+  end component;
+
+  component PreDecBuffer is
+    generic (
+      BUS_DATA_WIDTH              : natural;
+      MIN_DEPTH                   : natural;
+      RAM_CONFIG                  : string := ""
+    );
+    port (
+      clk                         : in  std_logic;
+      reset                       : in  std_logic;
+      in_valid                    : in  std_logic;
+      in_ready                    : out std_logic;
+      in_data                     : in  std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
+      dcmp_valid                  : out std_logic;
+      dcmp_ready                  : in  std_logic;
+      dcod_valid                  : out std_logic;
+      dcod_ready                  : in  std_logic;
+      compressed_size             : in  std_logic_vector(31 downto 0);
+      bc_data                     : out std_logic_vector(log2ceil(BUS_DATA_WIDTH/8)+1 downto 0);
+      bc_ready                    : in  std_logic;
+      bc_valid                    : out std_logic;
+      out_valid                   : out std_logic;
+      out_ready                   : in  std_logic;
+      out_data                    : out std_logic_vector(BUS_DATA_WIDTH-1 downto 0)
+    );
+  end component;
+
+  component PlainDecoder is
+    generic (
+      BUS_DATA_WIDTH              : natural;
+      PRIM_WIDTH                  : natural
+    );
+    port (
+      clk                         : in  std_logic;
+      reset                       : in  std_logic;
+      ctrl_done                   : out std_logic;
+      in_valid                    : in  std_logic;
+      in_ready                    : out std_logic;
+      in_data                     : in  std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
+      new_page_valid              : in  std_logic;
+      new_page_ready              : out std_logic;
+      total_num_values            : in  std_logic_vector(31 downto 0);
+      page_num_values             : in  std_logic_vector(31 downto 0);
+      out_valid                   : out std_logic;
+      out_ready                   : in  std_logic;
+      out_last                    : out std_logic;
+      out_dvalid                  : out std_logic := '1';
+      out_data                    : out std_logic_vector(BUS_DATA_WIDTH-1 downto 0)
+    );
+  end component;
+
+  component DecoderWrapper is
+    generic (
+      BUS_DATA_WIDTH              : natural;
+      PRIM_WIDTH                  : natural;
+      ENCODING                    : string
+    );
+    port (
+      clk                         : in  std_logic;
+      reset                       : in  std_logic;
+      ctrl_done                   : out std_logic;
+      in_valid                    : in  std_logic;
+      in_ready                    : out std_logic;
+      in_data                     : in  std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
+      new_page_valid              : in  std_logic;
+      new_page_ready              : out std_logic;
+      total_num_values            : in  std_logic_vector(31 downto 0);
+      page_num_values             : in  std_logic_vector(31 downto 0);
+      out_valid                   : out std_logic;
+      out_ready                   : in  std_logic;
+      out_last                    : out std_logic;
+      out_dvalid                  : out std_logic := '1';
+      out_data                    : out std_logic_vector(BUS_DATA_WIDTH-1 downto 0)
+    );
+  end component;
+
   -----------------------------------------------------------------------------
   -- Helper functions
   -----------------------------------------------------------------------------

@@ -17,6 +17,7 @@ use ieee.numeric_std.all;
 library work;
 -- Fletcher utils for use of log2ceil function.
 use work.Utils.all;
+use work.Encoding.all;
 
 -- Todo: description
 
@@ -31,11 +32,17 @@ entity ValuesDecoder is
     -- Arrow index field width
     INDEX_WIDTH                 : natural;
 
+    -- Minimum depth of InputBuffer
+    MIN_INPUT_BUFFER_DEPTH      : natural;
+
     -- Fletcher command stream tag width
     CMD_TAG_WIDTH               : natural;
 
     -- RAM config string
     RAM_CONFIG                  : string := "";
+
+    -- Encoding
+    ENCODING                    : string;
 
     -- Compression
     COMPRESSION_CODEC           : string;
@@ -73,7 +80,7 @@ entity ValuesDecoder is
     values_buffer_addr          : in  std_logic_vector(BUS_ADDR_WIDTH-1 downto 0);
 
     -- Bytes consumed stream to DataAligner
-    bc_data                     : out std_logic_vector(log2ceil(BUS_DATA_WIDTH/8)-1 downto 0);
+    bc_data                     : out std_logic_vector(log2ceil(BUS_DATA_WIDTH/8)+1 downto 0);
     bc_ready                    : in  std_logic;
     bc_valid                    : out std_logic;
 
@@ -101,37 +108,99 @@ end ValuesDecoder;
 
 architecture behv of ValuesDecoder is
 
-  type state_t is (IDLE, COMMAND, DECODING, PAGE_END, UNLOCK, DONE);
+  type state_t is (IDLE, COMMAND, UNLOCK, DONE);
+    signal state, state_next : state_t;
+  
+  -- New page handshake signals
+  signal page_dcod_valid       : std_logic;
+  signal page_dcmp_valid       : std_logic;
+  signal page_dcod_ready       : std_logic;
+  signal page_dcmp_ready       : std_logic;
 
-  type reg_record is record
-    state                       : state_t;
-    interm_total_val_counter    : unsigned(31 downto 0);
-    total_val_counter           : unsigned(31 downto 0);
-    bus_word_counter            : unsigned(31 downto 0);
-  end record;
+  -- PreDecBuffer to Decompressor stream
+  signal buf_to_dcmp_valid     : std_logic;
+  signal buf_to_dcmp_ready     : std_logic;
+  signal buf_to_dcmp_data      : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
 
-  -- The amount of values transferred to the ColumnWriter every cycle
-  constant ELEMENTS_PER_CYCLE : natural := BUS_DATA_WIDTH/PRIM_WIDTH;
-
-  signal r : reg_record;
-  signal d : reg_record;
+  -- Decompressor to Decoder stream
+  signal dcmp_to_dcod_valid     : std_logic;
+  signal dcmp_to_dcod_ready     : std_logic;
+  signal dcmp_to_dcod_data      : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
 
 begin
 
-  logic_p: process (r, in_valid, in_data, out_ready, unl_valid, cmd_ready, bc_ready, values_buffer_addr, page_num_values, total_num_values,
-                    compressed_size, ctrl_start)
-    variable v : reg_record;
+  buffer_inst: PreDecBuffer
+    generic map(
+      BUS_DATA_WIDTH              => BUS_DATA_WIDTH,
+      MIN_DEPTH                   => MIN_INPUT_BUFFER_DEPTH,
+      RAM_CONFIG                  => RAM_CONFIG
+    )
+    port map(
+      clk                         => clk,
+      reset                       => reset,
+      in_valid                    => in_valid,
+      in_ready                    => in_ready,
+      in_data                     => in_data,
+      dcmp_valid                  => page_dcmp_valid,
+      dcmp_ready                  => page_dcmp_ready,
+      dcod_valid                  => page_dcod_valid,
+      dcod_ready                  => page_dcod_ready,
+      compressed_size             => compressed_size,
+      bc_data                     => bc_data,
+      bc_ready                    => bc_ready,
+      bc_valid                    => bc_valid,
+      out_valid                   => buf_to_dcmp_valid,
+      out_ready                   => buf_to_dcmp_ready,
+      out_data                    => buf_to_dcmp_data
+    );
+
+  dcmp_inst: DecompressorWrapper
+    generic map(
+      BUS_DATA_WIDTH              => BUS_DATA_WIDTH,
+      COMPRESSION_CODEC           => COMPRESSION_CODEC
+    )
+    port map(
+      clk                         => clk,
+      reset                       => reset,
+      in_valid                    => buf_to_dcmp_valid,
+      in_ready                    => buf_to_dcmp_ready,
+      in_data                     => buf_to_dcmp_data,
+      new_page_valid              => page_dcmp_valid,
+      new_page_ready              => page_dcmp_ready,
+      compressed_size             => compressed_size,
+      uncompressed_size           => uncompressed_size,
+      out_valid                   => dcmp_to_dcod_valid,
+      out_ready                   => dcmp_to_dcod_ready,
+      out_data                    => dcmp_to_dcod_data
+    );
+
+  dcod_inst: DecoderWrapper
+    generic map(
+      BUS_DATA_WIDTH              => BUS_DATA_WIDTH,
+      PRIM_WIDTH                  => PRIM_WIDTH,
+      ENCODING                    => ENCODING
+    )
+    port map(
+      clk                         => clk,
+      reset                       => reset,
+      ctrl_done                   => open,
+      in_valid                    => dcmp_to_dcod_valid,
+      in_ready                    => dcmp_to_dcod_ready,
+      in_data                     => dcmp_to_dcod_data,
+      new_page_valid              => page_dcod_valid,
+      new_page_ready              => page_dcod_ready,
+      total_num_values            => total_num_values,
+      page_num_values             => page_num_values,
+      out_valid                   => out_valid,
+      out_ready                   => out_ready,
+      out_last                    => out_last,
+      out_dvalid                  => out_dvalid,
+      out_data                    => out_data
+    );
+
+  logic_p: process(state, ctrl_start, cmd_ready, unl_valid, total_num_values, values_buffer_addr)
   begin
-    v := r;
-
-    ctrl_done <= '0';
-
-    in_ready <= '0';
-    out_valid <= '0';
-
-    bc_valid  <= '0';
-    -- Bytes consumed of final bus word = compressed size % BUS_DATA_WIDTH/8
-    bc_data   <= compressed_size(log2ceil(BUS_DATA_WIDTH/8)-1 downto 0);
+    state_next <= state;
 
     cmd_valid       <= '0';
     cmd_firstIdx    <= (others => '0');
@@ -139,81 +208,43 @@ begin
     cmd_ctrl        <= values_buffer_addr;
     cmd_tag         <= (others => '0');
 
-    unl_ready <= '0';
+    unl_ready <= '1';
 
-    case r.state is
+    ctrl_done <= '0';
+
+    case state is
       when IDLE =>
         if ctrl_start = '1' then
-          v.state := COMMAND;
+          state_next <= COMMAND;
         end if;
 
       when COMMAND =>
         cmd_valid <= '1';
 
         if cmd_ready = '1' then
-          v.state := DECODING;
-        end if;
-
-      when DECODING =>
-        -- Todo: DECODING stage is now fully combinatorial between inputs and outputs. Should probably insert an explicit decoder (which for PLAIN is just pass through)
-        -- and accompanying StreamSlices
-        in_ready <= '1';
-
-        out_valid <= in_valid;
-        in_ready  <= out_ready;
-        out_data  <= in_data;
-
-        if in_valid = '1' and out_ready = '1' then
-         -- Upon transfer of values to ColumnWriter:
-          v.interm_total_val_counter := r.interm_total_val_counter + ELEMENTS_PER_CYCLE;
-          v.bus_word_counter         := r.bus_word_counter + 1;
-
-          if v.interm_total_val_counter >= unsigned(total_num_values) then
-            -- The ParquetReader is done, proceed to unlock
-            out_last <= '1';
-            v.state := UNLOCK;
-          elsif r.bus_word_counter = unsigned(compressed_size(31 downto log2ceil(BUS_DATA_WIDTH/8))) then
-            -- End of page
-            v.state := PAGE_END; 
-          end if;
-        end if;
-
-      when PAGE_END =>
-        bc_valid <= '1';
-
-        if bc_ready = '1' then
-          v.state                    := DECODING;
-          v.bus_word_counter         := (others => '0');
-          v.total_val_counter        := r.total_val_counter + unsigned(page_num_values);
-          v.interm_total_val_counter := v.total_val_counter;
+          state_next <= UNLOCK;
         end if;
 
       when UNLOCK =>
         unl_ready <= '1';
 
         if unl_valid = '1' then
-          v.state := DONE;
+          state_next <= DONE;
         end if;
 
       when DONE =>
         ctrl_done <= '1';
 
     end case;
-
-    d <= v;
-
   end process;
 
-  state_p: process (clk)
+  clk_p: process(clk)
   begin
     if rising_edge(clk) then
       if reset = '1' then
-        r.state                    <= IDLE;
-        r.total_val_counter        <= (others => '0');
-        r.bus_word_counter         <= (others => '0');
-        r.interm_total_val_counter <= (others => '0');
+        state <= IDLE;
       else
-        r <= d;
+        state <= state_next;
       end if;
     end if;
   end process;
