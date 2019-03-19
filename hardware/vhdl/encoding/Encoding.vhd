@@ -20,6 +20,51 @@ use work.Utils.all;
 
 package Encoding is
 
+  component ValuesDecoder is
+    generic (
+      BUS_DATA_WIDTH              : natural;
+      BUS_ADDR_WIDTH              : natural;
+      INDEX_WIDTH                 : natural;
+      MIN_INPUT_BUFFER_DEPTH      : natural;
+      CMD_TAG_WIDTH               : natural;
+      RAM_CONFIG                  : string := "";
+      ENCODING                    : string;
+      COMPRESSION_CODEC           : string;
+      PRIM_WIDTH                  : natural
+    );
+    port (
+      clk                         : in  std_logic;
+      reset                       : in  std_logic;
+      ctrl_start                  : in  std_logic;
+      ctrl_done                   : out std_logic;
+      in_valid                    : in  std_logic;
+      in_ready                    : out std_logic;
+      in_data                     : in  std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
+      compressed_size             : in  std_logic_vector(31 downto 0);
+      uncompressed_size           : in  std_logic_vector(31 downto 0);
+      total_num_values            : in  std_logic_vector(31 downto 0);
+      page_num_values             : in  std_logic_vector(31 downto 0);
+      values_buffer_addr          : in  std_logic_vector(BUS_ADDR_WIDTH-1 downto 0);
+      bc_data                     : out std_logic_vector(log2ceil(BUS_DATA_WIDTH/8) downto 0);
+      bc_ready                    : in  std_logic;
+      bc_valid                    : out std_logic;
+      cmd_valid                   : out std_logic;
+      cmd_ready                   : in  std_logic;
+      cmd_firstIdx                : out std_logic_vector(INDEX_WIDTH-1 downto 0);
+      cmd_lastIdx                 : out std_logic_vector(INDEX_WIDTH-1 downto 0);
+      cmd_ctrl                    : out std_logic_vector(BUS_ADDR_WIDTH-1 downto 0);
+      cmd_tag                     : out std_logic_vector(CMD_TAG_WIDTH-1 downto 0) := (others => '0');
+      unl_valid                   : in  std_logic;
+      unl_ready                   : out std_logic;
+      unl_tag                     : in  std_logic_vector(CMD_TAG_WIDTH-1 downto 0);
+      out_valid                   : out std_logic;
+      out_ready                   : in  std_logic;
+      out_last                    : out std_logic;
+      out_dvalid                  : out std_logic := '1';
+      out_data                    : out std_logic_vector(BUS_DATA_WIDTH-1 downto 0)
+    );
+  end component;
+
   component VarIntDecoder is
     generic (
       INT_BIT_WIDTH               : natural;

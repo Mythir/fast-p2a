@@ -19,7 +19,19 @@ library work;
 use work.Utils.all;
 use work.Encoding.all;
 
--- Todo: description
+-- The ValuesDecoder is mostly a wrapper for more interesting components. Values in a page get fed into the ValuesDecoder after which the following
+-- components will in order do the following things:
+--
+-- 1. PreDecBuffer: Will buffer an amount of bus words determined by MIN_INPUT_BUFFER_DEPTH. If this buffer is sufficiently large than the next
+-- page can already start being processed by the MetadataInterpreter and (possible) Rep level and Def level decoders while the current page is still
+-- being decompressed/decoded. To this end the PreDecBuffer will keep track of how many bytes it has ingested and compare it to the compressed_size
+-- of the page.
+--
+-- 2. DecompressorWrapper: Decompress the values. The first version of the hardware will only support UNCOMPRESSED and SNAPPY.
+--
+-- 3. DecoderWrapper: Decode the values and make sure the ColumnWriter receives BUS_DATA_WIDTH/PRIM_WIDTH elements per write.
+--
+-- The processes in the ValuesDecoder itself are only concerned with providing the ColumnWriters with the correct settings.
 
 entity ValuesDecoder is
   generic (
