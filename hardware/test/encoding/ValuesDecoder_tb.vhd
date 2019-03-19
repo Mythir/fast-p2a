@@ -52,7 +52,7 @@ architecture tb of ValuesDecoder_tb is
   signal uncompressed_size           : std_logic_vector(31 downto 0);
   signal page_num_values             : std_logic_vector(31 downto 0);
   signal values_buffer_addr          : std_logic_vector(BUS_ADDR_WIDTH-1 downto 0) := std_logic_vector(to_unsigned(42, BUS_ADDR_WIDTH));
-  signal bc_data                     : std_logic_vector(log2ceil(BUS_DATA_WIDTH/8)+1 downto 0);
+  signal bc_data                     : std_logic_vector(log2ceil(BUS_DATA_WIDTH/8) downto 0);
   signal bc_ready                    : std_logic;
   signal bc_valid                    : std_logic;
   signal cmd_valid                   : std_logic;
@@ -169,7 +169,7 @@ begin
       end if;
 
       assert to_integer(unsigned(bc_data)) = bc_data_check
-        report "Incorrect bc_data from ValuesDecoder" severity failure;
+        report "Incorrect bc_data from ValuesDecoder. Got " & integer'image(to_integer(unsigned(bc_data))) & " expected " & integer'image(bc_data_check) severity failure;
     end loop;
 
     report "All pages have been handshaked" severity note;

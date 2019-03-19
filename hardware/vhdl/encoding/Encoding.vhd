@@ -73,7 +73,7 @@ package Encoding is
       dcod_valid                  : out std_logic;
       dcod_ready                  : in  std_logic;
       compressed_size             : in  std_logic_vector(31 downto 0);
-      bc_data                     : out std_logic_vector(log2ceil(BUS_DATA_WIDTH/8)+1 downto 0);
+      bc_data                     : out std_logic_vector(log2ceil(BUS_DATA_WIDTH/8) downto 0);
       bc_ready                    : in  std_logic;
       bc_valid                    : out std_logic;
       out_valid                   : out std_logic;

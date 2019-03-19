@@ -17,6 +17,7 @@ use ieee.numeric_std.all;
 library work;
 -- Fletcher utils for use of log2ceil function.
 use work.Utils.all;
+-- Fletcher streams for use of StreamBuffer
 use work.Streams.all;
 
 -- Once the first data of a new page is received from the DataAligner, the PreDecBuffer will notify the Decompressor and the Decoder and start buffering data.
@@ -58,7 +59,7 @@ entity PreDecBuffer is
     compressed_size             : in  std_logic_vector(31 downto 0);
 
     -- Bytes consumed stream to DataAligner
-    bc_data                     : out std_logic_vector(log2ceil(BUS_DATA_WIDTH/8)+1 downto 0);
+    bc_data                     : out std_logic_vector(log2ceil(BUS_DATA_WIDTH/8) downto 0);
     bc_ready                    : in  std_logic;
     bc_valid                    : out std_logic;
 
@@ -116,10 +117,11 @@ begin
     in_valid_buf <= '0';
     bc_valid <= '0';
 
-    bc_data <= (others => '0');
     bc_data(log2ceil(BUS_DATA_WIDTH/8)-1 downto 0) <= compressed_size(log2ceil(BUS_DATA_WIDTH/8)-1 downto 0);
     if compressed_size(log2ceil(BUS_DATA_WIDTH/8)-1 downto 0) = std_logic_vector(to_unsigned(0, log2ceil(BUS_DATA_WIDTH/8))) then
       bc_data(log2ceil(BUS_DATA_WIDTH/8)) <= '1';
+    else
+      bc_data(log2ceil(BUS_DATA_WIDTH/8)) <= '0';
     end if;
 
     case r.top_state is

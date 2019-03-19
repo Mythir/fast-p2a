@@ -80,7 +80,7 @@ entity ValuesDecoder is
     values_buffer_addr          : in  std_logic_vector(BUS_ADDR_WIDTH-1 downto 0);
 
     -- Bytes consumed stream to DataAligner
-    bc_data                     : out std_logic_vector(log2ceil(BUS_DATA_WIDTH/8)+1 downto 0);
+    bc_data                     : out std_logic_vector(log2ceil(BUS_DATA_WIDTH/8) downto 0);
     bc_ready                    : in  std_logic;
     bc_valid                    : out std_logic;
 

@@ -38,7 +38,7 @@ architecture tb of DataAligner_tb is
   constant max_stopped_cycles   : real    := 16.0;
 
   -- This constant should be changed when a new DataAligner_input file is created
-  constant init_misalignment    : natural := 23;
+  constant init_misalignment    : natural := 36;
 
   signal clk                    : std_logic;
   signal reset                  : std_logic;
