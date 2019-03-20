@@ -14,7 +14,7 @@
 // limitations under the License.
 
 /*
- * Testbench for the ptoa metadata interpreter
+ * Testbench for 64 bit primitive ParquetReader
  *
  * Based on example testbenches in the Fletcher repository
  */
@@ -28,35 +28,42 @@
 `define   CONTROL_START     32'h00000001
 `define   CONTROL_RESET     32'h00000004
 
-`define REG_RETURN_HI       3
-`define REG_RETURN_LO       2
+`define REG_NUM_VAL         2
+`define REG_PAGE_ADDR0      3
+`define REG_PAGE_ADDR1      4
+`define REG_MAX_SIZE0       5
+`define REG_MAX_SIZE1       6
+`define REG_VAL_ADDR0       7
+`define REG_VAL_ADDR1       8
 
-`define REG_OFF_ADDR_HI     7
-`define REG_OFF_ADDR_LO     6
+`define NUM_REGISTERS       9
 
-// Registers for first and last (exclusive) row index
-`define REG_FIRST_IDX       4
-`define REG_LAST_IDX        5
+`define NUM_VAL             10000
+`define MAX_SIZE            100000
 
-// Registers for reading MetadataInterpreter data output
-`define REG_NUM_VALUES      8
-`define REG_COMP_SIZE       9
-`define REG_UNCOMP_SIZE     10
+// Base address for pages in fpga memory (must be 4k aligned)
+`define CL_PAGE_ADDR_HI     32'h00000000
+`define CL_PAGE_ADDR_LO     32'h00001000
 
-`define NUM_REGISTERS       11
+// Pointer to arrow buffer in fpga memory
+`define CL_VAL_BUF_HI       32'h00000000
+`define CL_VAL_BUF_LO       32'h00020000
 
-// Offset buffer address for fpga memory (must be 4k aligned)
-`define OFF_ADDR_HI         32'h00000000
-`define OFF_ADDR_LO         32'h00001000
-// Offset buffer address in host memory
-`define HOST_ADDR           64'h0000000000000120
+// Base address for pages in host memory
+`define HOST_PAGE_ADDR      64'h0000000000001000
 
-module test_mdi();
+// Pointer to arrow buffer in host memory
+`define HOST_VAL_BUF        64'h0000000000020000
+
+`define PRIM_WIDTH          64
+
+
+module test_prim64();
 
   import tb_type_defines_pkg::*;
 
   // Number of bytes to copy to cl buffer
-  parameter num_buf_bytes = 1000;
+  parameter num_page_bytes = `MAX_SIZE;
 
 
   int read_data;
@@ -69,14 +76,16 @@ module test_mdi();
 
   //File loading
   int file_descriptor = 0;
-  string file_path = "int64array_nosnap_nodict.prq";
-  byte file_data[0:num_buf_bytes-1];
+  string file_path = "java.uncompressed.parquet";//"int64array_nosnap_nodict.prq";
+  byte file_data[0:num_page_bytes-1];
   int bytes_read = 0;
 
 initial begin
 
-  logic[63:0] host_buffer_address;
-  logic[63:0] cl_buffer_address;
+  logic[63:0] host_parquet_address;
+  logic[63:0] cl_parquet_address;
+  logic[63:0] host_arrow_address;
+  logic[63:0] cl_arrow_address;
 
   // Power up the testbench
   tb.power_up(.clk_recipe_a(ClockRecipe::A1),
@@ -99,16 +108,27 @@ initial begin
 
   $display("[%t] : Initializing buffers", $realtime);
 
-  host_buffer_address = `HOST_ADDR;
-  cl_buffer_address = {`OFF_ADDR_HI, `OFF_ADDR_LO};
+  host_parquet_address = `HOST_PAGE_ADDR;
+  cl_parquet_address = {`CL_PAGE_ADDR_HI, `CL_PAGE_ADDR_LO};
+  host_arrow_address = `HOST_VAL_BUF;
+  cl_arrow_address = {`CL_VAL_BUF_HI, `CL_VAL_BUF_LO};
 
-  // Queue the data movement
+  // Queue the data movements
   tb.que_buffer_to_cl(
     .chan(0),
-    .src_addr(host_buffer_address),
-    .cl_addr(cl_buffer_address),
-    .len(num_buf_bytes)
+    .src_addr(host_parquet_address),
+    .cl_addr(cl_parquet_address),
+    .len(num_page_bytes)
   );
+
+  tb.que_cl_to_buffer(
+    .chan(0),
+    .dst_addr(host_arrow_address),
+    .cl_addr(cl_arrow_address),
+    .len(`PRIM_WIDTH/8*`NUM_VAL)
+  );
+
+  // Todo: Fix everything beneath this comment
 
   // Load file
   file_descriptor=$fopen(file_path, "rb");
@@ -117,17 +137,17 @@ initial begin
   if (file_descriptor) begin
     bytes_read = $fread(file_data, file_descriptor);
 
-    if(bytes_read == num_buf_bytes) begin
+    if(bytes_read >= num_page_bytes) begin
       $display("[DEBUG] : First 20 bytes get displayed for debugging purposes.");
-      for(int c = 0; c < num_buf_bytes; c++) begin
-        tb.hm_put_byte(.addr(host_buffer_address + c), .d(file_data[c]));
+      for(int c = 0; c < num_page_bytes; c++) begin
+        tb.hm_put_byte(.addr(host_parquet_address + c), .d(file_data[c]));
         if(c<20) begin
           $display("[DEBUG] : Writing %H to host memory", file_data[c]);
         end
       end
 
     end else begin
-      $display("[ERROR] : Failed to read proper amount of bytes from opened file. Read %d instead of %d.\n", bytes_read, num_buf_bytes);
+      $display("[ERROR] : Failed to read proper amount of bytes from opened file. Read %d instead of %d.\n", bytes_read, num_page_bytes);
       $finish;
     end
 
@@ -161,8 +181,8 @@ initial begin
   tb.poke_bar1(.addr(4*`REG_CONTROL), .data(`CONTROL_RESET));
 
   // Initialize buffer addressess:
-  tb.poke_bar1(.addr(4*`REG_OFF_ADDR_LO), .data(`OFF_ADDR_LO));
-  tb.poke_bar1(.addr(4*`REG_OFF_ADDR_HI), .data(`OFF_ADDR_HI));
+  tb.poke_bar1(.addr(4*`REG_OFF_ADDR_LO), .data(`CL_PAGE_ADDR_LO));
+  tb.poke_bar1(.addr(4*`REG_OFF_ADDR_HI), .data(`CL_PAGE_ADDR_HI));
 
   $display("[%t] : Starting UserCore", $realtime);
 

@@ -92,17 +92,39 @@ file copy -force $FLETCHER_HARDWARE_DIR/vhdl/axi/axi_read_converter.vhd         
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/axi/axi_write_converter.vhd             $TARGET_DIR
 
 # PTOA specific files
-file copy -force ${PTOA_HARDWARE_DIR}/vhdl/ptoa_wrapper.vhd 						 $TARGET_DIR
-file copy -force ${PTOA_HARDWARE_DIR}/vhdl/axi_top.vhd 								 $TARGET_DIR
-file copy -force ${PTOA_HARDWARE_DIR}/vhdl/thrift/MetadataInterpreter.vhd 			 $TARGET_DIR
-file copy -force ${PTOA_HARDWARE_DIR}/encoding/Encoding.vhd 						 $TARGET_DIR
-file copy -force ${PTOA_HARDWARE_DIR}/encoding/VarIntDecoder.vhd 		 			 $TARGET_DIR
+file copy -force ${PTOA_HARDWARE_DIR}/vhdl/ptoa_wrapper.vhd                          $TARGET_DIR
+file copy -force ${PTOA_HARDWARE_DIR}/vhdl/axi_top.vhd                               $TARGET_DIR
+
+file copy -force ${PTOA_HARDWARE_DIR}/vhdl/thrift/V2MetadataInterpreter.vhd          $TARGET_DIR
+file copy -force ${PTOA_HARDWARE_DIR}/vhdl/thrift/Thrift.vhd                         $TARGET_DIR
+
+file copy -force ${PTOA_HARDWARE_DIR}/vhdl/encoding/Encoding.vhd                     $TARGET_DIR
+file copy -force ${PTOA_HARDWARE_DIR}/vhdl/encoding/VarIntDecoder.vhd                $TARGET_DIR
+file copy -force ${PTOA_HARDWARE_DIR}/vhdl/encoding/DecoderWrapper.vhd               $TARGET_DIR
+file copy -force ${PTOA_HARDWARE_DIR}/vhdl/encoding/DecompressorWrapper.vhd          $TARGET_DIR
+file copy -force ${PTOA_HARDWARE_DIR}/vhdl/encoding/PlainDecoder.vhd                 $TARGET_DIR
+file copy -force ${PTOA_HARDWARE_DIR}/vhdl/encoding/PreDecBuffer.vhd                 $TARGET_DIR
+file copy -force ${PTOA_HARDWARE_DIR}/vhdl/encoding/ValBuffer.vhd                    $TARGET_DIR
+file copy -force ${PTOA_HARDWARE_DIR}/vhdl/encoding/ValuesDecoder.vhd                $TARGET_DIR
+
+file copy -force ${PTOA_HARDWARE_DIR}/vhdl/alignment/Alignment.vhd                   $TARGET_DIR
+file copy -force ${PTOA_HARDWARE_DIR}/vhdl/alignment/DataAligner.vhd                 $TARGET_DIR
+file copy -force ${PTOA_HARDWARE_DIR}/vhdl/alignment/HistoryBuffer.vhd               $TARGET_DIR
+file copy -force ${PTOA_HARDWARE_DIR}/vhdl/alignment/ShifterRecombiner.vhd           $TARGET_DIR
+
+file copy -force ${PTOA_HARDWARE_DIR}/vhdl/ingestion/Ingester.vhd                    $TARGET_DIR
+file copy -force ${PTOA_HARDWARE_DIR}/vhdl/ingestion/Ingestion.vhd                   $TARGET_DIR
+
+file copy -force ${PTOA_HARDWARE_DIR}/vhdl/ptoa/ParquetReader.vhd                    $TARGET_DIR
+file copy -force ${PTOA_HARDWARE_DIR}/vhdl/ptoa/Ptoa.vhd                             $TARGET_DIR
+file copy -force ${PTOA_HARDWARE_DIR}/vhdl/ptoa/Ptoa_sim.vhd                         $TARGET_DIR
+
 
 # AWS EC2 F1 files:
-file copy -force $CL_DIR/design/cl_arrow_defines.vh                   $TARGET_DIR
-file copy -force $CL_DIR/design/cl_id_defines.vh                      $TARGET_DIR
-file copy -force $CL_DIR/design/cl_arrow_pkg.sv                       $TARGET_DIR
-file copy -force $CL_DIR/design/cl_arrow.sv                           $TARGET_DIR
+file copy -force $CL_DIR/design/cl_arrow_defines.vh                                  $TARGET_DIR
+file copy -force $CL_DIR/design/cl_id_defines.vh                                     $TARGET_DIR
+file copy -force $CL_DIR/design/cl_arrow_pkg.sv                                      $TARGET_DIR
+file copy -force $CL_DIR/design/cl_arrow.sv                                          $TARGET_DIR
 
 #---- End of section replaced by Developr ---
 
