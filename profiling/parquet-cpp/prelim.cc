@@ -58,11 +58,12 @@ std::string gen_random_string(const int length) {
 
 std::shared_ptr<arrow::Table> generate_int64_table(int num_values, int modulo=0) {
     arrow::Int64Builder i64builder;
-    int number;
+    int64_t number;
 
     for (int i = 0; i < num_values; i++) {
         if(modulo <= 0){
-            number = rand();
+            number = rand()*2;
+            number = (number << 32) | rand();
         } else{
             number = rand() % modulo;
         }

@@ -39,6 +39,8 @@
 `define NUM_REGISTERS       9
 
 `define NUM_VAL             10000
+
+// Testbench assumes max_size to be smaller than 2^32
 `define MAX_SIZE            100000
 
 // Base address for pages in fpga memory (must be 4k aligned)
@@ -82,6 +84,10 @@ module test_prim64();
 
 initial begin
 
+  /*************************************************************
+  * Initilialization
+  *************************************************************/
+
   logic[63:0] host_parquet_address;
   logic[63:0] cl_parquet_address;
   logic[63:0] host_arrow_address;
@@ -113,7 +119,9 @@ initial begin
   host_arrow_address = `HOST_VAL_BUF;
   cl_arrow_address = {`CL_VAL_BUF_HI, `CL_VAL_BUF_LO};
 
-  // Queue the data movements
+  /*************************************************************
+  * Queue data movements
+  *************************************************************/
   tb.que_buffer_to_cl(
     .chan(0),
     .src_addr(host_parquet_address),
@@ -128,16 +136,17 @@ initial begin
     .len(`PRIM_WIDTH/8*`NUM_VAL)
   );
 
-  // Todo: Fix everything beneath this comment
 
-  // Load file
+  /*************************************************************
+  * Load contents of input Parquet file into host memory
+  *************************************************************/
   file_descriptor=$fopen(file_path, "rb");
 
   // Only proceed if fopen succeeded
   if (file_descriptor) begin
     bytes_read = $fread(file_data, file_descriptor);
 
-    if(bytes_read >= num_page_bytes) begin
+    if(bytes_read == num_page_bytes) begin
       $display("[DEBUG] : First 20 bytes get displayed for debugging purposes.");
       for(int c = 0; c < num_page_bytes; c++) begin
         tb.hm_put_byte(.addr(host_parquet_address + c), .d(file_data[c]));
@@ -155,6 +164,10 @@ initial begin
     $display("[ERROR] : Could not open test file.\n");
     $finish;
   end
+
+  /*************************************************************
+  * Transfer Parquet pages from host to CL
+  *************************************************************/
 
   $display("[%t] : Starting host to CL DMA transfers ", $realtime);
 
@@ -175,14 +188,26 @@ initial begin
 
   tb.nsec_delay(1000);
 
+  /*************************************************************
+  * Initialize and start UserCore
+  *************************************************************/
+
   $display("[%t] : Initializing UserCore ", $realtime);
 
   // Put the units in reset:
   tb.poke_bar1(.addr(4*`REG_CONTROL), .data(`CONTROL_RESET));
 
-  // Initialize buffer addressess:
-  tb.poke_bar1(.addr(4*`REG_OFF_ADDR_LO), .data(`CL_PAGE_ADDR_LO));
-  tb.poke_bar1(.addr(4*`REG_OFF_ADDR_HI), .data(`CL_PAGE_ADDR_HI));
+  // Pointer to Parquet data on CL memory
+  tb.poke_bar1(.addr(4*`REG_PAGE_ADDR0), .data(`CL_PAGE_ADDR_LO));
+  tb.poke_bar1(.addr(4*`REG_PAGE_ADDR1), .data(`CL_PAGE_ADDR_HI));
+  // Max amount of data to read (assumed to be smaller than 2^32 in this testbench)
+  tb.poke_bar1(.addr(4*`REG_MAX_SIZE0), .data(0));
+  tb.poke_bar1(.addr(4*`REG_MAX_SIZE1), .data(`MAX_SIZE));
+  // Number of values to read
+  tb.poke_bar1(.addr(4*`REG_NUM_VAL), .data(`NUM_VAL));
+  // Pointer to Arrow buffer
+  tb.poke_bar1(.addr(4*`REG_PAGE_ADDR0), .data(`CL_VAL_BUF_LO));
+  tb.poke_bar1(.addr(4*`REG_PAGE_ADDR1), .data(`CL_VAL_BUF_HI));
 
   $display("[%t] : Starting UserCore", $realtime);
 
@@ -202,13 +227,37 @@ initial begin
 
   $display("[%t] : UserCore completed ", $realtime);
 
-  //Get the custom return register values
-  tb.peek_bar1(.addr(4*`REG_UNCOMP_SIZE), .data(read_data));
-  $display("[%t] : Return register uncomp size: %d", $realtime, read_data);
-  tb.peek_bar1(.addr(4*`REG_COMP_SIZE), .data(read_data));
-  $display("[%t] : Return register comp size: %d", $realtime, read_data);
-  tb.peek_bar1(.addr(4*`REG_NUM_VALUES), .data(read_data));
-  $display("[%t] : Return register num values: %d", $realtime, read_data);
+  /*************************************************************
+  * Transfer Arrow buffer from CL to host
+  *************************************************************/
+
+  $display("[%t] : Transfering buffers from CL to Host", $realtime);
+    
+    // Start transfers of data from CL DDR to host
+  tb.start_que_to_buffer(.chan(0));
+
+  // Wait for dma transfers to complete,
+  // increase the timeout if you have to transfer a lot of data
+  timeout_count = 0;
+  do begin
+    status[0] = tb.is_dma_to_buffer_done(.chan(0));
+    #10ns;
+    timeout_count++;
+  end while ((status != 4'hf) && (timeout_count < 4000));
+
+  if (timeout_count >= 4000) begin
+    $display(
+      "[%t] : *** ERROR *** Timeout waiting for dma transfers from cl",
+      $realtime
+    );
+    error_count++;
+  end
+
+  tb.nsec_delay(10000);
+
+  /*************************************************************
+  * Write values in Arrow column to file
+  *************************************************************/
 
   // Report pass/fail status
   $display("[%t] : Checking total error count...", $realtime);
@@ -228,4 +277,4 @@ initial begin
 
 end // initial begin
 
-endmodule // test_mdi
+endmodule // test_prim64

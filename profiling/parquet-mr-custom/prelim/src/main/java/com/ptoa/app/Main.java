@@ -30,7 +30,7 @@ public class Main {
 
    public static void main(String[] args) throws IOException {
 
-      Path file = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/parquet-cpp/debug/intstr_table.prq");
+      Path file = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/parquet-cpp/debug/int64array.prq");
       Path outUncompressed = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/parquet-mr-custom/java.uncompressed.parquet");
       Path outGzipped = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/parquet-mr-custom/java.snappy.parquet");
 
@@ -69,10 +69,10 @@ public class Main {
          .<GenericRecord>builder(destPath)
          .withCompressionCodec(codec)
          .withSchema(schema)
-         .enableDictionaryEncoding()
+         .withDictionaryEncoding(false)
          .withDictionaryPageSize(10000000)
          .withPageSize(1000)
-         .withRowGroupSize(5000)
+         .withRowGroupSize(10000000)
          .withWriterVersion(WriterVersion.PARQUET_2_0)
          .build();
       for(GenericRecord wr: records) {
