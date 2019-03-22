@@ -133,7 +133,7 @@ begin
       FIFO_DEPTH                        => max(BUS_FIFO_DEPTH, BUS_BURST_MAX_LEN+1),
       RAM_CONFIG                        => BUS_FIFO_RAM_CONFIG,
       SLV_REQ_SLICE                     => false,
-      MST_REQ_SLICE                     => false,
+      MST_REQ_SLICE                     => true,
       MST_DAT_SLICE                     => false,
       SLV_DAT_SLICE                     => false
     )

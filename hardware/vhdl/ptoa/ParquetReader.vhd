@@ -152,8 +152,8 @@ architecture Implementation of ParquetReader is
   signal vd_cw_valid                           : std_logic_vector(0 downto 0);
   signal vd_cw_ready                           : std_logic_vector(0 downto 0);
   signal vd_cw_last                            : std_logic_vector(0 downto 0);
-  signal vd_cw_dvalid                          : std_logic_vector(0 downto 0);
   signal vd_cw_data                            : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
+  signal vd_cw_dvalid                          : std_logic_vector(0 downto 0);
 
 begin
 
@@ -163,7 +163,7 @@ begin
       BUS_ADDR_WIDTH      => BUS_ADDR_WIDTH,
       BUS_LEN_WIDTH       => BUS_LEN_WIDTH,
       BUS_BURST_MAX_LEN   => BUS_BURST_MAX_LEN,
-      BUS_FIFO_DEPTH      => BUS_BURST_MAX_LEN
+      BUS_FIFO_DEPTH      => 3*BUS_BURST_MAX_LEN
     )
     port map(
       clk                 => clk,
@@ -257,7 +257,7 @@ begin
       values_buffer_addr          => values_buffer_addr,
       bc_data                     => bytes_cons_data(2*log2ceil(BUS_DATA_WIDTH/8)+1 downto log2ceil(BUS_DATA_WIDTH/8)+1),
       bc_ready                    => bytes_cons_ready(1),
-      bc_valid                    => bytes_cons_ready(1),
+      bc_valid                    => bytes_cons_valid(1),
       cmd_valid                   => cmd_valid,
       cmd_ready                   => cmd_ready,
       cmd_firstIdx                => cmd_firstIdx,
@@ -283,7 +283,7 @@ begin
       BUS_BURST_STEP_LEN          => BUS_BURST_STEP_LEN,
       BUS_BURST_MAX_LEN           => BUS_BURST_MAX_LEN,
       INDEX_WIDTH                 => INDEX_WIDTH,
-      CFG                         => CFG,
+      CFG                         => "prim(" & integer'image(BUS_DATA_WIDTH) & ")", -- ColumnWriter should write the max amount of elements per cycle that the bus width allows
       CMD_TAG_ENABLE              => true,
       CMD_TAG_WIDTH               => TAG_WIDTH
     )
@@ -301,8 +301,8 @@ begin
       in_valid                    => vd_cw_valid,
       in_ready                    => vd_cw_ready,
       in_last                     => vd_cw_last,
-      in_data                     => vd_cw_dvalid,
-      in_dvalid                   => vd_cw_data,
+      in_data                     => vd_cw_data,
+      in_dvalid                   => vd_cw_dvalid,
       bus_wreq_valid              => bus_wreq_valid,
       bus_wreq_ready              => bus_wreq_ready,
       bus_wreq_addr               => bus_wreq_addr,
