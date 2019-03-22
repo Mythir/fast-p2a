@@ -56,9 +56,17 @@ std::string gen_random_string(const int length) {
     return result;
 }
 
-std::shared_ptr<arrow::Table> generate_int64_table(int num_values, int modulo=0) {
+std::shared_ptr<arrow::Table> generate_int64_table(int num_values, int modulo=0, bool write_to_file=false) {
+    // Generate an int64 table with random numbers. Arguments:
+    // Num_values: size of the table
+    // Modulo: Numbers can take any value between 0 and modulo-1. If modulo == 0 the range is the full range of int64.
+    // Write_to_file: If true the values will also be written to a file called "int64array.txt" with each value on a new line.
     arrow::Int64Builder i64builder;
     int64_t number;
+    ofstream check_file;
+    if(write_to_file){
+        check_file.open("int64array.txt");
+    }
 
     for (int i = 0; i < num_values; i++) {
         if(modulo <= 0){
@@ -75,6 +83,9 @@ std::shared_ptr<arrow::Table> generate_int64_table(int num_values, int modulo=0)
             PARQUET_THROW_NOT_OK(i64builder.Append(number));
         }*/
         PARQUET_THROW_NOT_OK(i64builder.Append(number));
+        if(write_to_file){
+            check_file << number << std::endl;
+        }
 
     }
     std::shared_ptr<arrow::Array> i64array;
@@ -83,6 +94,10 @@ std::shared_ptr<arrow::Table> generate_int64_table(int num_values, int modulo=0)
     std::shared_ptr<arrow::Schema> schema = arrow::schema(
             {arrow::field("int", arrow::int64(), true)});
 
+
+    if(write_to_file){
+        check_file.close();
+    }
     return arrow::Table::Make(schema, {i64array});
 }
 
@@ -288,7 +303,7 @@ int main(int argc, char **argv) {
     }
 
     std::cout << "Size of Arrow table: " << num_values << " values." << std::endl;
-    std::shared_ptr<arrow::Table> int64_table = generate_int64_table(num_values, modulo);
+    std::shared_ptr<arrow::Table> int64_table = generate_int64_table(num_values, modulo, true);
     std::shared_ptr<arrow::Table> str_table = generate_str_table(num_values, 2, 10);
 
     /*
