@@ -23,6 +23,8 @@ set HDK_SHELL_DESIGN_DIR $::env(HDK_SHELL_DESIGN_DIR)
 set CL_DIR $::env(CL_DIR)
 set FLETCHER_HARDWARE_DIR $::env(FLETCHER_HARDWARE_DIR)
 set FLETCHER_EXAMPLES_DIR $::env(FLETCHER_EXAMPLES_DIR)
+set PTOA_HARDWARE_DIR $::env(PTOA_HARDWARE_DIR)
+
 
 set TARGET_DIR $CL_DIR/build/src_post_encryption
 set UNUSED_TEMPLATES_DIR $HDK_SHELL_DESIGN_DIR/interfaces
@@ -50,9 +52,15 @@ file copy -force $FLETCHER_HARDWARE_DIR/vhdl/streams/StreamFIFO.vhd             
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/streams/StreamGearbox.vhd               $TARGET_DIR
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/streams/StreamNormalizer.vhd            $TARGET_DIR
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/streams/StreamParallelizer.vhd          $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhdl/streams/StreamPipelineControl.vhd       $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhdl/streams/StreamPipelineBarrel.vhd        $TARGET_DIR
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/streams/StreamSerializer.vhd            $TARGET_DIR
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/streams/StreamSlice.vhd                 $TARGET_DIR
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/streams/StreamSync.vhd                  $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhdl/streams/StreamElementCounter.vhd        $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhdl/streams/StreamMaximizer.vhd             $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhdl/streams/StreamPseudoRandomGenerator.vhd $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhdl/streams/StreamAccumulator.vhd           $TARGET_DIR
 
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/columns/ColumnConfigParse.vhd           $TARGET_DIR
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/columns/ColumnConfig.vhd                $TARGET_DIR
@@ -67,10 +75,19 @@ file copy -force $FLETCHER_HARDWARE_DIR/vhdl/buffers/BufferReaderRespCtrl.vhd   
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/buffers/BufferReaderResp.vhd            $TARGET_DIR
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/buffers/BufferReader.vhd                $TARGET_DIR
 
+file copy -force $FLETCHER_HARDWARE_DIR/vhdl/buffers/BufferWriterCmdGenBusReq.vhd    $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhdl/buffers/BufferWriterPreCmdGen.vhd       $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhdl/buffers/BufferWriterPrePadder.vhd       $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhdl/buffers/BufferWriterPre.vhd             $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhdl/buffers/BufferWriter.vhd                $TARGET_DIR
+
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/interconnect/Interconnect.vhd           $TARGET_DIR
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/interconnect/BusReadArbiter.vhd         $TARGET_DIR
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/interconnect/BusReadArbiterVec.vhd      $TARGET_DIR
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/interconnect/BusReadBuffer.vhd          $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhdl/interconnect/BusWriteArbiter.vhd        $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhdl/interconnect/BusWriteArbiterVec.vhd     $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhdl/interconnect/BusWriteBuffer.vhd         $TARGET_DIR
 
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/columns/ColumnReaderArb.vhd             $TARGET_DIR
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/columns/ColumnReaderLevel.vhd           $TARGET_DIR
@@ -82,6 +99,12 @@ file copy -force $FLETCHER_HARDWARE_DIR/vhdl/columns/ColumnReaderNull.vhd       
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/columns/ColumnReaderStruct.vhd          $TARGET_DIR
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/columns/ColumnReaderUnlockCombine.vhd   $TARGET_DIR
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/columns/ColumnReader.vhd                $TARGET_DIR
+
+file copy -force $FLETCHER_HARDWARE_DIR/vhdl/columns/ColumnWriter.vhd                $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhdl/columns/ColumnWriterArb.vhd             $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhdl/columns/ColumnWriterLevel.vhd           $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhdl/columns/ColumnWriterListPrim.vhd        $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhdl/columns/ColumnWriterListSync.vhd        $TARGET_DIR
 
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/wrapper/Wrapper.vhd                     $TARGET_DIR
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/wrapper/UserCoreController.vhd          $TARGET_DIR
