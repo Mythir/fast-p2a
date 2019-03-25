@@ -58,7 +58,6 @@ file copy -force $FLETCHER_HARDWARE_DIR/vhdl/streams/StreamSerializer.vhd       
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/streams/StreamSlice.vhd                 $TARGET_DIR
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/streams/StreamSync.vhd                  $TARGET_DIR
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/streams/StreamElementCounter.vhd        $TARGET_DIR
-file copy -force $FLETCHER_HARDWARE_DIR/vhdl/streams/StreamMaximizer.vhd             $TARGET_DIR
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/streams/StreamPseudoRandomGenerator.vhd $TARGET_DIR
 file copy -force $FLETCHER_HARDWARE_DIR/vhdl/streams/StreamAccumulator.vhd           $TARGET_DIR
 
