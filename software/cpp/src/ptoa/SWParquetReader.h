@@ -15,7 +15,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <parquet/arrow/writer.h>
 #include <arrow/api.h>
 #include <arrow/io/api.h>
 #include <parquet/properties.h>
@@ -26,21 +25,13 @@
 namespace ptoa{
 
 /**
- * @brief Class for writing Parquet files compliant with restrictions imposed by ptoa hardware.
+ * @brief Class that implements as fast as possible Parquet reading functionality equivalent to that of the hardware.
  */
-class ParquetWriter {
+class ParquetReader {
   public:
-    ParquetWriter();
-
-    void enable_dictionary();
-
-    void disable_dictionary();
-
-    status write(std::shared_ptr<arrow::Table> table, std::string file_path);
+    SWParquetReader();
 
   private:
-    std::shared_ptr<parquet::WriterProperties::Builder> builder;
-    int chunk_size;
 };
 
 }

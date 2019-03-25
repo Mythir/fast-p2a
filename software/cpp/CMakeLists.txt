@@ -29,15 +29,16 @@ set(PTOA ptoa)
 project(${PTOA} VERSION 0.0.1 DESCRIPTION "ptoa software library")
 
 set(SOURCES
-		src/ptoa/parquetwriter.cc)
+		src/ptoa/SWParquetReader.cpp)
 
 set(HEADERS
-		src/ptoa/parquetwriter.h
+		src/ptoa/SWParquetReader.h
 		src/ptoa/ptoa.h)
 
 add_library(${PTOA} SHARED ${HEADERS} ${SOURCES})
 
 find_library(LIB_ARROW arrow)
 find_library(LIB_PARQUET parquet)
+find_library(LIB_FLETCHER fletcher)
 
-target_link_libraries(${PTOA} ${LIB_PARQUET} ${LIB_ARROW})
+target_link_libraries(${PTOA} ${LIB_PARQUET} ${LIB_ARROW} $(LIB_FLETCHER))
