@@ -201,7 +201,8 @@ int main(int argc, char **argv) {
   platform->deviceMalloc(&device_parquet_address, file_size);
 
   // Set all the MMIO registers to their correct value
-  setPtoaArguments(platform, num_val, file_size, device_parquet_address, context->device_arrays[0]->buffers[0].device_address);
+  // Add 4 to device_parquet_address to skip magic number
+  setPtoaArguments(platform, num_val, file_size, device_parquet_address+4, context->device_arrays[0]->buffers[0].device_address);
   t.stop();
   std::cout << "FPGA Initialize                  : "
             << t.seconds() << std::endl;
