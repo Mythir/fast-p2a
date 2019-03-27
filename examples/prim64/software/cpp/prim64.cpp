@@ -82,6 +82,28 @@ void setPtoaArguments(std::shared_ptr<fletcher::Platform> platform, uint32_t num
   return;
 }
 
+void checkMMIO(std::shared_ptr<fletcher::Platform> platform, uint32_t num_val, uint64_t max_size, da_t device_parquet_address, da_t device_arrow_address) {
+  uint64_t value64;
+  uint32_t value32;
+
+  platform->readMMIO(2, &value32);
+
+  std::cout << "MMIO num_val=" << value32 << ", should be " << num_val << std::endl;
+
+  platform->readMMIO64(3, &value64);
+
+  std::cout << "MMIO dpa=" << value64 << ", should be " << device_parquet_address << std::endl;
+
+  platform->readMMIO64(5, &value64);
+
+  std::cout << "MMIO max_size=" << value64 << ", should be " << max_size << std::endl;
+
+  platform->readMMIO64(7, &value64);
+
+  std::cout << "MMIO daa=" << value64 << ", should be " << device_arrow_address << std::endl;
+
+}
+
 //Use standard Arrow library functions to read Arrow array from Parquet file
 //Only works for Parquet version 1 style files.
 std::shared_ptr<arrow::Array> readArray(std::string hw_input_file_path) {
@@ -184,6 +206,8 @@ int main(int argc, char **argv) {
   std::cout << "FPGA Initialize                  : "
             << t.seconds() << std::endl;
 
+  checkMMIO(platform, num_val, file_size, device_parquet_address, context->device_arrays[0]->buffers[0].device_address);
+
   /*************************************************************
   * FPGA host to device copy
   *************************************************************/
@@ -229,6 +253,10 @@ int main(int argc, char **argv) {
     if(result_array->Value(i) != correct_array->Value(i)) {
       error_count++;
     }
+    if(i<20) {
+      std::cout << result_array->Value(i) << " " << correct_array->Value(i) << std::endl;
+    }
+
   }
 
   if(error_count == 0) {
