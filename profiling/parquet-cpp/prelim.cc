@@ -303,7 +303,7 @@ int main(int argc, char **argv) {
 
     std::cout << "Size of Arrow table: " << num_values << " values." << std::endl;
     std::shared_ptr<arrow::Table> int64_table = generate_int64_table(num_values, modulo, true);
-    std::shared_ptr<arrow::Table> str_table = generate_str_table(num_values, 2, 10);
+    //std::shared_ptr<arrow::Table> str_table = generate_str_table(num_values, 2, 10);
 
     /*
     const uint8_t* memrep = int64_table->column(0)->data()->chunk(0)->data()->buffers[1]->data();
@@ -313,15 +313,20 @@ int main(int argc, char **argv) {
     }
     */
 
-    write_parquet_file(*int64_table, "int64array.prq", num_values, true, true);
+    write_parquet_file(*int64_table, "../../gen-input/ref_int64array.parquet", num_values, false, false);
+
+    /*
     write_parquet_file(*int64_table, "int64array_nosnap.prq", num_values, false, true);
     write_parquet_file(*int64_table, "int64array_nodict.prq", num_values, true, false);
     write_parquet_file(*int64_table, "int64array_nosnap_nodict.prq", num_values, false, false);
+    */
 
+    /*
     write_parquet_file(*str_table, "strarray.prq", num_values, true, true);
     write_parquet_file(*str_table, "strarray_nosnap.prq", num_values, false, true);
     write_parquet_file(*str_table, "strarray_nodict.prq", num_values, true, false);
     write_parquet_file(*str_table, "strarray_nosnap_nodict.prq", num_values, false, false);
+    */
 
     /*
     examine_metadata("int64array.prq");
@@ -333,16 +338,18 @@ int main(int argc, char **argv) {
     examine_metadata("strarray_nodict.prq");
     examine_metadata("strarray_nosnap_nodict.prq");
     */
-    examine_metadata("int64array_nodict.prq");
     
-
+    /*
     parquet_to_arrow_benchmark("int64array.prq", iterations);
     parquet_to_arrow_benchmark("int64array_nosnap.prq", iterations);
     parquet_to_arrow_benchmark("int64array_nodict.prq", iterations);
     parquet_to_arrow_benchmark("int64array_nosnap_nodict.prq", iterations);
+    */
 
+    /*
     parquet_to_arrow_benchmark("strarray.prq", iterations);
     parquet_to_arrow_benchmark("strarray_nosnap.prq", iterations);
     parquet_to_arrow_benchmark("strarray_nodict.prq", iterations);
     parquet_to_arrow_benchmark("strarray_nosnap_nodict.prq", iterations);
+    */
 }

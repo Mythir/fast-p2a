@@ -1,5 +1,6 @@
 package com.ptoa.app;
 
+
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.conf.Configuration;
@@ -10,6 +11,20 @@ import org.apache.hadoop.fs.Path;
 import org.apache.parquet.hadoop.ParquetWriter;
 import org.apache.parquet.column.ParquetProperties.WriterVersion;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
+import org.apache.parquet.example.data.Group;
+import org.apache.parquet.example.data.simple.convert.GroupRecordConverter;
+import org.apache.parquet.format.converter.ParquetMetadataConverter;
+import org.apache.parquet.hadoop.ParquetFileReader;
+import org.apache.parquet.hadoop.metadata.ParquetMetadata;
+import org.apache.parquet.io.ColumnIOFactory;
+import org.apache.parquet.io.MessageColumnIO;
+import org.apache.parquet.io.RecordReader;
+import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.Type;
+import org.apache.parquet.column.page.PageReadStore;
+import org.apache.parquet.hadoop.api.WriteSupport;
+import org.apache.parquet.hadoop.example.GroupWriteSupport;
+import org.apache.parquet.hadoop.PrintFooter;
 
 import java.io.File;
 import java.io.BufferedWriter;
@@ -17,67 +32,86 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-
-/*
- * Code taken from http://isolineltd.com/blog/2018/10/17/Reading-and-Writing-Parquet-Files-in-Different-Languages as an example
- * for reading and writing Parquet files in Java. For now Java functionality is not needed in the ptoa tools so it is just left
- * here for future reference.
- */
+import java.util.HashMap;
+import java.util.Map;
 
 public class Main {
+  private static final Configuration conf = new Configuration();
 
-   private static final Configuration conf = new Configuration();
+  public static class CustomBuilder extends ParquetWriter.Builder<Group, CustomBuilder> {
 
-   public static void main(String[] args) throws IOException {
+    private CustomBuilder(Path file) {
+      super(file);
+    }
 
-      Path file = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/parquet-cpp/debug/int64array.prq");
-      Path outUncompressed = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/parquet-mr-custom/java.uncompressed.parquet");
-      Path outGzipped = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/parquet-mr-custom/java.snappy.parquet");
+    @Override
+    protected CustomBuilder self() {
+      return this;
+    }
 
-      List<GenericRecord> allRecords = new ArrayList<GenericRecord>();
-      Schema schema = null;
+    @Override
+    protected WriteSupport<Group> getWriteSupport(Configuration conf) {
+      return new GroupWriteSupport();
+    }
 
-      for(int i = 0; i < 11; i++) {
+  }
 
-         //read
-         ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(file).build();
-         GenericRecord record;
-         while((record = reader.read()) != null) {
-            if(i == 0) {
-               //add once
-               allRecords.add(record);
-               if(schema == null) {
-                  schema = record.getSchema();
-               }
-            }
-         }
-         reader.close();
+  public static void main(String[] args) throws IOException {
+    Path file = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/gen-input/ref_int64array.parquet");
+    Path destPath = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/gen-input/hw_int64array.parquet");
 
-         writeTest(i, CompressionCodecName.UNCOMPRESSED, outUncompressed,
-            schema, allRecords);
+    ParquetFileReader reader = new ParquetFileReader(conf, file, ParquetMetadataConverter.NO_FILTER);
+    ParquetMetadata readFooter = reader.getFooter();
+    MessageType schema = readFooter.getFileMetaData().getSchema();
+    ParquetFileReader r = new ParquetFileReader(conf, file, readFooter);
+    reader.close();
+    PageReadStore pages = null;
 
-         writeTest(i, CompressionCodecName.SNAPPY, outGzipped,
-            schema, allRecords);
+    GroupWriteSupport.setSchema(schema, conf);
+    
+    File t = new File(destPath.toString());
+    t.delete();
+    // This (deprecated) ParquetWriter constructor does not allow me to change the page row count limit, which is normally set on 20000.
+    // In order to change this the source code will have to be changed or we need to extend the ParquetWriter builder.
+    //CustomBuilder test = new CustomBuilder(destPath);
+    //ParquetWriter<Group> writer = test.build();
+    
+    ParquetWriter<Group> writer = new ParquetWriter<Group>(
+                destPath,
+                new GroupWriteSupport(),
+                CompressionCodecName.UNCOMPRESSED,
+                10000000, //Row group size
+                10000000, //Page size
+                12315, //Dict page limit
+                false, //Enable dictionary
+                false, //Validation
+                WriterVersion.PARQUET_2_0,
+                conf);
+
+    try {
+      while (null != (pages = r.readNextRowGroup())) {
+        long rows = pages.getRowCount();
+        System.out.println("Number of rows: " + pages.getRowCount());
+
+        MessageColumnIO columnIO = new ColumnIOFactory().getColumnIO(schema);
+        RecordReader<Group> recordReader = columnIO.getRecordReader(pages, new GroupRecordConverter(schema));
+        for (int i = 0; i < rows; i++) {
+          Group g = (Group) recordReader.read();
+          writer.write(g);
+        }
       }
-   }
+    } finally {
+      System.out.println("close the reader and writer");
 
-   private static void writeTest(int iteration, CompressionCodecName codec,
-                                 Path destPath, Schema schema, List<GenericRecord> records) throws IOException {
-      File t = new File(destPath.toString());
-      t.delete();
-      ParquetWriter<GenericRecord> writer = AvroParquetWriter
-         .<GenericRecord>builder(destPath)
-         .withCompressionCodec(codec)
-         .withSchema(schema)
-         .withDictionaryEncoding(false)
-         .withDictionaryPageSize(10000000)
-         .withPageSize(1000)
-         .withRowGroupSize(10000000)
-         .withWriterVersion(WriterVersion.PARQUET_2_0)
-         .build();
-      for(GenericRecord wr: records) {
-         writer.write(wr);
-      }
+      r.close();
       writer.close();
-   }
+    }
+
+    try{
+      PrintFooter.main(new String[] {destPath.toString()});
+    } catch (Exception e){
+      e.printStackTrace();
+    }
+  }
+
 }
