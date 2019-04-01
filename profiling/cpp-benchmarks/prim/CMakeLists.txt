@@ -24,21 +24,25 @@ set(CMAKE_CXX_FLAGS "-Wall -Wextra -fPIC")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -march=native")
 
-set(PTOA ptoa)
+set(PRIM prim)
 
-project(${PTOA} VERSION 0.0.1 DESCRIPTION "ptoa software library")
+project(${PRIM} VERSION 0.0.1 DESCRIPTION "prim benchmarks")
 
 set(SOURCES
-		src/ptoa/SWParquetReader.cpp)
+		../ptoa/SWParquetReader.cpp
+		../../utils/timer.cpp
+		src/prim.cpp)
 
 set(HEADERS
-		src/ptoa/SWParquetReader.h
-		src/ptoa/ptoa.h)
-
-add_library(${PTOA} SHARED ${HEADERS} ${SOURCES})
+		../ptoa/SWParquetReader.h
+		../ptoa/ptoa.h
+		../../utils/timer.h)
 
 find_library(LIB_ARROW arrow)
 find_library(LIB_PARQUET parquet)
 find_library(LIB_FLETCHER fletcher)
 
-target_link_libraries(${PTOA} ${LIB_PARQUET} ${LIB_ARROW} $(LIB_FLETCHER))
+add_executable(${PRIM} ${HEADERS} ${SOURCES})
+
+target_include_directories(${PRIM} PRIVATE ../../utils ../ptoa)
+target_link_libraries(${PRIM} ${LIB_PARQUET} ${LIB_ARROW} ${LIB_FLETCHER})
