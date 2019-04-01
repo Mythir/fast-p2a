@@ -16,6 +16,7 @@
 #include <parquet/arrow/reader.h>
 
 #include <SWParquetReader.h>
+#include <timer.h>
 
 #define PRIM_WIDTH 64
 
@@ -38,14 +39,17 @@ int main(int argc, char **argv) {
     int num_values;
     char* hw_input_file_path;
     char* reference_parquet_file_path;
+    int iterations;
 
-    if (argc > 3) {
+    Timer t;
+
+    if (argc > 4) {
       hw_input_file_path = argv[1];
       reference_parquet_file_path = argv[2];
       num_values = (uint32_t) std::strtoul(argv[3], nullptr, 10);
-    
+      iterations = (uint32_t) std::strtoul(argv[4], nullptr, 10);
     } else {
-      std::cerr << "Usage: prim <parquet_hw_input_file_path> <reference_parquet_file_path> <num_values>" << std::endl;
+      std::cerr << "Usage: prim <parquet_hw_input_file_path> <reference_parquet_file_path> <num_values> <iterations>" << std::endl;
       return 1;
     }
 
@@ -53,9 +57,18 @@ int main(int argc, char **argv) {
 
     std::shared_ptr<arrow::PrimitiveArray> array;
 
-    if(reader.read_prim(PRIM_WIDTH, num_values, 4, &array) != ptoa::status::OK){
-        return 1;
+    
+    for(int i=0; i<iterations; i++){
+        t.start();
+        // Reading the Parquet file. The interesting bit.
+        if(reader.read_prim(PRIM_WIDTH, num_values, 4, &array) != ptoa::status::OK){
+            return 1;
+        }
+        t.stop();
+        t.record();
     }
+
+    std::cout << "Average time for reading " << num_values << " values = " << t.average() << " seconds." << std::endl;
 
     #if PRIM_WIDTH == 64
         auto result_array = std::static_pointer_cast<arrow::Int64Array>(array);
@@ -75,10 +88,6 @@ int main(int argc, char **argv) {
             std::cout<<i<<std::endl;
           }
         }
-        if(i<20) {
-          std::cout << result_array->Value(i) << " " << correct_array->Value(i) << std::endl;
-        }
-
     }
 
     if(error_count == 0) {
