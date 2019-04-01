@@ -105,9 +105,8 @@ int SWParquetReader::decode_varint32(uint8_t* input, int32_t* decoded_int, bool 
             break;
         }
     }
-
     if(zigzag) {
-        result = (result >> 1) ^ -(i & 1);
+        result = ((result >> 1) & 0x7FFF) ^ (-(result & 1));
     }
 
     *decoded_int = result;

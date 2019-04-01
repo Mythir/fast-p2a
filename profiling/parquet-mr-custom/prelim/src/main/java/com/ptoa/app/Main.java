@@ -81,7 +81,7 @@ public class Main {
                 new GroupWriteSupport(),
                 CompressionCodecName.UNCOMPRESSED,
                 10000000, //Row group size
-                10000000, //Page size
+                1234, //Page size
                 12315, //Dict page limit
                 false, //Enable dictionary
                 false, //Validation
