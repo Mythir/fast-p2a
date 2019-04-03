@@ -90,18 +90,6 @@ void checkMMIO(std::shared_ptr<fletcher::Platform> platform, uint32_t num_val, u
 
   std::cout << "MMIO num_val=" << value32 << ", should be " << num_val << std::endl;
 
-  platform->readMMIO64(3, &value64);
-
-  std::cout << "MMIO dpa=" << value64 << ", should be " << device_parquet_address << std::endl;
-
-  platform->readMMIO64(5, &value64);
-
-  std::cout << "MMIO max_size=" << value64 << ", should be " << max_size << std::endl;
-
-  platform->readMMIO64(7, &value64);
-
-  std::cout << "MMIO daa=" << value64 << ", should be " << device_arrow_address << std::endl;
-
 }
 
 //Use standard Arrow library functions to read Arrow array from Parquet file
