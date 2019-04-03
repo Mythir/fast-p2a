@@ -40,6 +40,8 @@ public class Main {
 
   public static class CustomBuilder extends ParquetWriter.Builder<Group, CustomBuilder> {
 
+    private MessageType schema = null;
+
     private CustomBuilder(Path file) {
       super(file);
     }
@@ -51,7 +53,13 @@ public class Main {
 
     @Override
     protected WriteSupport<Group> getWriteSupport(Configuration conf) {
+      GroupWriteSupport.setSchema(schema, conf);
       return new GroupWriteSupport();
+    }
+
+    public CustomBuilder withSchema(MessageType prq_schema, Configuration conf) {
+      this.schema = prq_schema;
+      return self();
     }
 
   }
@@ -66,27 +74,20 @@ public class Main {
     ParquetFileReader r = new ParquetFileReader(conf, file, readFooter);
     reader.close();
     PageReadStore pages = null;
-
-    GroupWriteSupport.setSchema(schema, conf);
     
     File t = new File(destPath.toString());
     t.delete();
-    // This (deprecated) ParquetWriter constructor does not allow me to change the page row count limit, which is normally set on 20000.
-    // In order to change this the source code will have to be changed or we need to extend the ParquetWriter builder.
-    //CustomBuilder test = new CustomBuilder(destPath);
-    //ParquetWriter<Group> writer = test.build();
-    
-    ParquetWriter<Group> writer = new ParquetWriter<Group>(
-                destPath,
-                new GroupWriteSupport(),
-                CompressionCodecName.UNCOMPRESSED,
-                10000000, //Row group size
-                1234, //Page size
-                12315, //Dict page limit
-                false, //Enable dictionary
-                false, //Validation
-                WriterVersion.PARQUET_2_0,
-                conf);
+
+    CustomBuilder writerBuilder = new CustomBuilder(destPath);
+    writerBuilder.withSchema(schema, conf)
+                 .withCompressionCodec(CompressionCodecName.UNCOMPRESSED)
+                 .withRowGroupSize(Integer.MAX_VALUE)
+                 .withPageSize(10000000)
+                 .withPageRowCountLimit(1000000000)
+                 .withDictionaryEncoding(false)
+                 .withValidation(false)
+                 .withWriterVersion(WriterVersion.PARQUET_2_0);
+    ParquetWriter<Group> writer = writerBuilder.build();
 
     try {
       while (null != (pages = r.readNextRowGroup())) {

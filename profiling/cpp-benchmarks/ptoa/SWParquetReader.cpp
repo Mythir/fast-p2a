@@ -15,6 +15,7 @@
 #include <fstream>
 #include <cstring>
 #include <algorithm>
+#include <map>
 
 #include <SWParquetReader.h>
 #include <ptoa.h>
@@ -26,7 +27,7 @@ SWParquetReader::SWParquetReader(std::string file_path) {
     std::ifstream parquet_file(file_path, std::ios::binary);
     
     parquet_file.seekg(0, parquet_file.end);
-    size_t file_size = parquet_file.tellg();
+    file_size = parquet_file.tellg();
     parquet_file.seekg(0, parquet_file.beg);
 
     parquet_data = (uint8_t*) malloc(file_size);
@@ -71,6 +72,8 @@ status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_
         page_ptr += compressed_size;
         arr_buf_ptr += compressed_size;
         total_value_counter += page_num_values;
+
+
     }
 
     if(prim_width == 64){
@@ -81,14 +84,66 @@ status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_
         std::cerr << "[ERROR] Unsupported prim width " << prim_width << std::endl;
     }
 
-    /*
-    std::cout << "Uncompressed size: " << uncompressed_size << std::endl;
-    std::cout << "Compressed size: " << compressed_size << std::endl;
-    std::cout << "Page num values: " << page_num_values << std::endl;
-    std::cout << "Def level length: " << def_level_length << std::endl;
-    std::cout << "rep_level_length: " << rep_level_length << std::endl;
-    std::cout << "metadata_size: " << metadata_size << std::endl;
-    */
+    return status::OK;
+
+}
+
+// Count pages and provide information about their sizes starting with the page at file_offset
+status SWParquetReader::count_pages(int32_t file_offset) {
+    uint8_t* page_ptr = parquet_data;
+
+    // Metadata reading variables
+    int32_t uncompressed_size;
+    int32_t compressed_size;
+    int32_t page_num_values;
+    int32_t def_level_length;
+    int32_t rep_level_length;
+    int32_t metadata_size;
+
+    page_ptr += file_offset;
+
+    int32_t page_ctr = 0;
+    std::map<int32_t, int32_t> size_map;
+    std::map<int32_t, int32_t> value_map;
+
+    // Read Parquet pages until either the end of the file is reached or a non PageHeader Thrift structure.
+    while((uint64_t)(page_ptr-parquet_data) < file_size){
+        if(read_metadata(page_ptr, &uncompressed_size, &compressed_size, &page_num_values, &def_level_length, &rep_level_length, &metadata_size) != status::OK) {
+            break;
+        }
+
+        page_ptr += metadata_size;    
+        page_ptr += compressed_size;
+
+        page_ctr++;
+        auto size_it = size_map.find(compressed_size);
+        if(size_it != size_map.end()) {
+            size_it->second++;
+        } else {
+            size_map.insert(std::make_pair(compressed_size, 1));
+        }
+
+        auto value_it = value_map.find(page_num_values);
+        if(value_it != value_map.end()) {
+            value_it->second++;
+        } else {
+            value_map.insert(std::make_pair(page_num_values, 1));
+        }
+
+
+    }
+
+    std::cout << "Counted " << page_ctr << " pages" << std::endl;
+    std::cout << "Page sizes: " << std::endl;
+    for(auto it = size_map.begin(); it != size_map.end(); it++){
+        std::cout << "    Size " << it->first << ": " << it->second <<std::endl;
+    }
+
+    std::cout << "Number of values per page: " << std::endl;
+    for(auto it = size_map.begin(); it != size_map.end(); it++){
+        std::cout << "    " << it->first << ": " << it->second <<std::endl;
+    }
+    std::cout << std::endl;
 
     return status::OK;
 
@@ -116,6 +171,32 @@ int SWParquetReader::decode_varint32(uint8_t* input, int32_t* decoded_int, bool 
     return i+1;
 }
 
+status SWParquetReader::inspect_metadata(int32_t file_offset) {
+    // Metadata reading variables
+    int32_t uncompressed_size;
+    int32_t compressed_size;
+    int32_t page_num_values;
+    int32_t def_level_length;
+    int32_t rep_level_length;
+    int32_t metadata_size;
+
+    if(read_metadata(parquet_data + file_offset, &uncompressed_size, &compressed_size, &page_num_values, &def_level_length, &rep_level_length, &metadata_size) != status::OK) {
+        std::cerr << "[ERROR] Page header at file offset " << file_offset << " corrupted or missing." << std::endl;
+        return status::FAIL;
+    }
+
+    std::cout << "Page header fields at file offset " << file_offset << ":" << std::endl;
+    std::cout << "    Uncompressed size: " << uncompressed_size << std::endl;
+    std::cout << "    Compressed size: " << compressed_size << std::endl;
+    std::cout << "    Page num values: " << page_num_values << std::endl;
+    std::cout << "    Def level length: " << def_level_length << std::endl;
+    std::cout << "    rep_level_length: " << rep_level_length << std::endl;
+    std::cout << "    metadata_size: " << metadata_size << std::endl;
+    std::cout << std::endl;
+    
+    return status::OK;
+}
+
 // Read all relevant fields from the Parquet page header pointed to by uint8_t* metadata.
 status SWParquetReader::read_metadata(uint8_t* metadata, int32_t* uncompressed_size, int32_t* compressed_size, int32_t* num_values, 
                                       int32_t* def_level_length, int32_t* rep_level_length, int32_t* metadata_size) {
@@ -124,7 +205,7 @@ status SWParquetReader::read_metadata(uint8_t* metadata, int32_t* uncompressed_s
 
     // PageType
     if(*current_byte != 0x15){
-        std::cerr<<"PageType error"<<std::endl;
+        //std::cerr<<"PageType error"<<std::endl;
         return status::FAIL;
     }
 
@@ -138,7 +219,7 @@ status SWParquetReader::read_metadata(uint8_t* metadata, int32_t* uncompressed_s
 
     //Uncompressed page size
     if(*current_byte != 0x15){
-        std::cerr<<"uncompressed_size error"<<std::endl;
+        //std::cerr<<"uncompressed_size error"<<std::endl;
         return status::FAIL;
     }
 
@@ -148,7 +229,7 @@ status SWParquetReader::read_metadata(uint8_t* metadata, int32_t* uncompressed_s
 
     //Compressed page size
     if(*current_byte != 0x15){
-        std::cerr<<"compressed_size error"<<std::endl;
+        //std::cerr<<"compressed_size error"<<std::endl;
         return status::FAIL;
     }
 
@@ -172,7 +253,7 @@ status SWParquetReader::read_metadata(uint8_t* metadata, int32_t* uncompressed_s
 
     //DataPageHeaderV2
     if(*current_byte != data_page_v2_field_header){
-        std::cerr<<"datapagev2 error"<<std::endl;
+        //std::cerr<<"datapagev2 error"<<std::endl;
         return status::FAIL;
     }
 
@@ -180,7 +261,7 @@ status SWParquetReader::read_metadata(uint8_t* metadata, int32_t* uncompressed_s
 
     //Num values
     if(*current_byte != 0x15){
-        std::cerr<<"numval error"<<std::endl;
+        //std::cerr<<"numval error"<<std::endl;
         return status::FAIL;
     }
 
@@ -190,7 +271,7 @@ status SWParquetReader::read_metadata(uint8_t* metadata, int32_t* uncompressed_s
 
     //Num nulls
     if(*current_byte != 0x15){
-        std::cerr<<"num_null error"<<std::endl;
+        //std::cerr<<"num_null error"<<std::endl;
         return status::FAIL;
     }
 
@@ -204,7 +285,7 @@ status SWParquetReader::read_metadata(uint8_t* metadata, int32_t* uncompressed_s
 
     //Num rows
     if(*current_byte != 0x15){
-        std::cerr<<"numrow error"<<std::endl;
+        //std::cerr<<"numrow error"<<std::endl;
         return status::FAIL;
     }
 
@@ -218,7 +299,7 @@ status SWParquetReader::read_metadata(uint8_t* metadata, int32_t* uncompressed_s
 
     //Encoding
     if(*current_byte != 0x15){
-        std::cerr<<"enc error"<<std::endl;
+        //std::cerr<<"enc error"<<std::endl;
         return status::FAIL;
     }
 
@@ -232,7 +313,7 @@ status SWParquetReader::read_metadata(uint8_t* metadata, int32_t* uncompressed_s
 
     //Def level byte length
     if(*current_byte != 0x15){
-        std::cerr<<"def_level_length error"<<std::endl;
+        //std::cerr<<"def_level_length error"<<std::endl;
         return status::FAIL;
     }
 
@@ -242,7 +323,7 @@ status SWParquetReader::read_metadata(uint8_t* metadata, int32_t* uncompressed_s
 
     //rep level byte length
     if(*current_byte != 0x15){
-        std::cerr<<"rep_level_length error"<<std::endl;
+        //std::cerr<<"rep_level_length error"<<std::endl;
         return status::FAIL;
     }
 

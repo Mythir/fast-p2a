@@ -40,23 +40,33 @@ int main(int argc, char **argv) {
     char* hw_input_file_path;
     char* reference_parquet_file_path;
     int iterations;
+    bool verify_output;
 
     Timer t;
 
-    if (argc > 4) {
+    if (argc > 5) {
       hw_input_file_path = argv[1];
       reference_parquet_file_path = argv[2];
       num_values = (uint32_t) std::strtoul(argv[3], nullptr, 10);
       iterations = (uint32_t) std::strtoul(argv[4], nullptr, 10);
+      if(argv[5][0] == 'y') {
+        verify_output = true;
+      } else if (argv[5][0] == 'n') {
+        verify_output = false;
+      } else {
+        std::cerr << "Invalid argument. Option \"verify\" should be \"y\" or \"n\"" << std::endl;
+        return 1;
+      }
     } else {
-      std::cerr << "Usage: prim <parquet_hw_input_file_path> <reference_parquet_file_path> <num_values> <iterations>" << std::endl;
+      std::cerr << "Usage: prim parquet_hw_input_file_path reference_parquet_file_path num_values iterations verify(y or n)" << std::endl;
       return 1;
     }
 
     ptoa::SWParquetReader reader(hw_input_file_path);
+    reader.inspect_metadata(4);
+    reader.count_pages(4);
 
     std::shared_ptr<arrow::PrimitiveArray> array;
-
     
     for(int i=0; i<iterations; i++){
         t.start();
@@ -70,31 +80,34 @@ int main(int argc, char **argv) {
 
     std::cout << "Average time for reading " << num_values << " values = " << t.average() << " seconds." << std::endl;
 
-    #if PRIM_WIDTH == 64
-        auto result_array = std::static_pointer_cast<arrow::Int64Array>(array);
-        auto correct_array = std::dynamic_pointer_cast<arrow::Int64Array>(readArray(std::string(reference_parquet_file_path)));
-    #elif PRIM_WIDTH == 32
-        auto result_array = std::static_pointer_cast<arrow::Int32Array>(array);
-        auto correct_array = std::dynamic_pointer_cast<arrow::Int32Array>(readArray(std::string(reference_parquet_file_path)));
-    #endif
-
-    // Verify result
-    int error_count = 0;
-
-    for(int i=0; i<result_array->length(); i++) {
-        if(result_array->Value(i) != correct_array->Value(i)) {
-          error_count++;
-          if(error_count<20) {
-            std::cout<<i<<std::endl;
-          }
+    if(verify_output) {
+        #if PRIM_WIDTH == 64
+            auto result_array = std::static_pointer_cast<arrow::Int64Array>(array);
+            auto correct_array = std::dynamic_pointer_cast<arrow::Int64Array>(readArray(std::string(reference_parquet_file_path)));
+        #elif PRIM_WIDTH == 32
+            auto result_array = std::static_pointer_cast<arrow::Int32Array>(array);
+            auto correct_array = std::dynamic_pointer_cast<arrow::Int32Array>(readArray(std::string(reference_parquet_file_path)));
+        #endif
+    
+        // Verify result
+        int error_count = 0;
+    
+        for(int i=0; i<result_array->length(); i++) {
+            if(result_array->Value(i) != correct_array->Value(i)) {
+              error_count++;
+              if(error_count<20) {
+                std::cout<<i<<std::endl;
+              }
+            }
+        }
+    
+        if(error_count == 0) {
+          std::cout << "Test passed!" << std::endl;
+        } else {
+          std::cout << "Test failed. Found " << error_count << " errors in the output Arrow array" << std::endl;
         }
     }
-
-    if(error_count == 0) {
-      std::cout << "Test passed!" << std::endl;
-    } else {
-      std::cout << "Test failed. Found " << error_count << " errors in the output Arrow array" << std::endl;
-    }
+    
     
 
 }
