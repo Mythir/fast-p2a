@@ -55,7 +55,9 @@ std::shared_ptr<arrow::RecordBatch> prepareRecordBatch(uint32_t num_val) {
 
   auto array = std::make_shared<arrow::Int64Array>(arrow::int64(), num_val, values);
 
-  std::shared_ptr<arrow::Schema> schema = arrow::schema({arrow::field("int", arrow::int64(), false)});
+  auto schema_meta = metaMode(fletcher::Mode::WRITE);
+
+  std::shared_ptr<arrow::Schema> schema = arrow::schema({arrow::field("int", arrow::int64(), false)}, schema_meta);
 
   auto rb = arrow::RecordBatch::Make(schema, num_val, {array});
 
