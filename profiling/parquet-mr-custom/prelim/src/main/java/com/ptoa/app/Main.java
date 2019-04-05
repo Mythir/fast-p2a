@@ -65,12 +65,8 @@ public class Main {
   }
 
   public static void main(String[] args) throws IOException {
-    //Path file = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/parquet-cpp/debug/strarray_nosnap_nodict.prq");
-    //Path destPath = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/gen-input/hw_strarray.parquet");
     Path file = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/gen-input/ref_int64array.parquet");
     Path destPath = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/gen-input/hw_int64array.parquet");
-    //Path file = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/parquet-cpp/debug/int64array_nosnap_nodict.prq");
-    //Path destPath = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/gen-input/test2_int64array.parquet");
 
     ParquetFileReader reader = new ParquetFileReader(conf, file, ParquetMetadataConverter.NO_FILTER);
     ParquetMetadata readFooter = reader.getFooter();
@@ -86,7 +82,7 @@ public class Main {
     writerBuilder.withSchema(schema, conf)
                  .withCompressionCodec(CompressionCodecName.UNCOMPRESSED)
                  .withRowGroupSize(Integer.MAX_VALUE)
-                 .withPageSize(Integer.MAX_VALUE)
+                 .withPageSize(10000000)
                  .withPageRowCountLimit(1000000000)
                  .withDictionaryEncoding(false)
                  .withValidation(false)

@@ -66,36 +66,26 @@ int main(int argc, char **argv) {
     reader.inspect_metadata(4);
     reader.count_pages(4);
 
-    std::shared_ptr<arrow::PrimitiveArray> prim_array;
-    std::shared_ptr<arrow::Buffer> arr_buffer;
-    arrow::AllocateBuffer(num_values*PRIM_WIDTH/8, &arr_buffer);
-    uint8_t* arr_buf_ptr = arr_buffer->mutable_data();
+    std::shared_ptr<arrow::PrimitiveArray> array;
     
     for(int i=0; i<iterations; i++){
         t.start();
         // Reading the Parquet file. The interesting bit.
-        if(reader.read_prim(PRIM_WIDTH, num_values, 4, arr_buf_ptr) != ptoa::status::OK){
+        if(reader.read_prim(PRIM_WIDTH, num_values, 4, &array) != ptoa::status::OK){
             return 1;
         }
         t.stop();
         t.record();
     }
 
-    
-    #if PRIM_WIDTH == 64
-        prim_array = std::make_shared<arrow::PrimitiveArray>(arrow::int64(), num_values, arr_buffer);
-    #elif PRIM_WIDTH == 32
-        prim_array = std::make_shared<arrow::PrimitiveArray>(arrow::int32(), num_values, arr_buffer);
-    #endif
-
     std::cout << "Average time for reading " << num_values << " values = " << t.average() << " seconds." << std::endl;
 
     if(verify_output) {
         #if PRIM_WIDTH == 64
-            auto result_array = std::static_pointer_cast<arrow::Int64Array>(prim_array);
+            auto result_array = std::static_pointer_cast<arrow::Int64Array>(array);
             auto correct_array = std::dynamic_pointer_cast<arrow::Int64Array>(readArray(std::string(reference_parquet_file_path)));
         #elif PRIM_WIDTH == 32
-            auto result_array = std::static_pointer_cast<arrow::Int32Array>(prim_array);
+            auto result_array = std::static_pointer_cast<arrow::Int32Array>(array);
             auto correct_array = std::dynamic_pointer_cast<arrow::Int32Array>(readArray(std::string(reference_parquet_file_path)));
         #endif
     
