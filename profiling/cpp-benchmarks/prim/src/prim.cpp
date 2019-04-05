@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
 
     std::shared_ptr<arrow::PrimitiveArray> prim_array;
     std::shared_ptr<arrow::Buffer> arr_buffer;
-    arrow::AllocateBuffer(num_values*PRIM_WIDTH/8, &arr_buffer);
+    arrow::AllocateBuffer(((int64_t)num_values)*PRIM_WIDTH/8, &arr_buffer);
     uint8_t* arr_buf_ptr = arr_buffer->mutable_data();
     
     for(int i=0; i<iterations; i++){
