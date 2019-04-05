@@ -39,11 +39,8 @@ SWParquetReader::SWParquetReader(std::string file_path) {
 
 // Read a number (set by num_values) of either 32 or 64 bit integers (set by prim_width) into prim_array.
 // File_offset is the byte offset in the Parquet file where the first in a contiguous list of Parquet pages is located.
-status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array) {
+status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_t file_offset, uint8_t* arr_buf_ptr) {
     uint8_t* page_ptr = parquet_data;
-    std::shared_ptr<arrow::Buffer> arr_buffer;
-    arrow::AllocateBuffer(num_values*prim_width/8, &arr_buffer);
-    uint8_t* arr_buf_ptr = arr_buffer->mutable_data();
 
     int64_t total_value_counter = 0;
 
@@ -74,14 +71,6 @@ status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_
         total_value_counter += page_num_values;
 
 
-    }
-
-    if(prim_width == 64){
-        *prim_array = std::make_shared<arrow::PrimitiveArray>(arrow::int64(), num_values, arr_buffer);
-    } else if (prim_width == 32) {
-        *prim_array = std::make_shared<arrow::PrimitiveArray>(arrow::int32(), num_values, arr_buffer);
-    } else {
-        std::cerr << "[ERROR] Unsupported prim width " << prim_width << std::endl;
     }
 
     return status::OK;
@@ -140,7 +129,7 @@ status SWParquetReader::count_pages(int32_t file_offset) {
     }
 
     std::cout << "Number of values per page: " << std::endl;
-    for(auto it = size_map.begin(); it != size_map.end(); it++){
+    for(auto it = value_map.begin(); it != value_map.end(); it++){
         std::cout << "    " << it->first << ": " << it->second <<std::endl;
     }
     std::cout << std::endl;
