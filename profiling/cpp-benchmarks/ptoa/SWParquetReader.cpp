@@ -19,7 +19,6 @@
 
 #include <SWParquetReader.h>
 #include <ptoa.h>
-#include <timer.h>
 
 namespace ptoa {
 
@@ -41,8 +40,6 @@ SWParquetReader::SWParquetReader(std::string file_path) {
 // Read a number (set by num_values) of either 32 or 64 bit integers (set by prim_width) into prim_array.
 // File_offset is the byte offset in the Parquet file where the first in a contiguous list of Parquet pages is located.
 status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_t file_offset, uint8_t* arr_buffer) {
-    Timer t;
-
     uint8_t* page_ptr = parquet_data;
     uint8_t* arr_buf_ptr = arr_buffer;
 
@@ -60,22 +57,15 @@ status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_
 
     // Copy values from Parquet pages until max amount of values is reached
     while(total_value_counter < num_values){
-        t.start();
         if(read_metadata(page_ptr, &uncompressed_size, &compressed_size, &page_num_values, &def_level_length, &rep_level_length, &metadata_size) != status::OK) {
             std::cerr << "[ERROR] Corrupted data in Parquet page headers" << std::endl;
             std::cerr << page_ptr-parquet_data << std::endl;
             return status::FAIL;
         }
-        t.stop();
-        std::cout<<"metadata "<<t.seconds()<<std::endl;
 
         page_ptr += metadata_size;
-        
-        t.start();
-        memcpy((void*) arr_buf_ptr, (const void*) page_ptr, std::min((int64_t) compressed_size, (num_values-total_value_counter)*prim_width/8));
-        t.stop();
-        std::cout<<"copy "<<t.seconds()<<std::endl;
-
+    
+        std::memcpy((void*) arr_buf_ptr, (const void*) page_ptr, std::min((int64_t) compressed_size, (num_values-total_value_counter)*prim_width/8));
     
         page_ptr += compressed_size;
         arr_buf_ptr += compressed_size;
