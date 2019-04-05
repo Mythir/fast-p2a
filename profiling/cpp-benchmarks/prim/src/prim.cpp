@@ -80,7 +80,6 @@ int main(int argc, char **argv) {
         t.stop();
         t.record();
     }
-
     
     #if PRIM_WIDTH == 64
         prim_array = std::make_shared<arrow::PrimitiveArray>(arrow::int64(), num_values, arr_buffer);

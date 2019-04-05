@@ -39,8 +39,9 @@ SWParquetReader::SWParquetReader(std::string file_path) {
 
 // Read a number (set by num_values) of either 32 or 64 bit integers (set by prim_width) into prim_array.
 // File_offset is the byte offset in the Parquet file where the first in a contiguous list of Parquet pages is located.
-status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_t file_offset, uint8_t* arr_buf_ptr) {
+status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_t file_offset, uint8_t* arr_buffer) {
     uint8_t* page_ptr = parquet_data;
+    uint8_t* arr_buf_ptr = arr_buffer;
 
     int64_t total_value_counter = 0;
 
