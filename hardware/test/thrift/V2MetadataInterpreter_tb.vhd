@@ -37,7 +37,7 @@ end V2MetadataInterpreter_tb;
 
 architecture tb of V2MetadataInterpreter_tb is
   constant clk_period                : time    := 10 ns;
-  constant BUS_DATA_WIDTH            : natural := 64;
+  constant BUS_DATA_WIDTH            : natural := 512;
   constant CYCLE_COUNT_WIDTH         : natural := 8;
 
   -- Probability of an interruption in the input stream
@@ -52,7 +52,7 @@ architecture tb of V2MetadataInterpreter_tb is
   signal in_data                     : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
   signal da_valid                    : std_logic;
   signal da_ready                    : std_logic;
-  signal da_bytes_consumed           : std_logic_vector(log2ceil(BUS_DATA_WIDTH/8)+1 downto 0);
+  signal da_bytes_consumed           : std_logic_vector(log2ceil(BUS_DATA_WIDTH/8) downto 0);
   signal rl_byte_length              : std_logic_vector(31 downto 0);
   signal dl_byte_length              : std_logic_vector(31 downto 0);
   signal dc_uncomp_size              : std_logic_vector(31 downto 0);

@@ -19,7 +19,13 @@ library work;
 use work.Utils.all;
 use work.Alignment.all;
 
--- Todo: description
+-- In essence, the DataAligner is a pipelined barrel shifter with a buffer containing recently processed (unaligned) input words. 
+-- Every time one of its consumers has received all the data is needed it should report back how many bytes in the last bus word were
+-- actually needed by that consumer (all other bytes are for the next consumer). The DataAligner will use this information and the 
+-- contents of the HistoryBuffer to realign and provide the next consumer with the realigned data.
+--
+-- Note: If a consumer handshakes an output word, it is expected to need at least 1 byte from it. It can't report back it has consumed
+-- 0 bytes from it. Using all bytes is fine.
 
 entity DataAligner is
   generic (
@@ -27,10 +33,10 @@ entity DataAligner is
     BUS_DATA_WIDTH              : natural := 512;
 
     -- Number of consumers requesting aligned data.
-    NUM_CONSUMERS               : natural;
+    NUM_CONSUMERS               : natural := 5;
 
     -- Number of stages in the barrel shifter pipeline
-    NUM_SHIFT_STAGES            : natural
+    NUM_SHIFT_STAGES            : natural := 6
   );
   port (
 

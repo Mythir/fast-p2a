@@ -56,13 +56,22 @@ std::string gen_random_string(const int length) {
     return result;
 }
 
-std::shared_ptr<arrow::Table> generate_int64_table(int num_values, int modulo=0) {
+std::shared_ptr<arrow::Table> generate_int64_table(int num_values, int modulo=0, bool write_to_file=false) {
+    // Generate a non nullable int64 table with random numbers. Arguments:
+    // Num_values: size of the table
+    // Modulo: Numbers can take any value between 0 and modulo-1. If modulo == 0 the range is the full range of int64.
+    // Write_to_file: If true the data in the arrow array will also be written to a file called "int64array.bin"
     arrow::Int64Builder i64builder;
-    int number;
+    int64_t number;
+    std::ofstream check_file;
+    if(write_to_file){
+        check_file.open("int64array.bin");
+    }
 
     for (int i = 0; i < num_values; i++) {
         if(modulo <= 0){
-            number = rand();
+            number = rand()*2;
+            number = (number << 32) | rand();
         } else{
             number = rand() % modulo;
         }
@@ -74,14 +83,20 @@ std::shared_ptr<arrow::Table> generate_int64_table(int num_values, int modulo=0)
             PARQUET_THROW_NOT_OK(i64builder.Append(number));
         }*/
         PARQUET_THROW_NOT_OK(i64builder.Append(number));
-
     }
     std::shared_ptr<arrow::Array> i64array;
     PARQUET_THROW_NOT_OK(i64builder.Finish(&i64array));
 
     std::shared_ptr<arrow::Schema> schema = arrow::schema(
-            {arrow::field("int", arrow::int64(), true)});
+            {arrow::field("int", arrow::int64(), false)});
 
+
+    if(write_to_file){
+        for(int i=0; i<i64array->data()->buffers[1]->size(); i++){
+            check_file <<i64array->data()->buffers[1]->data()[i];
+        }
+        check_file.close();
+    }
     return arrow::Table::Make(schema, {i64array});
 }
 
@@ -287,8 +302,8 @@ int main(int argc, char **argv) {
     }
 
     std::cout << "Size of Arrow table: " << num_values << " values." << std::endl;
-    std::shared_ptr<arrow::Table> int64_table = generate_int64_table(num_values, modulo);
-    std::shared_ptr<arrow::Table> str_table = generate_str_table(num_values, 2, 10);
+    std::shared_ptr<arrow::Table> int64_table = generate_int64_table(num_values, modulo, true);
+    //std::shared_ptr<arrow::Table> str_table = generate_str_table(num_values, 2, 10);
 
     /*
     const uint8_t* memrep = int64_table->column(0)->data()->chunk(0)->data()->buffers[1]->data();
@@ -298,15 +313,20 @@ int main(int argc, char **argv) {
     }
     */
 
-    write_parquet_file(*int64_table, "int64array.prq", num_values, true, true);
+    write_parquet_file(*int64_table, "../../gen-input/ref_int64array.parquet", num_values, false, false);
+
+    /*
     write_parquet_file(*int64_table, "int64array_nosnap.prq", num_values, false, true);
     write_parquet_file(*int64_table, "int64array_nodict.prq", num_values, true, false);
     write_parquet_file(*int64_table, "int64array_nosnap_nodict.prq", num_values, false, false);
+    */
 
+    /*
     write_parquet_file(*str_table, "strarray.prq", num_values, true, true);
     write_parquet_file(*str_table, "strarray_nosnap.prq", num_values, false, true);
     write_parquet_file(*str_table, "strarray_nodict.prq", num_values, true, false);
     write_parquet_file(*str_table, "strarray_nosnap_nodict.prq", num_values, false, false);
+    */
 
     /*
     examine_metadata("int64array.prq");
@@ -318,16 +338,18 @@ int main(int argc, char **argv) {
     examine_metadata("strarray_nodict.prq");
     examine_metadata("strarray_nosnap_nodict.prq");
     */
-    examine_metadata("int64array_nodict.prq");
     
-
+    /*
     parquet_to_arrow_benchmark("int64array.prq", iterations);
     parquet_to_arrow_benchmark("int64array_nosnap.prq", iterations);
     parquet_to_arrow_benchmark("int64array_nodict.prq", iterations);
     parquet_to_arrow_benchmark("int64array_nosnap_nodict.prq", iterations);
+    */
 
+    /*
     parquet_to_arrow_benchmark("strarray.prq", iterations);
     parquet_to_arrow_benchmark("strarray_nosnap.prq", iterations);
     parquet_to_arrow_benchmark("strarray_nodict.prq", iterations);
     parquet_to_arrow_benchmark("strarray_nosnap_nodict.prq", iterations);
+    */
 }

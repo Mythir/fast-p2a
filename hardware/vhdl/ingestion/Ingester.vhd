@@ -19,21 +19,25 @@ library work;
 use work.Utils.all;
 use work.Interconnect.all;
 
--- Todo: description
+-- The ingester is responsible for sending AXI compliant read requests and offering up the responses to the DataAligner for further processing.
+-- AXI requires that a burst does not cross 4KB address boundaries. Logic for avoiding these boundaries is included in the ingester, inspired by
+-- the Fletcher BufferReaders (https://github.com/johanpel/fletcher/blob/develop/hardware/vhdl/buffers/BufferReaderCmdGenBusReq.vhd).
+--
+-- This unit uses a Fletcher BusReadBuffer to ensure that a read request is only sent to the AXI bus if we can buffer the entire response.
 
 entity Ingester is
   generic (
     -- Bus data width
-    BUS_DATA_WIDTH              : natural;
+    BUS_DATA_WIDTH              : natural := 512;
 
     -- Bus address width
-    BUS_ADDR_WIDTH              : natural;
+    BUS_ADDR_WIDTH              : natural := 64;
 
     -- Bus length width
-    BUS_LEN_WIDTH               : natural;
+    BUS_LEN_WIDTH               : natural := 8;
 
     -- Number of beats in a burst.
-    BUS_BURST_MAX_LEN           : natural;
+    BUS_BURST_MAX_LEN           : natural := 16;
 
     -- Depth of the FiFo in the Fletcher BusReadBuffer used to buffer data read from memory.
     -- A larger FiFo allows for more outstanding read requests (approximately FIFO_DEPTH/BURST_MAX_LEN requests.)
@@ -129,7 +133,7 @@ begin
       FIFO_DEPTH                        => max(BUS_FIFO_DEPTH, BUS_BURST_MAX_LEN+1),
       RAM_CONFIG                        => BUS_FIFO_RAM_CONFIG,
       SLV_REQ_SLICE                     => false,
-      MST_REQ_SLICE                     => false,
+      MST_REQ_SLICE                     => true,
       MST_DAT_SLICE                     => false,
       SLV_DAT_SLICE                     => false
     )

@@ -41,7 +41,7 @@ class Timer {
     inline void stop() { stop_ = std::chrono::high_resolution_clock::now(); }
   
     inline void record() { history.push_back(this->seconds()); }
-    inline double clear_history() { history.clear(); }
+    inline void clear_history() { history.clear(); }
   
     double seconds();
     double average();
