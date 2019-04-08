@@ -1,8 +1,18 @@
 # fast-p2a
 ## Status
 ### Finished
+- Metadata interpreter
+	- VarIntDecoder
+- Ingester
+- DataAligner
+	- ShifterRecombiner
+	- HistoryBuffer
+- ValuesDecoder
+	- PlainDecoder
+		- ValBuffer
+
 ### Work in Progress
-Metadata interpreter
+- DeltaLengthByteArray decoder
 
 ## Usage
 ### Modelsim
