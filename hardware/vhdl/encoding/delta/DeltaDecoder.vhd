@@ -61,3 +61,5 @@ entity DeltaDecoder is
     out_data                    : out std_logic_vector(BUS_DATA_WIDTH-1 downto 0)
   );
 end DeltaDecoder;
+
+-- Don't forget to store page_num_values after every handshake. Don't accept new data until a new page has been handshaked (wait for BitUnpacker and DeltaAccumulator)

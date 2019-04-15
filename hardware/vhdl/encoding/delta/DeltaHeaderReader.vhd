@@ -93,7 +93,7 @@ architecture behv of DeltaHeaderReader is
     state             : state_t;
     header_state      : header_state_t;
     handshake_state   : handshake_state_t;
-    byte_counter      : unsigned(log2floor(BUS_DATA_WIDTH) downto 0);
+    byte_counter      : unsigned(log2floor(BUS_DATA_WIDTH/8) downto 0);
     header_data       : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
   end record;
 

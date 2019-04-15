@@ -55,6 +55,11 @@ entity DeltaAccumulator is
     fv_ready                    : out std_logic;
     first_value                 : in  std_logic_vector(31 downto 0);
 
+    -- Minimum delta stream to DeltaAccumulator
+    md_valid                    : in  std_logic;
+    md_ready                    : out std_logic;
+    md_data                     : in  std_logic_vector(PRIM_WIDTH-1 downto 0);
+
     --Data out stream to ValuesBuffer
     out_valid                   : out std_logic;
     out_ready                   : in  std_logic;

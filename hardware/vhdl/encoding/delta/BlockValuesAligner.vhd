@@ -54,6 +54,11 @@ entity BlockValuesAligner is
     -- Number of values in the page (from MetadataInterpreter)
     page_num_values             : in  std_logic_vector(31 downto 0);
 
+    -- Minimum delta stream to DeltaAccumulator
+    md_valid                    : out std_logic;
+    md_ready                    : in  std_logic;
+    md_data                     : out std_logic_vector(PRIM_WIDTH-1 downto 0);
+
     -- If the BlockValuesAligner is used for DeltaLengthByteArray decoding we need to know
     -- where the boundary between length data and char data is.
     bc_valid                    : out std_logic;
@@ -68,3 +73,9 @@ entity BlockValuesAligner is
     out_width                   : out std_logic_vector(log2ceil(PRIM_WIDTH) downto 0)
   );
 end BlockValuesAligner;
+
+architecture behv of BlockValuesAligner is
+
+begin
+
+end architecture;
