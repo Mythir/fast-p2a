@@ -110,7 +110,7 @@ begin
     if adv_valid = '1' then
       v.entry_count := signed(unsigned(r.entry_count) - unsigned(adv_count));
 
-      if v.entry_count <= 0 then
+      if v.entry_count < 0 then
         v.read_ptr := r.write_ptr;
       else
         v.read_ptr := resize(r.read_ptr + unsigned(adv_count), v.read_ptr'length);
