@@ -100,6 +100,48 @@ std::shared_ptr<arrow::Table> generate_int64_table(int num_values, int modulo=0,
     return arrow::Table::Make(schema, {i64array});
 }
 
+std::shared_ptr<arrow::Table> generate_int32_delta_test_table(int num_values, int32_t first_value, int run_length, bool write_to_file=true){
+    //Generates a non nullable int64 table. Attempts to vary widths of the bit packing.
+    arrow::Int64Builder i64builder;
+    int32_t number = first_value;
+
+    int delta_width = 0;
+    int delta = 0;
+
+    std::ofstream check_file;
+    if(write_to_file){
+        check_file.open("int64array.bin");
+    }
+
+    for (int i = 0; i < num_values; i++) {
+        if((i%run_length) == 0){
+            delta_width = rand() % 24;
+        }
+        delta = rand() & ((1 << (delta_width+1)) - 1);
+
+        if((i%2) == 1){
+            delta = -delta;
+        }
+        number += delta;
+
+        PARQUET_THROW_NOT_OK(i64builder.Append(number));
+    }
+    std::shared_ptr<arrow::Array> i64array;
+    PARQUET_THROW_NOT_OK(i64builder.Finish(&i64array));
+
+    std::shared_ptr<arrow::Schema> schema = arrow::schema(
+            {arrow::field("int", arrow::int64(), false)});
+
+
+    if(write_to_file){
+        for(int i=0; i<i64array->data()->buffers[1]->size(); i++){
+            check_file <<i64array->data()->buffers[1]->data()[i];
+        }
+        check_file.close();
+    }
+    return arrow::Table::Make(schema, {i64array});
+}
+
 
 std::shared_ptr<arrow::Table> generate_str_table(int num_values, int min_length, int max_length) {
     arrow::StringBuilder strbuilder;
