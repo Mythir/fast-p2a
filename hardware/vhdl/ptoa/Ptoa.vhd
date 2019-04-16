@@ -14,11 +14,13 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.std_logic_misc.all;
 use ieee.numeric_std.all;
+use ieee.math_real.all;
 
 library work;
 -- Use Fletcher ColumnConfig system for parsing the cfg strings
 use work.ColumnConfig.all;
 use work.ColumnConfigParse.all;
+use work.Utils.all;
 
 package Ptoa is
 
@@ -80,6 +82,8 @@ package Ptoa is
 function definition_levels_encoded(cfg : in string) return boolean;
 -- Returns true if the Parquet pages described by the cfg string contain encoded repetition levels
 function repetition_levels_encoded(cfg : in string) return boolean;
+-- Returns maximum length of a varint encoded from an integer of a certain width.
+function max_varint_bytes(width : in natural) return natural;
   
 end Ptoa;
 
@@ -102,6 +106,11 @@ package body Ptoa is
     else
       return false;
     end if;
+  end function;
+
+  function max_varint_bytes(width : in natural) return natural is
+  begin
+    return natural(CEIL(real(width)/real(7)));
   end function;
 
 end Ptoa;

@@ -17,16 +17,28 @@ use ieee.numeric_std.all;
 library work;
 use work.Utils.all;
 
+-- A special FiFo that allows for deleting/skipping entries. If the adv stream is left alone it just function as a normal FiFo.
+-- If a count is presented to the adv stream no data words can be written or read from the FiFo in that cycle. Instead, 
+-- that many entries will be deleted from the FiFo after which a new data word can be read from the FiFo in the next cycle.
+-- If there are fewer data entries in the FiFo than requested for deletion by adv_count, the FiFo will be fully emptied and
+-- it will start taking data words from the input stream without storing them until it has made up for the difference.
+
+-- Note: ADV_COUNT_WIDTH should be made sufficiently wide because it is the main limiting factor in how many entries can be
+-- deleted/skipped. If the entry_count counter underflows this module will fail.
+
 entity AdvanceableFiFo is
   generic (
     -- Data width
-    DATA_WIDTH              : natural;
+    DATA_WIDTH                  : natural;
 
     -- FIFO depth represented as log2(depth).
-    DEPTH_LOG2              : natural;
+    DEPTH_LOG2                  : natural;
+
+    -- Width of adv_count and entry_count
+    ADV_COUNT_WIDTH             : natural := 16;
 
     -- RAM configuration string
-    RAM_CONFIG              : string := ""
+    RAM_CONFIG                  : string := ""
   );
   port (
     -- Rising-edge sensitive clock.
@@ -48,7 +60,7 @@ entity AdvanceableFiFo is
     -- How many entries to delete
     adv_valid                   : in  std_logic;
     adv_ready                   : out std_logic := '1';
-    adv_count                   : in  std_logic_vector(31 downto 0)
+    adv_count                   : in  std_logic_vector(ADV_COUNT_WIDTH-1 downto 0)
   );
 end AdvanceableFiFo;
 
@@ -59,7 +71,7 @@ architecture behv of AdvanceableFiFo is
   type reg_record is record
     write_ptr        : unsigned(DEPTH_LOG2 downto 0);
     read_ptr         : unsigned(DEPTH_LOG2 downto 0);
-    entry_count      : signed(31 downto 0);
+    entry_count      : signed(ADV_COUNT_WIDTH-1 downto 0);
     read_valid       : std_logic;
   end record;
 

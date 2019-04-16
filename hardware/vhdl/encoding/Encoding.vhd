@@ -176,6 +176,28 @@ package Encoding is
     );
   end component;
 
+  component AdvanceableFiFo is
+    generic (
+      DATA_WIDTH                  : natural;
+      DEPTH_LOG2                  : natural;
+      ADV_COUNT_WIDTH             : natural := 16;
+      RAM_CONFIG                  : string := ""
+    );
+    port (
+      clk                         : in  std_logic;
+      reset                       : in  std_logic;
+      in_valid                    : in  std_logic;
+      in_ready                    : out std_logic;
+      in_data                     : in  std_logic_vector(DATA_WIDTH-1 downto 0);
+      out_valid                   : out std_logic;
+      out_ready                   : in  std_logic;
+      out_data                    : out std_logic_vector(DATA_WIDTH-1 downto 0);
+      adv_valid                   : in  std_logic;
+      adv_ready                   : out std_logic := '1';
+      adv_count                   : in  std_logic_vector(ADV_COUNT_WIDTH-1 downto 0)
+    );
+  end component;
+
   -----------------------------------------------------------------------------
   -- Helper functions
   -----------------------------------------------------------------------------

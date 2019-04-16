@@ -22,9 +22,10 @@ entity AdvanceableFiFo_tb is
 end AdvanceableFiFo_tb;
 
 architecture tb of AdvanceableFiFo_tb is
-  constant DATA_WIDTH              : natural := 32;
-  constant DEPTH_LOG2              : natural := 4;
-  constant clk_period           : time    := 10 ns;
+  constant DATA_WIDTH                : natural := 32;
+  constant ADV_COUNT_WIDTH           : natural := 16;
+  constant DEPTH_LOG2                : natural := 4;
+  constant clk_period                : time    := 10 ns;
 
   signal clk                         : std_logic;
   signal reset                       : std_logic;
@@ -36,12 +37,13 @@ architecture tb of AdvanceableFiFo_tb is
   signal out_data                    : std_logic_vector(DATA_WIDTH-1 downto 0);
   signal adv_valid                   : std_logic;
   signal adv_ready                   : std_logic;
-  signal adv_count                   : std_logic_vector(31 downto 0);
+  signal adv_count                   : std_logic_vector(ADV_COUNT_WIDTH-1 downto 0);
 begin
 
   dut: entity work.AdvanceableFiFo
     generic map(
       DATA_WIDTH              => DATA_WIDTH,
+      ADV_COUNT_WIDTH         => ADV_COUNT_WIDTH,
       DEPTH_LOG2              => DEPTH_LOG2
     )
     port map(
@@ -102,7 +104,7 @@ begin
   downstream_p: process
     variable check : integer := 0;
 
-    constant stream_stop_p      : real    := 0.05;
+    constant stream_stop_p      : real    := 0.20;
     constant max_stopped_cycles : real    := 25.0;
 
     variable seed1              : positive := 1337;
@@ -114,7 +116,7 @@ begin
     variable stream_stop        : real;
     variable num_stopped_cycles : real;
 
-    variable advance_fifo_p     : real := 0.15;
+    variable advance_fifo_p     : real := 0.05;
     variable advance_fifo       : real;
 
     variable max_advance        : real := real(2**DEPTH_LOG2 * 3);
