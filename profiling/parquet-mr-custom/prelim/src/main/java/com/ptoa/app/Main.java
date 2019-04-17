@@ -114,7 +114,7 @@ public class Main {
                  .withPageRowCountLimit(1000000000)
                  .withDictionaryEncoding(false)
                  .withValidation(false)
-                 .withValuesWriterFactory(customFactory)
+                 //.withValuesWriterFactory(customFactory)
                  .withWriterVersion(WriterVersion.PARQUET_2_0);
     ParquetWriter<Group> writer = writerBuilder.build();
 

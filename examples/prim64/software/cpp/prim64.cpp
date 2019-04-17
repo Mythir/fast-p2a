@@ -152,7 +152,8 @@ int main(int argc, char **argv) {
   parquet_file.seekg (0, parquet_file.beg);
 
   //Read file data
-  file_data = (uint8_t*)std::malloc(file_size);
+  //file_data = (uint8_t*)std::malloc(file_size);
+  posix_memalign((void**)&file_data, 4096, file_size);
   parquet_file.read((char *)file_data, file_size);
 
 
