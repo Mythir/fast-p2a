@@ -98,13 +98,13 @@ void checkMMIO(std::shared_ptr<fletcher::Platform> platform, uint32_t num_val, u
 //Only works for Parquet version 1 style files.
 std::shared_ptr<arrow::Array> readArray(std::string hw_input_file_path) {
   std::shared_ptr<arrow::io::ReadableFile> infile;
-  PARQUET_THROW_NOT_OK(arrow::io::ReadableFile::Open(hw_input_file_path, arrow::default_memory_pool(), &infile));
+  arrow::io::ReadableFile::Open(hw_input_file_path, arrow::default_memory_pool(), &infile);
   
   std::unique_ptr<parquet::arrow::FileReader> reader;
-  PARQUET_THROW_NOT_OK(parquet::arrow::OpenFile(infile, arrow::default_memory_pool(), &reader));
+  parquet::arrow::OpenFile(infile, arrow::default_memory_pool(), &reader);
 
   std::shared_ptr<arrow::Array> array;
-  PARQUET_THROW_NOT_OK(reader->ReadColumn(0, &array));
+  reader->ReadColumn(0, &array);
 
   return array;
 }
