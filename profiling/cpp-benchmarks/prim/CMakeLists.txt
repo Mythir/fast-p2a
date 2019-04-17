@@ -40,9 +40,8 @@ set(HEADERS
 
 find_library(LIB_ARROW arrow)
 find_library(LIB_PARQUET parquet)
-find_library(LIB_FLETCHER fletcher)
 
 add_executable(${PRIM} ${HEADERS} ${SOURCES})
 
 target_include_directories(${PRIM} PRIVATE ../../utils ../ptoa)
-target_link_libraries(${PRIM} ${LIB_PARQUET} ${LIB_ARROW} ${LIB_FLETCHER})
+target_link_libraries(${PRIM} ${LIB_PARQUET} ${LIB_ARROW})

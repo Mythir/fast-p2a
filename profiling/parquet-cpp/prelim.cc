@@ -101,8 +101,8 @@ std::shared_ptr<arrow::Table> generate_int64_table(int num_values, int modulo=0,
 }
 
 std::shared_ptr<arrow::Table> generate_int32_delta_test_table(int num_values, int32_t first_value, int run_length, bool write_to_file=true){
-    //Generates a non nullable int64 table. Attempts to vary widths of the bit packing.
-    arrow::Int64Builder i64builder;
+    //Generates a non nullable int32 table. Attempts to vary widths of the bit packing.
+    arrow::Int32Builder i32builder;
     int32_t number = first_value;
 
     int delta_width = 0;
@@ -110,36 +110,36 @@ std::shared_ptr<arrow::Table> generate_int32_delta_test_table(int num_values, in
 
     std::ofstream check_file;
     if(write_to_file){
-        check_file.open("int64array.bin");
+        check_file.open("int32array.bin");
     }
 
     for (int i = 0; i < num_values; i++) {
         if((i%run_length) == 0){
-            delta_width = rand() % 24;
+            delta_width = rand() % 20;
         }
-        delta = rand() & ((1 << (delta_width+1)) - 1);
+        delta = rand() & ((1 << delta_width) - 1);
 
         if((i%2) == 1){
             delta = -delta;
         }
         number += delta;
 
-        PARQUET_THROW_NOT_OK(i64builder.Append(number));
+        PARQUET_THROW_NOT_OK(i32builder.Append(number));
     }
-    std::shared_ptr<arrow::Array> i64array;
-    PARQUET_THROW_NOT_OK(i64builder.Finish(&i64array));
+    std::shared_ptr<arrow::Array> i32array;
+    PARQUET_THROW_NOT_OK(i32builder.Finish(&i32array));
 
     std::shared_ptr<arrow::Schema> schema = arrow::schema(
-            {arrow::field("int", arrow::int64(), false)});
+            {arrow::field("int", arrow::int32(), false)});
 
 
     if(write_to_file){
-        for(int i=0; i<i64array->data()->buffers[1]->size(); i++){
-            check_file <<i64array->data()->buffers[1]->data()[i];
+        for(int i=0; i<i32array->data()->buffers[1]->size(); i++){
+            check_file <<i32array->data()->buffers[1]->data()[i];
         }
         check_file.close();
     }
-    return arrow::Table::Make(schema, {i64array});
+    return arrow::Table::Make(schema, {i32array});
 }
 
 
@@ -345,6 +345,7 @@ int main(int argc, char **argv) {
 
     std::cout << "Size of Arrow table: " << num_values << " values." << std::endl;
     std::shared_ptr<arrow::Table> int64_table = generate_int64_table(num_values, modulo, true);
+    std::shared_ptr<arrow::Table> int32_table = generate_int32_delta_test_table(num_values, 1 << 16,  128, true);
     //std::shared_ptr<arrow::Table> str_table = generate_str_table(num_values, 2, 10);
 
     /*
@@ -356,6 +357,7 @@ int main(int argc, char **argv) {
     */
 
     write_parquet_file(*int64_table, "../../gen-input/ref_int64array.parquet", num_values, false, false);
+    write_parquet_file(*int32_table, "../../gen-input/ref_int32array.parquet", num_values, false, false);
 
     /*
     write_parquet_file(*int64_table, "int64array_nosnap.prq", num_values, false, true);
