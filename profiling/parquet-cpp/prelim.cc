@@ -27,6 +27,7 @@
 #include <iostream>
 #include <fstream>
 #include <ctime>
+#include <cmath>
 
 #include <arrow/api.h>
 #include <arrow/io/api.h>
@@ -100,13 +101,12 @@ std::shared_ptr<arrow::Table> generate_int64_table(int num_values, int modulo=0,
     return arrow::Table::Make(schema, {i64array});
 }
 
-std::shared_ptr<arrow::Table> generate_int32_delta_test_table(int num_values, int32_t first_value, int run_length, bool write_to_file=true){
+std::shared_ptr<arrow::Table> generate_int32_delta_test_table(int num_values, int run_length, bool write_to_file=true){
     //Generates a non nullable int32 table. Attempts to vary widths of the bit packing.
     arrow::Int32Builder i32builder;
-    int32_t number = first_value;
 
-    int delta_width = 0;
-    int delta = 0;
+    int modulo = 0;
+    int number;
 
     std::ofstream check_file;
     if(write_to_file){
@@ -115,14 +115,11 @@ std::shared_ptr<arrow::Table> generate_int32_delta_test_table(int num_values, in
 
     for (int i = 0; i < num_values; i++) {
         if((i%run_length) == 0){
-            delta_width = rand() % 20;
+            modulo = 1U << (rand() % 32);
         }
-        delta = rand() & ((1 << delta_width) - 1);
+        number = rand() % modulo;
 
-        if((i%2) == 1){
-            delta = -delta;
-        }
-        number += delta;
+        //std::cout<<modulo<<" "<<std::log2(modulo)<<" "<<number<<std::endl;
 
         PARQUET_THROW_NOT_OK(i32builder.Append(number));
     }
@@ -345,7 +342,7 @@ int main(int argc, char **argv) {
 
     std::cout << "Size of Arrow table: " << num_values << " values." << std::endl;
     std::shared_ptr<arrow::Table> int64_table = generate_int64_table(num_values, modulo, true);
-    std::shared_ptr<arrow::Table> int32_table = generate_int32_delta_test_table(num_values, 1 << 16,  128, true);
+    std::shared_ptr<arrow::Table> int32_table = generate_int32_delta_test_table(num_values, 64, true);
     //std::shared_ptr<arrow::Table> str_table = generate_str_table(num_values, 2, 10);
 
     /*
