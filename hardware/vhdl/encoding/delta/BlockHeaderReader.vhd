@@ -36,6 +36,9 @@ entity BlockHeaderReader is
     -- Width for registers/ports concerned with the amount of bytes in a block
     BYTES_IN_BLOCK_WIDTH        : natural := 16;
 
+    -- Depth of advanceable FiFo
+    FIFO_DEPTH                  : natural;
+
     -- Bit width of a single primitive value
     PRIM_WIDTH                  : natural
   );
@@ -285,8 +288,6 @@ begin
 
       when DONE =>
         page_done <= '1';
-        -- Avoid blocking the stream into BlockValuesAligner by relieving backpressure
-        fifo_out_ready  <= '1';
     end case;
 
     -----------------------------------------------------------
