@@ -47,10 +47,6 @@ entity BlockValuesAligner is
     in_ready                    : out std_logic;
     in_data                     : in  std_logic_vector(DEC_DATA_WIDTH-1 downto 0);
 
-    -- Handshake signaling start of new page
-    new_page_valid              : in  std_logic;
-    new_page_ready              : out std_logic;
-
     -- Number of values in the page (from MetadataInterpreter)
     page_num_values             : in  std_logic_vector(31 downto 0);
 

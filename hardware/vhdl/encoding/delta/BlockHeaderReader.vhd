@@ -46,10 +46,16 @@ entity BlockHeaderReader is
     -- Active-high synchronous reset.
     reset                       : in  std_logic;
 
+    -- Asserted when all block headers have been processed
+    page_done                   : out std_logic;
+
     -- Data in stream from StreamSerializer
     in_valid                    : in  std_logic;
     in_ready                    : out std_logic;
     in_data                     : in  std_logic_vector(DEC_DATA_WIDTH-1 downto 0);
+
+    -- Number of values in the page (from MetadataInterpreter)
+    page_num_values             : in  std_logic_vector(31 downto 0);
 
     -- Minimum delta stream to DeltaAccumulator
     md_valid                    : out std_logic;
@@ -76,7 +82,7 @@ end BlockHeaderReader;
 
 architecture behv of BlockHeaderReader is
 
-  type state_t is (IDLE, READING, SKIPPING);
+  type state_t is (IDLE, READING, SKIPPING, DONE);
   type header_state_t is (MIN_DELTA, BIT_WIDTHS);
   type handshake_state_t is (IDLE, VALID);
 
@@ -99,6 +105,8 @@ architecture behv of BlockHeaderReader is
     bytes_packed_data   : unsigned(BYTES_IN_BLOCK_WIDTH-1 downto 0);
     -- Register for reading the header_data
     header_data         : std_logic_vector(DEC_DATA_WIDTH-1 downto 0);
+    -- Used for checking if there are any more block headers to read
+    page_val_counter    : unsigned(31 downto 0);
   end record;
 
   -- 16 bits is a suitable size for adv_count in the case of the default 128 block_size, 4 miniblocks configuration.
@@ -148,12 +156,12 @@ begin
   current_byte <= r.header_data(DEC_DATA_WIDTH-1 downto DEC_DATA_WIDTH-8);
   
   bw_data <= current_byte;
-  bl_data <= std_logic_vector(r.byte_counter);
+  bl_data <= std_logic_vector(r.bl_counter);
   md_data <= varint_zigzag_true;
   bc_data <= r.bc_out;
   adv_count <= std_logic_vector(resize(r.bytes_packed_data(BYTES_IN_BLOCK_WIDTH-1 downto log2ceil(DEC_DATA_WIDTH/8)), adv_count'length));
 
-  logic_p: process(r, fifo_out_valid, fifo_out_data, current_byte, bw_ready, adv_ready, bl_ready, bc_ready, md_ready)
+  logic_p: process(r, fifo_out_valid, fifo_out_data, current_byte, bw_ready, adv_ready, bl_ready, bc_ready, md_ready, page_num_values)
     variable v : reg_record;
   begin
     v := r;
@@ -161,6 +169,7 @@ begin
     fifo_out_ready <= '0';
     current_byte_valid <= '0';
     start_varint <= '0';
+    page_done <= '0';
 
     bw_valid <= '0';
     adv_valid <= '0';
@@ -212,7 +221,7 @@ begin
                 v.md_handshake_state := VALID;
                 v.bc_handshake_state := VALID;
                 -- Total length of Block Header is bytes in min_delta plus one byte for every miniblock in the block
-                v.bl_counter         := v.bl_counter + MINIBLOCKS_IN_BLOCK;
+                v.bl_counter         := r.bl_counter + 1 + MINIBLOCKS_IN_BLOCK;
                 v.bc_out             := std_logic_vector(resize(v.bl_counter, r.bc_out'length));
                 v.header_state       := BIT_WIDTHS;
               end if;
@@ -246,8 +255,12 @@ begin
                   v.state              := SKIPPING;
                   v.bc_handshake_state := VALID;
                   v.bc_out             := std_logic_vector(r.bytes_packed_data);
+
                   -- Compensate bytes_packed_data (which will be used for SKIPPING) for the packed bytes present in the header_data register
                   v.bytes_packed_data  := r.bytes_packed_data - DEC_DATA_WIDTH/8 + r.byte_counter;
+
+                  -- Block done, so add to amount of values processed
+                  v.page_val_counter  := r.page_val_counter + BLOCK_SIZE;
                 end if;
               end if;
 
@@ -265,6 +278,15 @@ begin
           v.state             := IDLE;
           v.header_state      := MIN_DELTA;
         end if;
+
+        if r.page_val_counter >= unsigned(page_num_values) then
+          v.state := DONE;
+        end if;
+
+      when DONE =>
+        page_done <= '1';
+        -- Avoid blocking the stream into BlockValuesAligner by relieving backpressure
+        fifo_out_ready  <= '1';
     end case;
 
     -----------------------------------------------------------
@@ -325,6 +347,7 @@ begin
         r.miniblock_counter   <= (others => 'U');
         r.bytes_packed_data   <= (others => '0');
         r.header_data         <= (others => 'U');
+        r.page_val_counter    <= (others => '0');
       else
         r <= d;
       end if;

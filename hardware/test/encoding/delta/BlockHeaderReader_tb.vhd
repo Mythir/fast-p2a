@@ -29,18 +29,21 @@ entity BlockHeaderReader_tb is
 end BlockHeaderReader_tb;
 
 architecture tb of BlockHeaderReader_tb is
-  constant DEC_DATA_WIDTH            : natural := 64;
+  constant DEC_DATA_WIDTH            : natural := 32;
   constant BLOCK_SIZE                : natural := 128;
   constant MINIBLOCKS_IN_BLOCK       : natural := 4;
   constant BYTES_IN_BLOCK_WIDTH      : natural := 16;
   constant PRIM_WIDTH                : natural := 32;
+  constant VALUES_TO_READ            : natural := 5000;
   constant clk_period                : time := 10 ns;
 
   signal clk                         : std_logic;
   signal reset                       : std_logic;
+  signal page_done                   : std_logic;
   signal in_valid                    : std_logic;
   signal in_ready                    : std_logic;
   signal in_data                     : std_logic_vector(DEC_DATA_WIDTH-1 downto 0);
+  signal page_num_values             : std_logic_vector(31 downto 0) := std_logic_vector(to_unsigned(VALUES_TO_READ, 32));
   signal md_valid                    : std_logic;
   signal md_ready                    : std_logic;
   signal md_data                     : std_logic_vector(PRIM_WIDTH-1 downto 0);
@@ -71,9 +74,11 @@ begin
     port map(
       clk                         => clk,
       reset                       => reset,
+      page_done                   => page_done,
       in_valid                    => in_valid,
       in_ready                    => in_ready,
       in_data                     => in_data,
+      page_num_values             => page_num_values,
       md_valid                    => md_valid,
       md_ready                    => md_ready,
       md_data                     => md_data,
@@ -142,6 +147,19 @@ begin
 
   -- Processes for checking the values read from the metadata
   md_consumer_p: process
+    file input_data             : text;
+
+    constant stream_stop_p      : real    := 0.05;
+    constant max_stopped_cycles : real    := 10.0;
+
+    variable input_line         : line;
+    variable page_data          : std_logic_vector(DEC_DATA_WIDTH-1 downto 0);
+
+    variable seed1              : positive := 137;
+    variable seed2              : positive := 442;
+
+    variable stream_stop        : real;
+    variable num_stopped_cycles : real;
   begin
     md_ready <= '0';
 
@@ -160,11 +178,33 @@ begin
 
       md_ready <= '0';
       consumed_md <= md_data;
+
+      -- Delay for a random amount of clock cycles to simulate a non-continuous stream
+      uniform(seed1, seed2, stream_stop);
+      if stream_stop < stream_stop_p then
+        uniform(seed1, seed2, num_stopped_cycles);
+        for i in 0 to integer(floor(num_stopped_cycles*max_stopped_cycles)) loop
+          wait until rising_edge(clk);
+        end loop;
+      end if;
     end loop;
     wait;
   end process;
 
   bw_consumer_p: process
+    file input_data             : text;
+
+    constant stream_stop_p      : real    := 0.05;
+    constant max_stopped_cycles : real    := 10.0;
+
+    variable input_line         : line;
+    variable page_data          : std_logic_vector(DEC_DATA_WIDTH-1 downto 0);
+
+    variable seed1              : positive := 137;
+    variable seed2              : positive := 442;
+
+    variable stream_stop        : real;
+    variable num_stopped_cycles : real;
   begin
     bw_ready <= '0';
 
@@ -183,11 +223,37 @@ begin
 
       bw_ready <= '0';
       consumed_bw <= bw_data;
+
+      wait for 1 ns;
+      assert unsigned(consumed_bw) <= PRIM_WIDTH
+        report "Decoded bit width larger than provided PRIM_WIDTH" severity failure;
+
+      -- Delay for a random amount of clock cycles to simulate a non-continuous stream
+      uniform(seed1, seed2, stream_stop);
+      if stream_stop < stream_stop_p then
+        uniform(seed1, seed2, num_stopped_cycles);
+        for i in 0 to integer(floor(num_stopped_cycles*max_stopped_cycles)) loop
+          wait until rising_edge(clk);
+        end loop;
+      end if;
     end loop;
     wait;
   end process;
 
   bl_consumer_p: process
+    file input_data             : text;
+
+    constant stream_stop_p      : real    := 0.05;
+    constant max_stopped_cycles : real    := 10.0;
+
+    variable input_line         : line;
+    variable page_data          : std_logic_vector(DEC_DATA_WIDTH-1 downto 0);
+
+    variable seed1              : positive := 137;
+    variable seed2              : positive := 442;
+
+    variable stream_stop        : real;
+    variable num_stopped_cycles : real;
   begin
     bl_ready <= '0';
 
@@ -206,11 +272,37 @@ begin
 
       bl_ready <= '0';
       consumed_bl <= bl_data;
+
+      wait for 1 ns;
+      assert unsigned(consumed_bl) = resize(unsigned(consumed_bc), consumed_bl'length)
+        report "BL stream and BC stream disagree on block header length" severity failure;
+
+      -- Delay for a random amount of clock cycles to simulate a non-continuous stream
+      uniform(seed1, seed2, stream_stop);
+      if stream_stop < stream_stop_p then
+        uniform(seed1, seed2, num_stopped_cycles);
+        for i in 0 to integer(floor(num_stopped_cycles*max_stopped_cycles)) loop
+          wait until rising_edge(clk);
+        end loop;
+      end if;
     end loop;
     wait;
   end process;
 
   bc_consumer_p: process
+    file input_data             : text;
+
+    constant stream_stop_p      : real    := 0.05;
+    constant max_stopped_cycles : real    := 10.0;
+
+    variable input_line         : line;
+    variable page_data          : std_logic_vector(DEC_DATA_WIDTH-1 downto 0);
+
+    variable seed1              : positive := 137;
+    variable seed2              : positive := 442;
+
+    variable stream_stop        : real;
+    variable num_stopped_cycles : real;
   begin
     bc_ready <= '0';
 
@@ -229,6 +321,15 @@ begin
 
       bc_ready <= '0';
       consumed_bc <= bc_data;
+
+      -- Delay for a random amount of clock cycles to simulate a non-continuous stream
+      uniform(seed1, seed2, stream_stop);
+      if stream_stop < stream_stop_p then
+        uniform(seed1, seed2, num_stopped_cycles);
+        for i in 0 to integer(floor(num_stopped_cycles*max_stopped_cycles)) loop
+          wait until rising_edge(clk);
+        end loop;
+      end if;
     end loop;
     wait;
   end process;
