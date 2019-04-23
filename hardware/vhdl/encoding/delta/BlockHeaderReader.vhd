@@ -33,9 +33,6 @@ entity BlockHeaderReader is
     -- Number of miniblocks in a block
     MINIBLOCKS_IN_BLOCK         : natural;
 
-    -- Maximum number of unpacked deltas per cycle
-    MAX_DELTAS_PER_CYCLE        : natural;
-
     -- Width for registers/ports concerned with the amount of bytes in a block
     BYTES_IN_BLOCK_WIDTH        : natural := 16;
 
@@ -154,7 +151,7 @@ begin
   bl_data <= std_logic_vector(r.byte_counter);
   md_data <= varint_zigzag_true;
   bc_data <= r.bc_out;
-  adv_count <= std_logic_vector(resize(r.bytes_packed_data(DEC_DATA_WIDTH-1 downto log2ceil(DEC_DATA_WIDTH/8)), adv_count'length));
+  adv_count <= std_logic_vector(resize(r.bytes_packed_data(BYTES_IN_BLOCK_WIDTH-1 downto log2ceil(DEC_DATA_WIDTH/8)), adv_count'length));
 
   logic_p: process(r, fifo_out_valid, fifo_out_data, current_byte, bw_ready, adv_ready, bl_ready, bc_ready, md_ready)
     variable v : reg_record;
@@ -216,7 +213,7 @@ begin
                 v.bc_handshake_state := VALID;
                 -- Total length of Block Header is bytes in min_delta plus one byte for every miniblock in the block
                 v.bl_counter         := v.bl_counter + MINIBLOCKS_IN_BLOCK;
-                v.bc_out             := std_logic_vector(v.bl_counter + MINIBLOCKS_IN_BLOCK);
+                v.bc_out             := std_logic_vector(resize(v.bl_counter, r.bc_out'length));
                 v.header_state       := BIT_WIDTHS;
               end if;
 
@@ -234,14 +231,15 @@ begin
                   v.miniblock_counter := r.miniblock_counter + 1;
                   v.bytes_packed_data := r.bytes_packed_data + (unsigned(current_byte) * (VALUES_IN_MINIBLOCK/8));
 
-                  -- Save a cycle by checking if we can progress to SKIPPING while streaming out the last byte.
-                  if r.miniblock_counter = MINIBLOCKS_IN_BLOCK - 1 and r.bc_handshake_state = IDLE then
-                    v.state              := SKIPPING;
-                    v.bc_handshake_state := VALID;
-                    v.bc_out             := std_logic_vector(r.bytes_packed_data);
-                    -- Compensate bytes_packed_data (which will be used for SKIPPING) for the packed bytes present in the header_data register
-                    v.bytes_packed_data  := r.bytes_packed_data - DEC_DATA_WIDTH/8 + v.byte_counter;
-                  end if;
+                  -- Cycle save below does not work because of overwriting v.bytes_packed_data.
+                  ---- Save a cycle by checking if we can progress to SKIPPING while streaming out the last byte. 
+                  --if r.miniblock_counter = MINIBLOCKS_IN_BLOCK - 1 and r.bc_handshake_state = IDLE then
+                  --  v.state              := SKIPPING;
+                  --  v.bc_handshake_state := VALID;
+                  --  v.bc_out             := std_logic_vector(r.bytes_packed_data);
+                  --  -- Compensate bytes_packed_data (which will be used for SKIPPING) for the packed bytes present in the header_data register
+                  --  v.bytes_packed_data  := r.bytes_packed_data - DEC_DATA_WIDTH/8 + v.byte_counter;
+                  --end if;
                 end if;
               else
                 if r.bc_handshake_state = IDLE then
@@ -263,7 +261,7 @@ begin
         if adv_ready = '1' then
           -- Change bytes_packed_data to reflect that a large portion of the packed data has been skipped in the advanceable FiFo.
           v.bytes_packed_data := (others => '0');
-          v.bytes_packed_data := r.bytes_packed_data(log2ceil(DEC_DATA_WIDTH/8)-1 downto 0);
+          v.bytes_packed_data(log2ceil(DEC_DATA_WIDTH/8)-1 downto 0) := r.bytes_packed_data(log2ceil(DEC_DATA_WIDTH/8)-1 downto 0);
           v.state             := IDLE;
           v.header_state      := MIN_DELTA;
         end if;
@@ -281,7 +279,7 @@ begin
         bl_valid <= '1';
 
         if bl_ready = '1' then
-          r.bl_handshake_state <= IDLE;
+          v.bl_handshake_state := IDLE;
         end if;
     end case;
 
@@ -293,7 +291,7 @@ begin
         bc_valid <= '1';
 
         if bc_ready = '1' then
-          r.bl_handshake_state <= IDLE;
+          v.bc_handshake_state := IDLE;
         end if;
     end case;
 
@@ -305,11 +303,11 @@ begin
         md_valid <= '1';
 
         if md_ready = '1' then
-          r.md_handshake_state <= IDLE;
+          v.md_handshake_state := IDLE;
         end if;
     end case;
 
-    d <= r;
+    d <= v;
   end process;
 
   clk_p: process(clk)
