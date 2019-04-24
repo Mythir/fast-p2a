@@ -90,6 +90,9 @@ architecture behv of BlockValuesAligner is
   constant SHIFTER_INPUT_WIDTH  : natural := SHIFT_AMOUNT_WIDTH + SHIFTER_CTRL_WIDTH + SHIFTER_DATA_WIDTH;
   constant SHIFTER_OUTPUT_WIDTH : natural := SHIFTER_CTRL_WIDTH + SHIFTER_DATA_WIDTH;
 
+  -- Width for registers/ports concerned with the amount of bytes in a block
+  constant BYTES_IN_BLOCK_WIDTH : natural := 16;
+
   -- Stream from aligner FiFo to shifters
   signal fifo_out_valid         : std_logic;
   signal fifo_out_ready         : std_logic;
@@ -186,6 +189,7 @@ begin
       DEC_DATA_WIDTH            => DEC_DATA_WIDTH,
       BLOCK_SIZE                => BLOCK_SIZE,
       MINIBLOCKS_IN_BLOCK       => MINIBLOCKS_IN_BLOCK,
+      BYTES_IN_BLOCK_WIDTH      => BYTES_IN_BLOCK_WIDTH,
       FIFO_DEPTH                => LOOKAHEAD_DEPTH,
       PRIM_WIDTH                => PRIM_WIDTH
     )

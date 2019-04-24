@@ -24,7 +24,10 @@ entity DeltaDecoder is
     BUS_DATA_WIDTH              : natural;
 
     -- Bit width of a single primitive value
-    PRIM_WIDTH                  : natural
+    PRIM_WIDTH                  : natural;
+
+    -- Amount of decoded integers produced at out_data per cycle
+    ELEMENTS_PER_CYCLE          : natural
   );
   port (
     -- Rising-edge sensitive clock.
@@ -58,7 +61,7 @@ entity DeltaDecoder is
     out_ready                   : in  std_logic;
     out_last                    : out std_logic;
     out_dvalid                  : out std_logic := '1';
-    out_data                    : out std_logic_vector(BUS_DATA_WIDTH-1 downto 0)
+    out_data                    : out std_logic_vector(ELEMENTS_PER_CYCLE*PRIM_WIDTH-1 downto 0)
   );
 end DeltaDecoder;
 
