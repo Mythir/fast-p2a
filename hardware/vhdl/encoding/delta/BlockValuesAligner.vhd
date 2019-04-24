@@ -35,7 +35,9 @@ entity BlockValuesAligner is
     MAX_DELTAS_PER_CYCLE        : natural;
 
     -- Bit width of a single primitive value
-    PRIM_WIDTH                  : natural
+    PRIM_WIDTH                  : natural;
+
+    RAM_CONFIG                  : string := ""
   );
   port (
     -- Rising-edge sensitive clock.
@@ -67,14 +69,26 @@ entity BlockValuesAligner is
     out_valid                   : out std_logic;
     out_ready                   : in  std_logic;
     out_data                    : out std_logic_vector(DEC_DATA_WIDTH-1 downto 0);
-    out_count                   : out std_logic_vector(log2ceil(MAX_DELTAS_PER_CYCLE)-1 downto 0);
-    out_width                   : out std_logic_vector(log2ceil(PRIM_WIDTH) downto 0)
+    out_count                   : out std_logic_vector(log2floor(MAX_DELTAS_PER_CYCLE) downto 0);
+    out_width                   : out std_logic_vector(log2floor(PRIM_WIDTH) downto 0)
   );
 end BlockValuesAligner;
 
 architecture behv of BlockValuesAligner is
   -- 5 (log2(32)) should be enough to allow the BlockHeaderReader to read the header
   constant LOOKAHEAD_DEPTH      : natural := 5;
+
+  constant OUT_COUNT_WIDTH      : natural := log2floor(MAX_DELTAS_PER_CYCLE)+1;
+  constant OUT_WIDTH_WIDTH      : natural := log2floor(PRIM_WIDTH)+1;
+
+  -- Width of shift amount input of the shifters
+  constant SHIFT_AMOUNT_WIDTH   : natural := log2ceil(DEC_DATA_WIDTH);
+  constant NUM_SHIFT_STAGES     : natural := SHIFT_AMOUNT_WIDTH;
+  -- Bit packing width and amount of values to unpack travel with the pipeline (out_width & out_count)
+  constant SHIFTER_CTRL_WIDTH   : natural := OUT_WIDTH_WIDTH + OUT_COUNT_WIDTH;
+  constant SHIFTER_DATA_WIDTH   : natural := 2*DEC_DATA_WIDTH;
+  constant SHIFTER_INPUT_WIDTH  : natural := SHIFT_AMOUNT_WIDTH + SHIFTER_CTRL_WIDTH + SHIFTER_DATA_WIDTH;
+  constant SHIFTER_OUTPUT_WIDTH : natural := SHIFTER_CTRL_WIDTH + SHIFTER_DATA_WIDTH;
 
   -- Stream from aligner FiFo to shifters
   signal fifo_out_valid         : std_logic;
@@ -106,10 +120,28 @@ architecture behv of BlockValuesAligner is
   signal sync_out_ready         : std_logic_vector(1 downto 0);
   signal sync_out_enable        : std_logic_vector(1 downto 0);
 
+  signal s_pipe_input           : std_logic_vector(SHIFTER_INPUT_WIDTH-1 downto 0);
+  signal s_pipe_output          : std_logic_vector(SHIFTER_OUTPUT_WIDTH-1 downto 0);
+
+  signal shifter_in_valid       : std_logic;
+  signal shifter_in_ready       : std_logic;
+  signal shifter_in_data        : std_logic_vector(SHIFTER_INPUT_WIDTH-1 downto 0);
+
+  signal shifter_out_valid      : std_logic;
+  signal shifter_out_ready      : std_logic;
+  signal shifter_out_data       : std_logic_vector(SHIFTER_OUTPUT_WIDTH-1 downto 0);
+
 begin
   sync_out_valid  <= fifo_in_valid  & bhr_in_valid;
   sync_out_ready  <= fifo_in_ready  & bhr_in_ready;
   sync_out_enable <= fifo_in_enable & (not bhr_page_done);
+
+  -- Connect output signals
+  out_valid         <= shifter_out_valid;
+  shifter_out_ready <= out_ready;
+  out_data          <= shifter_out_data(DEC_DATA_WIDTH-1 downto 0);
+  out_count         <= shifter_out_data(OUT_COUNT_WIDTH+SHIFTER_DATA_WIDTH-1 downto SHIFTER_DATA_WIDTH)
+  out_width         <= shifter_out_data(SHIFTER_OUTPUT_WIDTH-1 downto SHIFTER_DATA_WIDTH+OUT_COUNT_WIDTH);
   
   in_sync: StreamSync
     generic map(
@@ -179,7 +211,46 @@ begin
       bc_data                   => bc_data
     );
 
-  -- Todo:
-  -- 2*PRIM_WIDTH width barrel shifter for aligning the bit packed values
+  pipeline_ctrl: StreamPipelineControl
+    generic map (
+      IN_DATA_WIDTH             => SHIFTER_INPUT_WIDTH,
+      OUT_DATA_WIDTH            => SHIFTER_OUTPUT_WIDTH,
+      NUM_PIPE_REGS             => NUM_SHIFT_STAGES,
+      INPUT_SLICE               => false,
+      RAM_CONFIG                => RAM_CONFIG
+    )
+    port map (
+      clk                       => clk,
+      reset                     => reset,
+      in_valid                  => shifter_in_valid,
+      in_ready                  => shifter_in_ready,
+      in_data                   => shifter_in_data,
+      out_valid                 => shifter_out_valid,
+      out_ready                 => shifter_out_ready,
+      out_data                  => shifter_out_data,
+      pipe_valid                => open,
+      pipe_input                => s_pipe_input,
+      pipe_output               => s_pipe_output
+    );
+
+  pipeline: StreamPipelineBarrel
+    generic map (
+      ELEMENT_WIDTH             => 1,
+      ELEMENT_COUNT             => SHIFTER_DATA_WIDTH,
+      AMOUNT_WIDTH              => SHIFT_AMOUNT_WIDTH,
+      DIRECTION                 => "right",
+      OPERATION                 => "shift",
+      NUM_STAGES                => NUM_SHIFT_STAGES,
+      CTRL_WIDTH                => SHIFTER_CTRL_WIDTH
+    )
+    port map (
+      clk                       => clk,
+      reset                     => reset,
+      in_data                   => s_pipe_input(SHIFTER_DATA_WIDTH-1 downto 0),
+      in_ctrl                   => s_pipe_input(SHIFTER_CTRL_WIDTH+SHIFTER_DATA_WIDTH-1 downto SHIFTER_DATA_WIDTH),
+      in_amount                 => s_pipe_input(SHIFTER_INPUT_WIDTH-1 downto SHIFTER_CTRL_WIDTH+SHIFTER_DATA_WIDTH),
+      out_data                  => s_pipe_output(SHIFTER_DATA_WIDTH-1 downto 0),
+      out_ctrl                  => s_pipe_output(SHIFTER_OUTPUT_WIDTH-1 downto SHIFTER_DATA_WIDTH)
+    );
 
 end architecture;

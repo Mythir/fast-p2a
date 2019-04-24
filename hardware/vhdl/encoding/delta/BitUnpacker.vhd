@@ -40,13 +40,13 @@ entity BitUnpacker is
     in_valid                    : in  std_logic;
     in_ready                    : out std_logic;
     in_data                     : in  std_logic_vector(DEC_DATA_WIDTH-1 downto 0);
-    in_width                    : in  std_logic_vector(log2ceil(PRIM_WIDTH) downto 0);
-    in_count                    : in  std_logic_vector(log2ceil(MAX_DELTAS_PER_CYCLE)-1 downto 0);
+    in_width                    : in  std_logic_vector(log2floor(PRIM_WIDTH) downto 0);
+    in_count                    : in  std_logic_vector(log2floor(MAX_DELTAS_PER_CYCLE) downto 0);
 
     --Data out stream to DeltaAccumulator
     out_valid                   : out std_logic;
     out_ready                   : in  std_logic;
-    out_count                   : out std_logic_vector(log2ceil(MAX_DELTAS_PER_CYCLE)-1 downto 0);
+    out_count                   : out std_logic_vector(log2floor(MAX_DELTAS_PER_CYCLE) downto 0);
     out_data                    : out std_logic_vector(MAX_DELTAS_PER_CYCLE*PRIM_WIDTH-1 downto 0)
   );
 end BitUnpacker;

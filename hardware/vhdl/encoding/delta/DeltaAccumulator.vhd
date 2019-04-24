@@ -48,7 +48,7 @@ entity DeltaAccumulator is
     in_ready                    : out std_logic;
     in_data                     : in  std_logic_vector(MAX_DELTAS_PER_CYCLE*PRIM_WIDTH-1 downto 0);
     in_width                    : in  std_logic_vector(log2ceil(PRIM_WIDTH) downto 0);
-    in_count                    : in  std_logic_vector(log2ceil(MAX_DELTAS_PER_CYCLE)-1 downto 0);
+    in_count                    : in  std_logic_vector(log2floor(MAX_DELTAS_PER_CYCLE) downto 0);
 
     -- First value stream from DeltaHeaderReader
     fv_valid                    : in  std_logic;
@@ -64,7 +64,7 @@ entity DeltaAccumulator is
     out_valid                   : out std_logic;
     out_ready                   : in  std_logic;
     out_last                    : out std_logic;
-    out_count                   : out std_logic_vector(log2ceil(MAX_DELTAS_PER_CYCLE)-1 downto 0);
+    out_count                   : out std_logic_vector(log2floor(MAX_DELTAS_PER_CYCLE) downto 0);
     out_data                    : out std_logic_vector(MAX_DELTAS_PER_CYCLE*PRIM_WIDTH-1 downto 0)
   );
 end DeltaAccumulator;
