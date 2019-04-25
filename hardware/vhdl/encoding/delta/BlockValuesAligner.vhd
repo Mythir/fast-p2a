@@ -143,7 +143,7 @@ begin
   out_valid         <= shifter_out_valid;
   shifter_out_ready <= out_ready;
   out_data          <= shifter_out_data(DEC_DATA_WIDTH-1 downto 0);
-  out_count         <= shifter_out_data(OUT_COUNT_WIDTH+SHIFTER_DATA_WIDTH-1 downto SHIFTER_DATA_WIDTH)
+  out_count         <= shifter_out_data(OUT_COUNT_WIDTH+SHIFTER_DATA_WIDTH-1 downto SHIFTER_DATA_WIDTH);
   out_width         <= shifter_out_data(SHIFTER_OUTPUT_WIDTH-1 downto SHIFTER_DATA_WIDTH+OUT_COUNT_WIDTH);
   
   in_sync: StreamSync
