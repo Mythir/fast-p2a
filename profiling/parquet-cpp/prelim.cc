@@ -109,8 +109,13 @@ std::shared_ptr<arrow::Table> generate_int32_delta_test_table(int num_values, in
     int number;
 
     std::ofstream check_file;
+    std::ofstream dec_check_file;
+    std::ofstream hex_check_file;
+
     if(write_to_file){
         check_file.open("int32array.bin");
+        dec_check_file.open("int32array.dec");
+        hex_check_file.open("int32array.hex");
     }
 
     for (int i = 0; i < num_values; i++) {
@@ -122,6 +127,11 @@ std::shared_ptr<arrow::Table> generate_int32_delta_test_table(int num_values, in
         //std::cout<<modulo<<" "<<std::log2(modulo)<<" "<<number<<std::endl;
 
         PARQUET_THROW_NOT_OK(i32builder.Append(number));
+
+        if(write_to_file){
+            dec_check_file << number << std::endl;
+            hex_check_file << std::hex << std::setfill('0') << std::setw(8) << number << std::dec << std::endl;
+        }
     }
     std::shared_ptr<arrow::Array> i32array;
     PARQUET_THROW_NOT_OK(i32builder.Finish(&i32array));
@@ -135,6 +145,8 @@ std::shared_ptr<arrow::Table> generate_int32_delta_test_table(int num_values, in
             check_file <<i32array->data()->buffers[1]->data()[i];
         }
         check_file.close();
+        dec_check_file.close();
+        hex_check_file.close();
     }
     return arrow::Table::Make(schema, {i32array});
 }
