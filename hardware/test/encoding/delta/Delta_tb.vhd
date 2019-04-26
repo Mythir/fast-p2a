@@ -31,18 +31,32 @@ end Delta_tb;
 architecture tb of Delta_tb is
   constant MAX_DELTAS_PER_CYCLE : natural := 16;
   constant DEC_DATA_WIDTH       : natural := 64;
-  constant unpack_lut_64 : unpack_lut_64_t := init_unpack_lut_64(MAX_DELTAS_PER_CYCLE, DEC_DATA_WIDTH);
-  constant unpack_lut_32 : unpack_lut_32_t := init_unpack_lut_32(MAX_DELTAS_PER_CYCLE, DEC_DATA_WIDTH);
+
+  constant count_lut_64 : count_lut_64_t := init_count_lut_64(MAX_DELTAS_PER_CYCLE, DEC_DATA_WIDTH);
+  constant count_lut_32 : count_lut_32_t := init_count_lut_32(MAX_DELTAS_PER_CYCLE, DEC_DATA_WIDTH);
+
+  constant shift_lut_64 : shift_lut_64_t := init_shift_lut_64(MAX_DELTAS_PER_CYCLE, DEC_DATA_WIDTH);
+  constant shift_lut_32 : shift_lut_32_t := init_shift_lut_32(MAX_DELTAS_PER_CYCLE, DEC_DATA_WIDTH);
 begin
   test: process
   begin
-    for i in 0 to unpack_lut_64'length-1 loop
-      report integer'image(i) & " => " & integer'image(unpack_lut_64(i)) severity note;
+    for i in 0 to count_lut_64'length-1 loop
+      report integer'image(i) & " => " & integer'image(count_lut_64(i)) severity note;
       wait for 1 ns;
     end loop;
 
-    for i in 0 to unpack_lut_32'length-1 loop
-      report integer'image(i) & " => " & integer'image(unpack_lut_32(i)) severity note;
+    for i in 0 to count_lut_32'length-1 loop
+      report integer'image(i) & " => " & integer'image(count_lut_32(i)) severity note;
+      wait for 1 ns;
+    end loop;
+
+    for i in 0 to count_lut_64'length-1 loop
+      report integer'image(i) & " => " & integer'image(shift_lut_64(i)) severity note;
+      wait for 1 ns;
+    end loop;
+
+    for i in 0 to count_lut_32'length-1 loop
+      report integer'image(i) & " => " & integer'image(shift_lut_32(i)) severity note;
       wait for 1 ns;
     end loop;
   wait;
