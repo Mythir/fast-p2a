@@ -34,6 +34,9 @@ entity BlockValuesAligner is
     -- Maximum number of unpacked deltas per cycle
     MAX_DELTAS_PER_CYCLE        : natural;
 
+    -- Width for registers/ports concerned with the amount of bytes in a block
+    BYTES_IN_BLOCK_WIDTH        : natural := 16;
+
     -- Bit width of a single primitive value
     PRIM_WIDTH                  : natural;
 
@@ -63,7 +66,7 @@ entity BlockValuesAligner is
     -- where the boundary between length data and char data is.
     bc_valid                    : out std_logic;
     bc_ready                    : in  std_logic;
-    bc_data                     : out std_logic_vector(31 downto 0);
+    bc_data                     : out std_logic_vector(BYTES_IN_BLOCK_WIDTH-1 downto 0);
 
     --Data out stream to BitUnpacker
     out_valid                   : out std_logic;
@@ -90,9 +93,6 @@ architecture behv of BlockValuesAligner is
   constant SHIFTER_INPUT_WIDTH  : natural := SHIFT_AMOUNT_WIDTH + SHIFTER_CTRL_WIDTH + SHIFTER_DATA_WIDTH;
   constant SHIFTER_OUTPUT_WIDTH : natural := SHIFTER_CTRL_WIDTH + SHIFTER_DATA_WIDTH;
 
-  -- Width for registers/ports concerned with the amount of bytes in a block
-  constant BYTES_IN_BLOCK_WIDTH : natural := 16;
-
   -- Stream from aligner FiFo to shifters
   signal fifo_out_valid         : std_logic;
   signal fifo_out_ready         : std_logic;
@@ -101,12 +101,20 @@ architecture behv of BlockValuesAligner is
   -- Stream from sync to aligner FiFo (with enable)
   signal fifo_in_valid          : std_logic;
   signal fifo_in_ready          : std_logic;
-  signal fifo_in_enable         : std_logic;
 
   -- Stream from sync to BlockHeaderReader (with enable in the form of "not page_done")
   signal bhr_in_valid           : std_logic;
   signal bhr_in_ready           : std_logic;
   signal bhr_page_done          : std_logic;
+
+  -- Stream out from BlockShiftControl
+  signal bsc_out_valid          : std_logic;
+  signal bsc_out_ready          : std_logic;
+  signal bsc_out_data           : std_logic_vector(SHIFTER_DATA_WIDTH-1 downto 0);
+  signal bsc_out_amount         : std_logic_vector(SHIFT_AMOUNT_WIDTH-1 downto 0);
+  signal bsc_out_width          : std_logic_vector(OUT_WIDTH_WIDTH-1 downto 0);
+  signal bsc_out_count          : std_logic_vector(OUT_COUNT_WIDTH-1 downto 0);
+  signal bsc_page_done          : std_logic;
 
   -- Bit widths stream (from BlockHeaderReader)
   signal bw_valid               : std_logic;
@@ -126,18 +134,21 @@ architecture behv of BlockValuesAligner is
   signal s_pipe_input           : std_logic_vector(SHIFTER_INPUT_WIDTH-1 downto 0);
   signal s_pipe_output          : std_logic_vector(SHIFTER_OUTPUT_WIDTH-1 downto 0);
 
+  -- Stream in to shifter
   signal shifter_in_valid       : std_logic;
   signal shifter_in_ready       : std_logic;
   signal shifter_in_data        : std_logic_vector(SHIFTER_INPUT_WIDTH-1 downto 0);
 
+  -- Stream out from shifter
   signal shifter_out_valid      : std_logic;
   signal shifter_out_ready      : std_logic;
   signal shifter_out_data       : std_logic_vector(SHIFTER_OUTPUT_WIDTH-1 downto 0);
 
 begin
-  sync_out_valid  <= fifo_in_valid  & bhr_in_valid;
+  fifo_in_valid   <= sync_out_valid(1);
+  bhr_in_valid    <= sync_out_valid(0);
   sync_out_ready  <= fifo_in_ready  & bhr_in_ready;
-  sync_out_enable <= fifo_in_enable & (not bhr_page_done);
+  sync_out_enable <= (not bsc_page_done) & (not bhr_page_done);
 
   -- Connect output signals
   out_valid         <= shifter_out_valid;
@@ -145,7 +156,13 @@ begin
   out_data          <= shifter_out_data(DEC_DATA_WIDTH-1 downto 0);
   out_count         <= shifter_out_data(OUT_COUNT_WIDTH+SHIFTER_DATA_WIDTH-1 downto SHIFTER_DATA_WIDTH);
   out_width         <= shifter_out_data(SHIFTER_OUTPUT_WIDTH-1 downto SHIFTER_DATA_WIDTH+OUT_COUNT_WIDTH);
-  
+
+  -- Connect BlockShiftControl to shifter input signals
+  shifter_in_valid  <= bsc_out_valid;
+  bsc_out_ready     <= shifter_in_ready;
+  shifter_in_data   <= bsc_out_amount & bsc_out_width & bsc_out_count & bsc_out_data;
+
+  -- Syncs the streams into the BlockHeaderReader and the input FiFo of BlockShiftControl
   in_sync: StreamSync
     generic map(
       NUM_INPUTS                => 1,
@@ -159,29 +176,6 @@ begin
       out_valid                 => sync_out_valid,
       out_ready                 => sync_out_ready,
       out_enable                => sync_out_enable
-    );
-
-  -- This FiFo enables the lookahead functionality of the BlockHeaderReader
-  aligner_fifo: StreamFIFO
-    generic map(
-      DEPTH_LOG2                => LOOKAHEAD_DEPTH,
-      DATA_WIDTH                => DEC_DATA_WIDTH
-    )
-    port map(
-      in_clk                    => clk,
-      in_reset                  => reset,
-      in_valid                  => fifo_in_valid,
-      in_ready                  => fifo_in_ready,
-      in_data                   => in_data,
-      in_rptr                   => open,
-      in_wptr                   => open,
-      out_clk                   => clk,
-      out_reset                 => reset,
-      out_valid                 => fifo_out_valid,
-      out_ready                 => fifo_out_ready,
-      out_data                  => fifo_out_data,
-      out_rptr                  => open,
-      out_wptr                  => open
     );
 
   header_reader: BlockHeaderReader
@@ -213,6 +207,62 @@ begin
       bc_valid                  => bc_valid,
       bc_ready                  => bc_ready,
       bc_data                   => bc_data
+    );
+
+  -- This FiFo enables the lookahead functionality of the BlockHeaderReader by allowing the stream to advance some cycles independent of BlockShiftControl input.
+  aligner_fifo: StreamFIFO
+    generic map(
+      DEPTH_LOG2                => LOOKAHEAD_DEPTH,
+      DATA_WIDTH                => DEC_DATA_WIDTH
+    )
+    port map(
+      in_clk                    => clk,
+      in_reset                  => reset,
+      in_valid                  => fifo_in_valid,
+      in_ready                  => fifo_in_ready,
+      in_data                   => in_data,
+      in_rptr                   => open,
+      in_wptr                   => open,
+      out_clk                   => clk,
+      out_reset                 => reset,
+      out_valid                 => fifo_out_valid,
+      out_ready                 => fifo_out_ready,
+      out_data                  => fifo_out_data,
+      out_rptr                  => open,
+      out_wptr                  => open
+    );
+
+  shift_ctrl: BlockShiftControl
+    generic map(
+      DEC_DATA_WIDTH            => DEC_DATA_WIDTH,
+      BLOCK_SIZE                => BLOCK_SIZE,
+      MINIBLOCKS_IN_BLOCK       => MINIBLOCKS_IN_BLOCK,
+      MAX_DELTAS_PER_CYCLE      => MAX_DELTAS_PER_CYCLE,
+      PRIM_WIDTH                => PRIM_WIDTH,
+      COUNT_WIDTH               => OUT_COUNT_WIDTH,
+      WIDTH_WIDTH               => OUT_WIDTH_WIDTH,
+      AMOUNT_WIDTH              => SHIFT_AMOUNT_WIDTH
+    )
+    port map(
+      clk                       => clk,
+      reset                     => reset,
+      page_done                 => bsc_page_done,
+      in_valid                  => fifo_out_valid,
+      in_ready                  => fifo_out_ready,
+      in_data                   => endian_swap(fifo_out_data),
+      page_num_values           => page_num_values,
+      bw_valid                  => bw_valid,
+      bw_ready                  => bw_ready,
+      bw_data                   => bw_data,
+      bl_valid                  => bl_valid,
+      bl_ready                  => bl_ready,
+      bl_data                   => bl_data,
+      out_valid                 => bsc_out_valid,
+      out_ready                 => bsc_out_ready,
+      out_data                  => bsc_out_data,
+      out_amount                => bsc_out_amount,
+      out_width                 => bsc_out_width,
+      out_count                 => bsc_out_count 
     );
 
   pipeline_ctrl: StreamPipelineControl
