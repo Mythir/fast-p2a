@@ -15,7 +15,7 @@
 import bincopy as bc
 
 # Parameters
-dec_data_width = 32  # In bits
+dec_data_width = 64  # In bits
 header_length = 42 # How many bytes to skip in the input file
 input_file = "../../../../profiling/gen-input/hw_int32array_delta.parquet"
 

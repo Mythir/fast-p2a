@@ -354,7 +354,7 @@ int main(int argc, char **argv) {
 
     std::cout << "Size of Arrow table: " << num_values << " values." << std::endl;
     std::shared_ptr<arrow::Table> int64_table = generate_int64_table(num_values, modulo, true);
-    std::shared_ptr<arrow::Table> int32_table = generate_int32_delta_test_table(num_values, 64, true);
+    std::shared_ptr<arrow::Table> int32_table = generate_int32_delta_test_table(num_values, 256, true);
     //std::shared_ptr<arrow::Table> str_table = generate_str_table(num_values, 2, 10);
 
     /*
