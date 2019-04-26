@@ -342,12 +342,12 @@ begin
         r.bl_handshake_state  <= IDLE;
         r.md_handshake_state  <= IDLE;
         r.bc_handshake_state  <= IDLE;
-        r.bc_out              <= (others => 'U');
-        r.byte_counter        <= (others => 'U');
-        r.bl_counter          <= (others => 'U');
-        r.miniblock_counter   <= (others => 'U');
+        --r.bc_out              <= (others => 'U');
+        --r.byte_counter        <= (others => 'U');
+        --r.bl_counter          <= (others => 'U');
+        --r.miniblock_counter   <= (others => 'U');
         r.bytes_packed_data   <= (others => '0');
-        r.header_data         <= (others => 'U');
+        --r.header_data         <= (others => 'U');
         r.page_val_counter    <= (others => '0');
       else
         r <= d;
