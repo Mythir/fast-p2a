@@ -193,6 +193,10 @@ begin
           end if;
         end if;
 
+        if r.page_val_counter >= unsigned(page_num_values) then
+          v.state := DONE;
+        end if;
+
       when READING =>
         if r.byte_counter = to_unsigned(DEC_DATA_WIDTH/8, r.byte_counter'length) and r.miniblock_counter < MINIBLOCKS_IN_BLOCK then
           -- If all bytes in header_r have been processed and we are still not done, request new data
@@ -255,15 +259,29 @@ begin
                 end if;
               else
                 if r.bc_handshake_state = IDLE then
-                  v.state              := SKIPPING;
-                  v.bc_handshake_state := VALID;
-                  v.bc_out             := std_logic_vector(r.bytes_packed_data);
+                  if r.bytes_packed_data < (DEC_DATA_WIDTH/8 - r.byte_counter) then
+                    if r.bl_handshake_state = IDLE and r.md_handshake_state = IDLE then
+                      -- If the next BlockHeader is already in the header_data register (and all required handshakes have been completed) we can immediately proceed with READING
+                      v.bl_counter        := (others => '0');
+                      v.miniblock_counter := (others => '0');
+                      v.state             := READING;
+                      start_varint        <= '1';
+                      v.header_state      := MIN_DELTA;
+                      -- Block done, so add to amount of values processed
+                      v.page_val_counter  := r.page_val_counter + BLOCK_SIZE;
+                    end if;
 
-                  -- Compensate bytes_packed_data (which will be used for SKIPPING) for the packed bytes present in the header_data register
-                  v.bytes_packed_data  := r.bytes_packed_data - DEC_DATA_WIDTH/8 + r.byte_counter;
+                  else
+                    v.state              := SKIPPING;
+                    v.bc_handshake_state := VALID;
+                    v.bc_out             := std_logic_vector(r.bytes_packed_data);
+  
+                    -- Compensate bytes_packed_data (which will be used for SKIPPING) for the packed bytes present in the header_data register
+                    v.bytes_packed_data  := r.bytes_packed_data - DEC_DATA_WIDTH/8 + r.byte_counter;
+                    -- Block done, so add to amount of values processed
+                    v.page_val_counter  := r.page_val_counter + BLOCK_SIZE;
+                  end if;
 
-                  -- Block done, so add to amount of values processed
-                  v.page_val_counter  := r.page_val_counter + BLOCK_SIZE;
                 end if;
               end if;
 
@@ -280,10 +298,6 @@ begin
           v.bytes_packed_data(log2ceil(DEC_DATA_WIDTH/8)-1 downto 0) := r.bytes_packed_data(log2ceil(DEC_DATA_WIDTH/8)-1 downto 0);
           v.state             := IDLE;
           v.header_state      := MIN_DELTA;
-        end if;
-
-        if r.page_val_counter >= unsigned(page_num_values) then
-          v.state := DONE;
         end if;
 
       when DONE =>

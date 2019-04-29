@@ -29,9 +29,9 @@ use work.Encoding.all;
 --
 -- 2. DecompressorWrapper: Decompress the values. The first version of the hardware will only support UNCOMPRESSED and SNAPPY.
 --
--- 3. DecoderWrapper: Decode the values and make sure the ColumnWriter receives BUS_DATA_WIDTH/PRIM_WIDTH elements per write.
+-- 3. DecoderWrapper: Decode the values and make sure the ArrayWriter receives BUS_DATA_WIDTH/PRIM_WIDTH elements per write.
 --
--- The processes in the ValuesDecoder itself are only concerned with providing the ColumnWriters with the correct settings.
+-- The processes in the ValuesDecoder itself are only concerned with providing the ArrayWriters with the correct settings.
 
 entity ValuesDecoder is
   generic (
@@ -96,7 +96,7 @@ entity ValuesDecoder is
     bc_ready                    : in  std_logic;
     bc_valid                    : out std_logic;
 
-    -- Command stream to Fletcher ColumnWriter
+    -- Command stream to Fletcher ArrayWriter
     cmd_valid                   : out std_logic;
     cmd_ready                   : in  std_logic;
     cmd_firstIdx                : out std_logic_vector(INDEX_WIDTH-1 downto 0);
@@ -104,12 +104,12 @@ entity ValuesDecoder is
     cmd_ctrl                    : out std_logic_vector(BUS_ADDR_WIDTH-1 downto 0);
     cmd_tag                     : out std_logic_vector(CMD_TAG_WIDTH-1 downto 0) := (others => '0');
 
-    -- Unlock stream from Fletcher ColumnWriter
+    -- Unlock stream from Fletcher ArrayWriter
     unl_valid                   : in  std_logic;
     unl_ready                   : out std_logic;
     unl_tag                     : in  std_logic_vector(CMD_TAG_WIDTH-1 downto 0);
 
-    --Data out stream to Fletcher ColumnWriter
+    --Data out stream to Fletcher ArrayWriter
     out_valid                   : out std_logic;
     out_ready                   : in  std_logic;
     out_last                    : out std_logic;
