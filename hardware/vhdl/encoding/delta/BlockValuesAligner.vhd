@@ -78,7 +78,7 @@ entity BlockValuesAligner is
 end BlockValuesAligner;
 
 architecture behv of BlockValuesAligner is
-  -- 5 (log2(32)) should be enough to allow the BlockHeaderReader to read the header
+  -- log2ceil(32) should be enough to allow the BlockHeaderReader to read the header
   constant LOOKAHEAD_DEPTH      : natural := 5;
 
   constant OUT_COUNT_WIDTH      : natural := log2floor(MAX_DELTAS_PER_CYCLE)+1;
