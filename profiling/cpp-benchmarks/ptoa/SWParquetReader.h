@@ -32,6 +32,7 @@ class SWParquetReader {
     SWParquetReader(std::string file_path);
     ~SWParquetReader(){free(parquet_data);}
     status read_prim(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array);
+    status read_prim(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, std::shared_ptr<arrow::Buffer> arr_buffer);
     status inspect_metadata(int32_t file_offset);
     status count_pages(int32_t file_offset);
 

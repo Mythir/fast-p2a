@@ -67,7 +67,12 @@ int main(int argc, char **argv) {
     reader.count_pages(4);
 
     std::shared_ptr<arrow::PrimitiveArray> array;
-    
+    std::shared_ptr<arrow::Buffer> arr_buffer;
+
+    // Only relevant for the benchmark with pre-allocated (and memset) buffer
+    arrow::AllocateBuffer(num_values*(PRIM_WIDTH/8), &arr_buffer);
+    std::memset((void*)(arr_buffer->mutable_data()), 0, num_values*(PRIM_WIDTH/8));
+  
     for(int i=0; i<iterations; i++){
         t.start();
         // Reading the Parquet file. The interesting bit.
