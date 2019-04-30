@@ -21,10 +21,10 @@ library work;
 -- Fletcher
 use work.Utils.all;
 use work.Arrow.all;
-use work.Columns.all;
+use work.Arrays.all;
 use work.Interconnect.all;
 use work.Wrapper.all;
-use work.ColumnConfigParse.all;
+use work.ArrayConfigParse.all;
 
 -- Ptoa
 use work.Encoding.all;
@@ -32,8 +32,8 @@ use work.Thrift.all;
 use work.Ingestion.all;
 use work.Alignment.all;
 
--- This ParquetReader is currently set up to work for Parquet columns containing primitives (int32, int64, float, double).
--- Therefore, CFG should be of the form "prim(<width>)" (see Fletcher's ColumnConfig.vhd). In the future, once more
+-- This ParquetReader is currently set up to work for Parquet arrays containing primitives (int32, int64, float, double).
+-- Therefore, CFG should be of the form "prim(<width>)" (see Fletcher's ArrayConfig.vhd). In the future, once more
 -- CFG's are supported, this file will be expanded with generate statements ensuring the correct functionality (or version) of the
 -- ValuesDecoder, rep level decoder, def level encoder are selected.
 
@@ -133,7 +133,7 @@ architecture Implementation of ParquetReader is
   signal bytes_cons_data                       : std_logic_vector(NUM_CONSUMERS*(log2ceil(BUS_DATA_WIDTH/8)+1)-1 downto 0);
 
   ----------------------------------
-  -- ValuesDecoder <-> ColumnWriter
+  -- ValuesDecoder <-> ArrayWriter
   ----------------------------------
   -- Command stream
   signal cmd_valid                             : std_logic;
@@ -274,7 +274,7 @@ begin
       out_data                    => vd_cw_data
     );
 
-  fletcher_cw_inst: ColumnWriter
+  fletcher_cw_inst: ArrayWriter
     generic map (
       BUS_ADDR_WIDTH              => BUS_ADDR_WIDTH,
       BUS_LEN_WIDTH               => BUS_LEN_WIDTH,
@@ -283,7 +283,7 @@ begin
       BUS_BURST_STEP_LEN          => BUS_BURST_STEP_LEN,
       BUS_BURST_MAX_LEN           => BUS_BURST_MAX_LEN,
       INDEX_WIDTH                 => INDEX_WIDTH,
-      CFG                         => "prim(" & integer'image(BUS_DATA_WIDTH) & ")", -- ColumnWriter should write the max amount of elements per cycle that the bus width allows
+      CFG                         => "prim(" & integer'image(BUS_DATA_WIDTH) & ")", -- ArrayWriter should write the max amount of elements per cycle that the bus width allows
       CMD_TAG_ENABLE              => true,
       CMD_TAG_WIDTH               => TAG_WIDTH
     )

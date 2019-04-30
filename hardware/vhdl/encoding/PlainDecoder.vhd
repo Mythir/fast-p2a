@@ -20,9 +20,9 @@ use work.Utils.all;
 
 -- This PlainDecoder does not actually have to decode anything because the "PLAIN" encoding just stores the values as normal integers or floats. Instead
 -- the complexity comes from the fact that each page can have an arbitrary number of values and we always want to sent <elements_per_cycle> values
--- to the ColumnWriter per transaction. Every time we start a new page, the PreDecBuffer in the ValuesDecoder handshakes the PlainDecoder to let it know it should
+-- to the ArrayWriter per transaction. Every time we start a new page, the PreDecBuffer in the ValuesDecoder handshakes the PlainDecoder to let it know it should
 -- store that page's relevant metadata, which the PlainDecoder will use to send the correct amount of values to the ValBuffer. The ValBuffer stores the values until
--- it has enough to send to the ColumnWriter.
+-- it has enough to send to the ArrayWriter.
 
 entity PlainDecoder is
   generic (
@@ -56,7 +56,7 @@ entity PlainDecoder is
     -- Number of values in the page (from MetadataInterpreter)
     page_num_values             : in  std_logic_vector(31 downto 0);
 
-    --Data out stream to Fletcher ColumnWriter
+    --Data out stream to Fletcher ArrayWriter
     out_valid                   : out std_logic;
     out_ready                   : in  std_logic;
     out_last                    : out std_logic;
@@ -66,7 +66,7 @@ entity PlainDecoder is
 end PlainDecoder;
 
 architecture behv of PlainDecoder is
-  -- The amount of values transferred to the ColumnWriter every cycle
+  -- The amount of values transferred to the ArrayWriter every cycle
   constant ELEMENTS_PER_CYCLE : natural := BUS_DATA_WIDTH/PRIM_WIDTH;
 
   type state_t is (IDLE, IN_PAGE, DONE);

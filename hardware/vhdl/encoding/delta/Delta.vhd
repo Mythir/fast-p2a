@@ -54,6 +54,40 @@ package Delta is
     );
   end component;
 
+  component BlockShiftControl is
+    generic (
+      DEC_DATA_WIDTH              : natural;
+      BLOCK_SIZE                  : natural;
+      MINIBLOCKS_IN_BLOCK         : natural;
+      MAX_DELTAS_PER_CYCLE        : natural;
+      PRIM_WIDTH                  : natural;
+      COUNT_WIDTH                 : natural;
+      WIDTH_WIDTH                 : natural;
+      AMOUNT_WIDTH                : natural
+    );
+    port (
+      clk                         : in  std_logic;
+      reset                       : in  std_logic;
+      page_done                   : out std_logic;
+      in_valid                    : in  std_logic;
+      in_ready                    : out std_logic;
+      in_data                     : in  std_logic_vector(DEC_DATA_WIDTH-1 downto 0);
+      page_num_values             : in  std_logic_vector(31 downto 0);
+      bw_valid                    : in  std_logic;
+      bw_ready                    : out std_logic;
+      bw_data                     : in  std_logic_vector(7 downto 0);
+      bl_valid                    : in  std_logic;
+      bl_ready                    : out std_logic;
+      bl_data                     : in  std_logic_vector(log2floor(max_varint_bytes(PRIM_WIDTH)+MINIBLOCKS_IN_BLOCK) downto 0);
+      out_valid                   : out std_logic;
+      out_ready                   : in  std_logic;
+      out_data                    : out std_logic_vector(2*DEC_DATA_WIDTH-1 downto 0);
+      out_amount                  : out std_logic_vector(AMOUNT_WIDTH-1 downto 0);
+      out_width                   : out std_logic_vector(WIDTH_WIDTH-1 downto 0);
+      out_count                   : out std_logic_vector(COUNT_WIDTH-1 downto 0)
+    );
+  end component;
+
   -----------------------------------------------------------------------------
   -- Helper functions
   -----------------------------------------------------------------------------

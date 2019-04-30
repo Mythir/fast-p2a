@@ -140,7 +140,7 @@ architecture behv of BlockShiftControl is
 
 begin
 
-  assert PRIM_WIDTH >= DEC_DATA_WIDTH
+  assert PRIM_WIDTH <= DEC_DATA_WIDTH
     report "Width of DeltaDecoder (" & integer'image(DEC_DATA_WIDTH) & " bits) is smaller than maximum bit packed width (" & integer'image(PRIM_WIDTH) & " bits)." severity failure;
 
   assert PRIM_WIDTH = 32 or PRIM_WIDTH = 64
@@ -148,6 +148,9 @@ begin
 
   assert MAX_DELTAS_PER_CYCLE <= VALUES_IN_MINIBLOCK
     report "DeltaDecoder MAX_DELTAS_PER_CYCLE larger than VALUES_IN_MINIBLOCK. This is unsupported by the hardware." severity failure;
+
+  assert log2ceil(MINIBLOCKS_IN_BLOCK)=log2floor(MINIBLOCKS_IN_BLOCK) and log2ceil(VALUES_IN_MINIBLOCK)=log2floor(VALUES_IN_MINIBLOCK)
+    report "DeltaDecoder currently only supports powers of 2 for the amount of miniblocks in a block and the amount of values in a miniblock." severity failure;
 
   -- Can buffer a full Block's worth of bit widths
   bw_fifo: StreamFIFO
@@ -173,11 +176,11 @@ begin
     );
 
   out_data   <= in_data & r.hold;
-  out_width  <= fifo_out_data;
+  out_width  <= fifo_out_data(WIDTH_WIDTH-1 downto 0);
   out_amount <= std_logic_vector(r.current_shift);
 
   -- Multiply bytes in block header by 8
-  bits_in_block_header <= shift_left(unsigned(bl_data), log2ceil(8));
+  bits_in_block_header <= shift_left(resize(unsigned(bl_data), bl_data'length + log2ceil(8)), log2ceil(8));
 
   logic_p: process(r, in_valid, bl_valid, out_ready, page_num_values, in_data, bits_in_block_header, fifo_out_valid, fifo_out_data)
     variable v : reg_record;
@@ -189,10 +192,10 @@ begin
   begin
     v := r;
 
-    in_ready  <= '0';
-    bl_ready  <= '0';
-    bw_ready  <= '0';
-    out_valid <= '0';
+    in_ready       <= '0';
+    bl_ready       <= '0';
+    out_valid      <= '0';
+    fifo_out_ready <= '0';
 
     out_count <= (others => '0');
 
@@ -283,7 +286,7 @@ begin
                 if v.mb_val_count = to_unsigned(0, v.mb_val_count'length) then
                   -- Full miniblock processed
                   v.mb_count := r.mb_count + 1;
-                  bw_ready   <= '1';
+                  fifo_out_ready   <= '1';
 
                   if v.mb_count = to_unsigned(0, v.mb_count'length) then
                     -- Full block processed
