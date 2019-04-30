@@ -100,13 +100,13 @@ begin
   upstream_p: process
     file input_data             : text;
 
-    constant stream_stop_p      : real    := 0.01;
+    constant stream_stop_p      : real    := 0.02;
     constant max_stopped_cycles : real    := 30.0;
 
     variable input_line         : line;
     variable page_data          : std_logic_vector(DEC_DATA_WIDTH-1 downto 0);
 
-    variable seed1              : positive := 137;
+    variable seed1              : positive := 1370;
     variable seed2              : positive := 442;
 
     variable stream_stop        : real;
@@ -150,6 +150,9 @@ begin
     end loop;
 
     report "encoded.hex1 has been fully read" severity note;
+
+    -- Keep in_valid high to simulate characters in the delta-length encoding
+    in_valid <= '1';
 
     wait;
   end process;

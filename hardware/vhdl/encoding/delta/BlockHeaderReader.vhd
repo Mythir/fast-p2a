@@ -20,7 +20,15 @@ use work.Utils.all;
 use work.Ptoa.all;
 use work.Encoding.all;
 
---Todo: check max_varint_bytes functionality
+-- This module reads the block headers and creates 4 different streams that are used by different modules to correctly decode the Delta encoded data.
+-- min_delta stream (md)          : Field in block header used by the delta accumulator to calculate the extra deltas from the bit packed positive offsets.
+-- bit_width stream (bw)          : Fields in block header used by the BlockShiftControl to determine the correct alignment for the bit unpackers. The 
+--                                  BlockShiftControl also passes the bit packing widths to the bit unpackers for unpacking.
+-- block_header_length stream (bl): Length of the block header (not a field, determined in the process of reading). Needed by the BlockShiftControl
+--                                  because it needs to know how many bytes to skip to reach the bit-packed values.
+-- bytes_consumed stream (bc)     : Only strictly needed when decoding strings. In turn passes the length of the block header and the length of the bit packed
+--                                  values to the CharBuffer where they are accumulated to the full size of the delta encoded block. This result is used to
+--                                  determine the offset in the page to the characters.
 
 entity BlockHeaderReader is
   generic (
@@ -85,7 +93,7 @@ end BlockHeaderReader;
 
 architecture behv of BlockHeaderReader is
 
-  type state_t is (IDLE, READING, SKIPPING, DONE);
+  type state_t is (IDLE, READING, SKIPPING, BYPASS, DONE);
   type header_state_t is (MIN_DELTA, BIT_WIDTHS);
   type handshake_state_t is (IDLE, VALID);
 
@@ -260,28 +268,20 @@ begin
               else
                 if r.bc_handshake_state = IDLE then
                   if r.bytes_packed_data < (DEC_DATA_WIDTH/8 - r.byte_counter) then
-                    if r.bl_handshake_state = IDLE and r.md_handshake_state = IDLE then
-                      -- If the next BlockHeader is already in the header_data register (and all required handshakes have been completed) we can immediately proceed with READING
-                      v.bl_counter        := (others => '0');
-                      v.miniblock_counter := (others => '0');
-                      v.state             := READING;
-                      start_varint        <= '1';
-                      v.header_state      := MIN_DELTA;
-                      -- Block done, so add to amount of values processed
-                      v.page_val_counter  := r.page_val_counter + BLOCK_SIZE;
-                    end if;
-
+                    v.state              := BYPASS;
                   else
                     v.state              := SKIPPING;
-                    v.bc_handshake_state := VALID;
-                    v.bc_out             := std_logic_vector(r.bytes_packed_data);
   
                     -- Compensate bytes_packed_data (which will be used for SKIPPING) for the packed bytes present in the header_data register
                     v.bytes_packed_data  := r.bytes_packed_data - DEC_DATA_WIDTH/8 + r.byte_counter;
-                    -- Block done, so add to amount of values processed
-                    v.page_val_counter  := r.page_val_counter + BLOCK_SIZE;
                   end if;
 
+                  -- Block done, so add to amount of values processed
+                  v.page_val_counter  := r.page_val_counter + BLOCK_SIZE;
+
+                  -- When decoding strings: tell CharBuffer the size of the packed data
+                  v.bc_handshake_state := VALID;
+                  v.bc_out             := std_logic_vector(r.bytes_packed_data);
                 end if;
               end if;
 
@@ -297,6 +297,17 @@ begin
           v.bytes_packed_data := (others => '0');
           v.bytes_packed_data(log2ceil(DEC_DATA_WIDTH/8)-1 downto 0) := r.bytes_packed_data(log2ceil(DEC_DATA_WIDTH/8)-1 downto 0);
           v.state             := IDLE;
+          v.header_state      := MIN_DELTA;
+        end if;
+
+      when BYPASS =>
+        -- Special state that is used when the bit packed data is very short (in the case of 0 width bit packing for example)
+        -- If there is data from the next block header already present in the header_data register we bypass IDLE via this state
+        if r.bl_handshake_state = IDLE and r.md_handshake_state = IDLE and r.bc_handshake_state = IDLE then
+          v.bl_counter        := (others => '0');
+          v.miniblock_counter := (others => '0');
+          v.state             := READING;
+          start_varint        <= '1';
           v.header_state      := MIN_DELTA;
         end if;
 
