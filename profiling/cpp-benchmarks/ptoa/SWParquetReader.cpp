@@ -88,6 +88,54 @@ status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_
 
 }
 
+// Same as read_prim but with a pre-allocated buffer
+status SWParquetReader::read_prim_allocated_buffer(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, std::shared_ptr<arrow::Buffer> arr_buffer) {
+    uint8_t* page_ptr = parquet_data;
+    uint8_t* arr_buf_ptr = arr_buffer->mutable_data();
+
+    int64_t total_value_counter = 0;
+
+    // Metadata reading variables
+    int32_t uncompressed_size;
+    int32_t compressed_size;
+    int32_t page_num_values;
+    int32_t def_level_length;
+    int32_t rep_level_length;
+    int32_t metadata_size;
+
+    page_ptr += file_offset;
+
+    // Copy values from Parquet pages until max amount of values is reached
+    while(total_value_counter < num_values){
+        if(read_metadata(page_ptr, &uncompressed_size, &compressed_size, &page_num_values, &def_level_length, &rep_level_length, &metadata_size) != status::OK) {
+            std::cerr << "[ERROR] Corrupted data in Parquet page headers" << std::endl;
+            std::cerr << page_ptr-parquet_data << std::endl;
+            return status::FAIL;
+        }
+
+        page_ptr += metadata_size;
+    
+        std::memcpy((void*) arr_buf_ptr, (const void*) page_ptr, std::min((int64_t) compressed_size, (num_values-total_value_counter)*prim_width/8));
+    
+        page_ptr += compressed_size;
+        arr_buf_ptr += compressed_size;
+        total_value_counter += page_num_values;
+
+
+    }
+
+    if(prim_width == 64){
+        *prim_array = std::make_shared<arrow::PrimitiveArray>(arrow::int64(), num_values, arr_buffer);
+    } else if (prim_width == 32) {
+        *prim_array = std::make_shared<arrow::PrimitiveArray>(arrow::int32(), num_values, arr_buffer);
+    } else {
+        std::cerr << "[ERROR] Unsupported prim width " << prim_width << std::endl;
+    }
+
+    return status::OK;
+
+}
+
 // Count pages and provide information about their sizes starting with the page at file_offset
 status SWParquetReader::count_pages(int32_t file_offset) {
     uint8_t* page_ptr = parquet_data;
