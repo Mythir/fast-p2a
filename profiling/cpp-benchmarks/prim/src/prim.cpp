@@ -68,10 +68,11 @@ int main(int argc, char **argv) {
 
     std::shared_ptr<arrow::PrimitiveArray> array;
     std::shared_ptr<arrow::Buffer> arr_buffer;
+
+    // Only relevant for the benchmark with pre-allocated (and memset) buffer
     arrow::AllocateBuffer(num_values*(PRIM_WIDTH/8), &arr_buffer);
     std::memset((void*)(arr_buffer->mutable_data()), 0, num_values*(PRIM_WIDTH/8));
-
-/*    
+  
     for(int i=0; i<iterations; i++){
         t.start();
         // Reading the Parquet file. The interesting bit.
@@ -79,17 +80,6 @@ int main(int argc, char **argv) {
             return 1;
         }
         t.stop();
-        t.record();
-    }
-*/
-    for(int i=0; i<iterations; i++){
-        t.start();
-        // Reading the Parquet file. The interesting bit.
-        if(reader.read_prim_allocated_buffer(PRIM_WIDTH, num_values, 4, &array, arr_buffer) != ptoa::status::OK){
-            return 1;
-        }
-        t.stop();
-        std::cout << t.seconds() << std::endl;
         t.record();
     }
 

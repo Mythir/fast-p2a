@@ -89,7 +89,7 @@ status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_
 }
 
 // Same as read_prim but with a pre-allocated buffer
-status SWParquetReader::read_prim_allocated_buffer(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, std::shared_ptr<arrow::Buffer> arr_buffer) {
+status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, std::shared_ptr<arrow::Buffer> arr_buffer) {
     uint8_t* page_ptr = parquet_data;
     uint8_t* arr_buf_ptr = arr_buffer->mutable_data();
 
