@@ -33,6 +33,7 @@ architecture tb of BlockHeaderReader_tb is
   constant BLOCK_SIZE                : natural := 128;
   constant MINIBLOCKS_IN_BLOCK       : natural := 4;
   constant BYTES_IN_BLOCK_WIDTH      : natural := 16;
+  constant FIFO_DEPTH                : natural := 5; --log(32)
   constant PRIM_WIDTH                : natural := 32;
   constant VALUES_TO_READ            : natural := 5000;
   constant clk_period                : time := 10 ns;
@@ -69,6 +70,7 @@ begin
       BLOCK_SIZE                  => BLOCK_SIZE,
       MINIBLOCKS_IN_BLOCK         => MINIBLOCKS_IN_BLOCK,
       BYTES_IN_BLOCK_WIDTH        => BYTES_IN_BLOCK_WIDTH,
+      FIFO_DEPTH                  => FIFO_DEPTH,
       PRIM_WIDTH                  => PRIM_WIDTH
     )
     port map(

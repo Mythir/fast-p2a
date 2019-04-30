@@ -17,9 +17,13 @@ use ieee.numeric_std.all;
 library work;
 -- Fletcher utils for use of log2ceil function.
 use work.Utils.all;
+use work.Streams.all;
 
 entity BitUnpacker is
   generic (
+    -- Identifier that determines which of the bit-packed values in the input it needs to unpack
+    ID                          : natural;
+
     -- Decoder data width
     DEC_DATA_WIDTH              : natural;
 
@@ -27,7 +31,15 @@ entity BitUnpacker is
     MAX_DELTAS_PER_CYCLE        : natural;
 
     -- Bit width of a single primitive value
-    PRIM_WIDTH                  : natural
+    PRIM_WIDTH                  : natural;
+
+    -- Width of value count input (amount of values to unpack)
+    COUNT_WIDTH                 : natural;
+
+    -- Width of bit packing width input
+    WIDTH_WIDTH                 : natural;
+    
+    RAM_CONFIG                  : string := ""
   );
   port (
     -- Rising-edge sensitive clock.
@@ -40,8 +52,7 @@ entity BitUnpacker is
     in_valid                    : in  std_logic;
     in_ready                    : out std_logic;
     in_data                     : in  std_logic_vector(DEC_DATA_WIDTH-1 downto 0);
-    in_width                    : in  std_logic_vector(log2floor(PRIM_WIDTH) downto 0);
-    in_count                    : in  std_logic_vector(log2floor(MAX_DELTAS_PER_CYCLE) downto 0);
+    in_width                    : in  std_logic_vector(WIDTH_WIDTH-1 downto 0);
 
     --Data out stream to DeltaAccumulator
     out_valid                   : out std_logic;
@@ -50,3 +61,80 @@ entity BitUnpacker is
     out_data                    : out std_logic_vector(MAX_DELTAS_PER_CYCLE*PRIM_WIDTH-1 downto 0)
   );
 end BitUnpacker;
+
+architecture behv of BitUnpacker is
+  -- Width of shift amount input of the shifters
+  constant SHIFT_AMOUNT_WIDTH   : natural := log2ceil(DEC_DATA_WIDTH);
+  constant NUM_SHIFT_STAGES     : natural := SHIFT_AMOUNT_WIDTH;
+
+  constant SHIFTER_CTRL_WIDTH   : natural := WIDTH_WIDTH;
+  constant SHIFTER_DATA_WIDTH   : natural := DEC_DATA_WIDTH;
+  constant SHIFTER_INPUT_WIDTH  : natural := SHIFT_AMOUNT_WIDTH + SHIFTER_CTRL_WIDTH + SHIFTER_DATA_WIDTH;
+  constant SHIFTER_OUTPUT_WIDTH : natural := SHIFTER_CTRL_WIDTH + SHIFTER_DATA_WIDTH;
+
+  -- Stream in to shifter
+  signal shifter_in_valid       : std_logic;
+  signal shifter_in_ready       : std_logic;
+  signal shifter_in_data        : std_logic_vector(SHIFTER_INPUT_WIDTH-1 downto 0);
+
+  signal in_amount              : std_logic_vector(SHIFT_AMOUNT_WIDTH-1 downto 0);
+
+  -- Stream out from shifter
+  signal shifter_out_valid      : std_logic;
+  signal shifter_out_ready      : std_logic;
+  signal shifter_out_data       : std_logic_vector(SHIFTER_OUTPUT_WIDTH-1 downto 0);
+
+  signal s_pipe_input           : std_logic_vector(SHIFTER_INPUT_WIDTH-1 downto 0);
+  signal s_pipe_output          : std_logic_vector(SHIFTER_OUTPUT_WIDTH-1 downto 0);
+begin
+  
+  -- ID equals the index of the value we are unpacking. Therefore we shift by width*ID to the right.
+  in_amount <= std_logic_vector(resize(unsigned(in_width)*ID, in_amount'length));
+
+  shifter_in_valid <= in_valid;
+  in_ready         <= shifter_in_ready;
+  shifter_in_data  <= in_width & in_amount & in_data;
+
+  pipeline_ctrl: StreamPipelineControl
+    generic map (
+      IN_DATA_WIDTH             => SHIFTER_INPUT_WIDTH,
+      OUT_DATA_WIDTH            => SHIFTER_OUTPUT_WIDTH,
+      NUM_PIPE_REGS             => NUM_SHIFT_STAGES,
+      INPUT_SLICE               => false,
+      RAM_CONFIG                => RAM_CONFIG
+    )
+    port map (
+      clk                       => clk,
+      reset                     => reset,
+      in_valid                  => shifter_in_valid,
+      in_ready                  => shifter_in_ready,
+      in_data                   => shifter_in_data,
+      out_valid                 => shifter_out_valid,
+      out_ready                 => shifter_out_ready,
+      out_data                  => shifter_out_data,
+      pipe_valid                => open,
+      pipe_input                => s_pipe_input,
+      pipe_output               => s_pipe_output
+    );
+
+  pipeline: StreamPipelineBarrel
+    generic map (
+      ELEMENT_WIDTH             => 1,
+      ELEMENT_COUNT             => SHIFTER_DATA_WIDTH,
+      AMOUNT_WIDTH              => SHIFT_AMOUNT_WIDTH,
+      DIRECTION                 => "right",
+      OPERATION                 => "shift",
+      NUM_STAGES                => NUM_SHIFT_STAGES,
+      CTRL_WIDTH                => SHIFTER_CTRL_WIDTH
+    )
+    port map (
+      clk                       => clk,
+      reset                     => reset,
+      in_data                   => s_pipe_input(SHIFTER_DATA_WIDTH-1 downto 0),
+      in_ctrl                   => s_pipe_input(SHIFTER_CTRL_WIDTH+SHIFTER_DATA_WIDTH-1 downto SHIFTER_DATA_WIDTH),
+      in_amount                 => s_pipe_input(SHIFTER_INPUT_WIDTH-1 downto SHIFTER_CTRL_WIDTH+SHIFTER_DATA_WIDTH),
+      out_data                  => s_pipe_output(SHIFTER_DATA_WIDTH-1 downto 0),
+      out_ctrl                  => s_pipe_output(SHIFTER_OUTPUT_WIDTH-1 downto SHIFTER_DATA_WIDTH)
+    );
+
+end architecture;
