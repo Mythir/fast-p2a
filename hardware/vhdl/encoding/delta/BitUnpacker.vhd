@@ -20,6 +20,14 @@ use work.Utils.all;
 use work.Delta.all;
 use work.Streams.all;
 
+-- This module takes the aligned bit-packed data plus count and width information from the BlockValuesAligner and unpacks the values.
+-- For each value that needs to be unpacked (limited by MAX_DELTAS_PER_CYCLE) a shifter pipeline is generated.
+-- The shifter pipeline shifts the bits for that particular value to the right, after which it is ANDed with a mask for this particular bit-packing width.
+-- Parallel to the shifters will be a FiFo saving the count and width values for every input, to be used in determining the mask after shifting or simply
+-- passed to the DeltaAccumulator.
+-- An input Sync makes sure all shifters and the FiFo receive the input at the same time, while an output sync ensures they are passed to the output at the
+-- same time.
+
 entity BitUnpacker is
   generic (
     -- Decoder data width
@@ -112,7 +120,7 @@ begin
 
   count_width_fifo: StreamFIFO
     generic map(
-      DEPTH_LOG2         => log2ceil(FIFO_DEPTH),
+      DEPTH_LOG2         => log2ceil(FIFO_DEPTH)+1, -- Made slightly larger because it was filling up to often
       DATA_WIDTH         => FIFO_WIDTH
     )
     port map(
@@ -164,10 +172,10 @@ begin
   end generate shifter_gen;
   
   out_sync_in_valid(out_sync_in_valid'left) <= fifo_out_valid;
-  out_sync_in_ready(out_sync_in_ready'left) <= fifo_out_ready;
+  fifo_out_ready <= out_sync_in_ready(out_sync_in_ready'left);
 
   out_sync_in_valid(MAX_DELTAS_PER_CYCLE-1 downto 0) <= shifters_out_valid;
-  out_sync_in_ready(MAX_DELTAS_PER_CYCLE-1 downto 0) <= shifters_out_ready;
+  shifters_out_ready <= out_sync_in_ready(MAX_DELTAS_PER_CYCLE-1 downto 0);
 
   -- Input: All shifters plus the FiFo, Output: To DeltaAccumulator
   out_sync: StreamSync

@@ -26,23 +26,36 @@ use work.Ptoa.all;
 use work.Encoding.all;
 use work.Delta.all;
 
-entity BlockValuesAligner_tb is
-end BlockValuesAligner_tb;
+entity BitUnpacker_tb is
+end BitUnpacker_tb;
 
-architecture tb of BlockValuesAligner_tb is
-  constant DEC_DATA_WIDTH            : natural := 64;
-  constant MAX_DELTAS_PER_CYCLE      : natural := 16;
-  constant BYTES_IN_BLOCK_WIDTH      : natural := 16;
-  constant VALUES_TO_READ            : natural := 100000;
-  constant clk_period                : time := 10 ns;
+architecture tb of BitUnpacker_tb is
+  constant DEC_DATA_WIDTH              : natural := 64;
+  constant MAX_DELTAS_PER_CYCLE        : natural := 16;
+  constant PRIM_WIDTH                  : natural := 32;
+  constant BYTES_IN_BLOCK_WIDTH        : natural := 16;
+  constant VALUES_TO_READ              : natural := 100000;
+  constant clk_period                  : time := 10 ns;
 
-  constant PRIM_WIDTH                : natural := 32;
-  constant FIRST_VALUE               : integer := 995964;
-  constant BLOCK_SIZE                : natural := 128;
-  constant MINIBLOCKS_IN_BLOCK       : natural := 4;
+  constant FIRST_VALUE                 : integer := 995964;
+  constant BLOCK_SIZE                  : natural := 128;
+  constant MINIBLOCKS_IN_BLOCK         : natural := 4;
 
-  signal clk                         : std_logic;
-  signal reset                       : std_logic;
+  signal clk                           : std_logic;
+  signal reset                         : std_logic;
+
+  --BitUnpacker
+  signal bu_in_valid                   : std_logic;
+  signal bu_in_ready                   : std_logic;
+  signal bu_in_data                    : std_logic_vector(DEC_DATA_WIDTH-1 downto 0);
+  signal bu_in_count                   : std_logic_vector(log2floor(MAX_DELTAS_PER_CYCLE) downto 0);
+  signal bu_in_width                   : std_logic_vector(log2floor(PRIM_WIDTH) downto 0);
+  signal out_valid                     : std_logic;
+  signal out_ready                     : std_logic;
+  signal out_count                     : std_logic_vector(log2floor(MAX_DELTAS_PER_CYCLE) downto 0);
+  signal out_data                      : std_logic_vector(MAX_DELTAS_PER_CYCLE*PRIM_WIDTH-1 downto 0);
+
+  --BlockValuesAligner
   signal in_valid                    : std_logic;
   signal in_ready                    : std_logic;
   signal in_data                     : std_logic_vector(DEC_DATA_WIDTH-1 downto 0);
@@ -51,56 +64,82 @@ architecture tb of BlockValuesAligner_tb is
   signal md_ready                    : std_logic;
   signal md_data                     : std_logic_vector(PRIM_WIDTH-1 downto 0);
   signal bc_valid                    : std_logic;
-  signal bc_ready                    : std_logic;
+  signal bc_ready                    : std_logic := '1';
   signal bc_data                     : std_logic_vector(BYTES_IN_BLOCK_WIDTH-1 downto 0);
-  signal out_valid                   : std_logic;
-  signal out_ready                   : std_logic;
-  signal out_data                    : std_logic_vector(DEC_DATA_WIDTH-1 downto 0);
-  signal out_count                   : std_logic_vector(log2floor(MAX_DELTAS_PER_CYCLE) downto 0);
-  signal out_width                   : std_logic_vector(log2floor(PRIM_WIDTH) downto 0);
+  signal bva_out_valid               : std_logic;
+  signal bva_out_ready               : std_logic;
+  signal bva_out_data                : std_logic_vector(DEC_DATA_WIDTH-1 downto 0);
+  signal bva_out_count               : std_logic_vector(log2floor(MAX_DELTAS_PER_CYCLE) downto 0);
+  signal bva_out_width               : std_logic_vector(log2floor(PRIM_WIDTH) downto 0);
 
-  -- Signals for checking the values read from these streams
   signal consumed_md                 : std_logic_vector(md_data'length-1 downto 0);
-  signal consumed_bc                 : std_logic_vector(bc_data'length-1 downto 0);
 
   signal consumed_out_data           : std_logic_vector(out_data'length-1 downto 0);
   signal consumed_out_count          : std_logic_vector(out_count'length-1 downto 0);
-  signal consumed_out_width          : std_logic_vector(out_width'length-1 downto 0);
 begin
-  dut: entity work.BlockValuesAligner
-  generic map(
-    -- Decoder data width
-    DEC_DATA_WIDTH              => DEC_DATA_WIDTH,
-    BLOCK_SIZE                  => BLOCK_SIZE,
-    MINIBLOCKS_IN_BLOCK         => MINIBLOCKS_IN_BLOCK,
-    MAX_DELTAS_PER_CYCLE        => MAX_DELTAS_PER_CYCLE,
-    BYTES_IN_BLOCK_WIDTH        => BYTES_IN_BLOCK_WIDTH,
-    PRIM_WIDTH                  => PRIM_WIDTH
-  )
-  port map(
-    clk                         => clk,
-    reset                       => reset,
-    in_valid                    => in_valid,
-    in_ready                    => in_ready,
-    in_data                     => in_data,
-    page_num_values             => page_num_values,
-    md_valid                    => md_valid,
-    md_ready                    => md_ready,
-    md_data                     => md_data,
-    bc_valid                    => bc_valid,
-    bc_ready                    => bc_ready,
-    bc_data                     => bc_data,
-    out_valid                   => out_valid,
-    out_ready                   => out_ready,
-    out_data                    => out_data,
-    out_count                   => out_count,
-    out_width                   => out_width
-  );
+
+  bva: entity work.BlockValuesAligner
+    generic map(
+      -- Decoder data width
+      DEC_DATA_WIDTH              => DEC_DATA_WIDTH,
+      BLOCK_SIZE                  => BLOCK_SIZE,
+      MINIBLOCKS_IN_BLOCK         => MINIBLOCKS_IN_BLOCK,
+      MAX_DELTAS_PER_CYCLE        => MAX_DELTAS_PER_CYCLE,
+      BYTES_IN_BLOCK_WIDTH        => BYTES_IN_BLOCK_WIDTH,
+      PRIM_WIDTH                  => PRIM_WIDTH
+    )
+    port map(
+      clk                         => clk,
+      reset                       => reset,
+      in_valid                    => in_valid,
+      in_ready                    => in_ready,
+      in_data                     => in_data,
+      page_num_values             => page_num_values,
+      md_valid                    => md_valid,
+      md_ready                    => md_ready,
+      md_data                     => md_data,
+      bc_valid                    => bc_valid,
+      bc_ready                    => bc_ready,
+      bc_data                     => bc_data,
+      out_valid                   => bva_out_valid,
+      out_ready                   => bva_out_ready,
+      out_data                    => bva_out_data,
+      out_count                   => bva_out_count,
+      out_width                   => bva_out_width
+    );
+
+  bu_in_data    <= bva_out_data;
+  bu_in_valid   <= bva_out_valid;
+  bva_out_ready <= bu_in_ready;
+  bu_in_count   <= bva_out_count;
+  bu_in_width   <= bva_out_width;
+
+  dut: entity work.BitUnpacker
+    generic map(
+      DEC_DATA_WIDTH              => DEC_DATA_WIDTH,
+      MAX_DELTAS_PER_CYCLE        => MAX_DELTAS_PER_CYCLE,
+      PRIM_WIDTH                  => PRIM_WIDTH
+    )
+    port map(
+      clk                         => clk,
+      reset                       => reset,
+      in_valid                    => bu_in_valid,
+      in_ready                    => bu_in_ready,
+      in_data                     => bu_in_data,
+      in_count                    => bu_in_count,
+      in_width                    => bu_in_width,
+      out_valid                   => out_valid,
+      out_ready                   => out_ready,
+      out_count                   => out_count,
+      out_data                    => out_data
+    );
+
+
 
   upstream_p: process
     file input_data             : text;
 
-    constant stream_stop_p      : real    := 0.02;
+    constant stream_stop_p      : real    := 0.001;
     constant max_stopped_cycles : real    := 30.0;
 
     variable input_line         : line;
@@ -160,7 +199,7 @@ begin
   out_consumer_p: process
     file input_data             : text;
 
-    constant stream_stop_p      : real    := 0.05;
+    constant stream_stop_p      : real    := 0.001;
     constant max_stopped_cycles : real    := 10.0;
 
     variable input_line         : line;
@@ -172,7 +211,6 @@ begin
     variable stream_stop        : real;
     variable num_stopped_cycles : real;
 
-    variable shifted_deltas     : unsigned(PRIM_WIDTH-1 downto 0);
     variable unpacked_delta     : std_logic_vector(PRIM_WIDTH-1 downto 0);
     variable last_value         : integer;
     variable md_count           : unsigned(log2ceil(BLOCK_SIZE)-1 downto 0) := (others => '0');
@@ -226,19 +264,17 @@ begin
       out_ready <= '0';
       consumed_out_data  <= out_data;
       consumed_out_count <= out_count;
-      consumed_out_width <= out_width;
 
       wait for 0 ns;
 
       md_count := md_count + to_integer(unsigned(consumed_out_count));
-
+      
       -- Loop to compare output with check file
       for i in 0 to to_integer(unsigned(consumed_out_count))-1 loop
         readline(input_data, input_line);
         hread(input_line, decoded_int);
 
-        shifted_deltas := resize(shift_right(unsigned(consumed_out_data), to_integer(unsigned(consumed_out_width)*i)), PRIM_WIDTH);
-        unpacked_delta := std_logic_vector(resize(shifted_deltas(to_integer(unsigned(consumed_out_width))-1 downto 0), PRIM_WIDTH));
+        unpacked_delta := out_data(PRIM_WIDTH*(i+1)-1 downto PRIM_WIDTH*i);
 
         last_value := last_value + min_delta + to_integer(signed(unpacked_delta));
 
@@ -263,51 +299,6 @@ begin
     wait;
   end process;
 
-  bc_consumer_p: process
-    file input_data             : text;
-
-    constant stream_stop_p      : real    := 0.05;
-    constant max_stopped_cycles : real    := 10.0;
-
-    variable input_line         : line;
-    variable page_data          : std_logic_vector(DEC_DATA_WIDTH-1 downto 0);
-
-    variable seed1              : positive := 137;
-    variable seed2              : positive := 442;
-
-    variable stream_stop        : real;
-    variable num_stopped_cycles : real;
-  begin
-    bc_ready <= '0';
-
-    loop
-      wait until rising_edge(clk);
-      exit when reset = '0';
-    end loop;
-
-    loop
-      bc_ready <= '1';
-
-      loop
-        wait until rising_edge(clk);
-        exit when bc_valid = '1';
-      end loop;
-
-      bc_ready <= '0';
-      consumed_bc <= bc_data;
-
-      -- Delay for a random amount of clock cycles to simulate a non-continuous stream
-      uniform(seed1, seed2, stream_stop);
-      if stream_stop < stream_stop_p then
-        uniform(seed1, seed2, num_stopped_cycles);
-        for i in 0 to integer(floor(num_stopped_cycles*max_stopped_cycles)) loop
-          wait until rising_edge(clk);
-        end loop;
-      end if;
-    end loop;
-    wait;
-  end process;
-
   clk_p : process
   begin
     clk <= '0';
@@ -324,5 +315,4 @@ begin
     reset <= '0';
     wait;
   end process;
-
 end architecture;

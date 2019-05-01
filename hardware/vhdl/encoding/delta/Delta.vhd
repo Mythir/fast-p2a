@@ -22,6 +22,37 @@ use work.Ptoa.all;
 
 package Delta is
 
+  component BlockValuesAligner is
+    generic (
+      DEC_DATA_WIDTH              : natural;
+      BLOCK_SIZE                  : natural;
+      MINIBLOCKS_IN_BLOCK         : natural;
+      MAX_DELTAS_PER_CYCLE        : natural;
+      BYTES_IN_BLOCK_WIDTH        : natural := 16;
+      PRIM_WIDTH                  : natural;
+      RAM_CONFIG                  : string := ""
+    );
+    port (
+      clk                         : in  std_logic;
+      reset                       : in  std_logic;
+      in_valid                    : in  std_logic;
+      in_ready                    : out std_logic;
+      in_data                     : in  std_logic_vector(DEC_DATA_WIDTH-1 downto 0);
+      page_num_values             : in  std_logic_vector(31 downto 0);
+      md_valid                    : out std_logic;
+      md_ready                    : in  std_logic;
+      md_data                     : out std_logic_vector(PRIM_WIDTH-1 downto 0);
+      bc_valid                    : out std_logic;
+      bc_ready                    : in  std_logic;
+      bc_data                     : out std_logic_vector(BYTES_IN_BLOCK_WIDTH-1 downto 0);
+      out_valid                   : out std_logic;
+      out_ready                   : in  std_logic;
+      out_data                    : out std_logic_vector(DEC_DATA_WIDTH-1 downto 0);
+      out_count                   : out std_logic_vector(log2floor(MAX_DELTAS_PER_CYCLE) downto 0);
+      out_width                   : out std_logic_vector(log2floor(PRIM_WIDTH) downto 0)
+    );
+  end component;
+
   component BlockHeaderReader is
     generic (
       DEC_DATA_WIDTH              : natural;
@@ -88,6 +119,26 @@ package Delta is
     );
   end component;
 
+  component BitUnpacker is
+    generic (
+      DEC_DATA_WIDTH              : natural;
+      MAX_DELTAS_PER_CYCLE        : natural;
+      PRIM_WIDTH                  : natural
+    );
+    port (
+      clk                         : in  std_logic;
+      reset                       : in  std_logic;
+      in_valid                    : in  std_logic;
+      in_ready                    : out std_logic;
+      in_data                     : in  std_logic_vector(DEC_DATA_WIDTH-1 downto 0);
+      in_count                    : in  std_logic_vector(log2floor(MAX_DELTAS_PER_CYCLE) downto 0);
+      in_width                    : in  std_logic_vector(log2floor(PRIM_WIDTH) downto 0);
+      out_valid                   : out std_logic;
+      out_ready                   : in  std_logic;
+      out_count                   : out std_logic_vector(log2floor(MAX_DELTAS_PER_CYCLE) downto 0);
+      out_data                    : out std_logic_vector(MAX_DELTAS_PER_CYCLE*PRIM_WIDTH-1 downto 0)
+    );
+  end component;
 
   component BitUnpackerShifter is
     generic (
