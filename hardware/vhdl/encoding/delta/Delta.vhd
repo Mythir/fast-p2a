@@ -88,6 +88,30 @@ package Delta is
     );
   end component;
 
+
+  component BitUnpackerShifter is
+    generic (
+      ID                          : natural;
+      DEC_DATA_WIDTH              : natural;
+      MAX_DELTAS_PER_CYCLE        : natural;
+      WIDTH_WIDTH                 : natural;
+      PRIM_WIDTH                  : natural;
+      NUM_SHIFT_STAGES            : natural;
+      RAM_CONFIG                  : string := ""
+    );
+    port (
+      clk                         : in  std_logic;
+      reset                       : in  std_logic;
+      in_valid                    : in  std_logic;
+      in_ready                    : out std_logic;
+      in_data                     : in  std_logic_vector(DEC_DATA_WIDTH-1 downto 0);
+      in_width                    : in  std_logic_vector(WIDTH_WIDTH-1 downto 0);
+      out_valid                   : out std_logic;
+      out_ready                   : in  std_logic;
+      out_data                    : out std_logic_vector(PRIM_WIDTH-1 downto 0)
+    );
+  end component;
+
   -----------------------------------------------------------------------------
   -- Helper functions
   -----------------------------------------------------------------------------
@@ -96,6 +120,9 @@ package Delta is
 
   type shift_lut_64_t is array (0 to 64) of natural;
   type shift_lut_32_t is array (0 to 32) of natural;
+
+  type mask_lut_64_t is array (0 to 64) of std_logic_vector(63 downto 0);
+  type mask_lut_32_t is array (0 to 32) of std_logic_vector(31 downto 0);
 
   -- These functions initialize the lut containing the amount of values to unpack per cycle for every bit packing width.
   -- For every bit width this amount needs to divide 32 (always a divisor of the amount of values in a miniblock) 
@@ -107,6 +134,10 @@ package Delta is
   -- Initialize the luts containing the amount of bits to shift (count*width)
   function init_shift_lut_64(MAX_DELTAS_PER_CYCLE : natural; DEC_DATA_WIDTH : natural) return shift_lut_64_t;
   function init_shift_lut_32(MAX_DELTAS_PER_CYCLE : natural; DEC_DATA_WIDTH : natural) return shift_lut_32_t;
+
+  -- Initialize the luts containing the masks for the BitUnpacker.
+  function init_mask_lut_64 return mask_lut_64_t;
+  function init_mask_lut_32 return mask_lut_32_t;
 
   -- Returns either a rounded down to the nearest power of 2 or 32 , whichever is smaller.
   function round_down_pow2(a : natural) return natural;
@@ -170,6 +201,29 @@ package body Delta is
 
     return result;
   end function;
+
+  function init_mask_lut_64 return mask_lut_64_t is
+    variable result : mask_lut_64_t;
+  begin
+    result(0) := (others => '0');
+    for i in 0 to 63 loop
+      result(i+1) := std_logic_vector(unsigned(result(i)) + shift_left(to_unsigned(1, 64), i));
+    end loop;
+
+    return result;
+  end function;
+
+  function init_mask_lut_32 return mask_lut_32_t is
+    variable result : mask_lut_32_t;
+  begin
+    result(0) := (others => '0');
+    for i in 0 to 31 loop
+      result(i+1) := std_logic_vector(unsigned(result(i)) + shift_left(to_unsigned(1, 32), i));
+    end loop;
+
+    return result;
+  end function;
+
 
 
 end Delta;

@@ -17,13 +17,11 @@ use ieee.numeric_std.all;
 library work;
 -- Fletcher utils for use of log2ceil function.
 use work.Utils.all;
+use work.Delta.all;
 use work.Streams.all;
 
 entity BitUnpacker is
   generic (
-    -- Identifier that determines which of the bit-packed values in the input it needs to unpack
-    ID                          : natural;
-
     -- Decoder data width
     DEC_DATA_WIDTH              : natural;
 
@@ -31,15 +29,7 @@ entity BitUnpacker is
     MAX_DELTAS_PER_CYCLE        : natural;
 
     -- Bit width of a single primitive value
-    PRIM_WIDTH                  : natural;
-
-    -- Width of value count input (amount of values to unpack)
-    COUNT_WIDTH                 : natural;
-
-    -- Width of bit packing width input
-    WIDTH_WIDTH                 : natural;
-    
-    RAM_CONFIG                  : string := ""
+    PRIM_WIDTH                  : natural
   );
   port (
     -- Rising-edge sensitive clock.
@@ -52,7 +42,8 @@ entity BitUnpacker is
     in_valid                    : in  std_logic;
     in_ready                    : out std_logic;
     in_data                     : in  std_logic_vector(DEC_DATA_WIDTH-1 downto 0);
-    in_width                    : in  std_logic_vector(WIDTH_WIDTH-1 downto 0);
+    in_count                    : in  std_logic_vector(log2floor(MAX_DELTAS_PER_CYCLE) downto 0);
+    in_width                    : in  std_logic_vector(log2floor(PRIM_WIDTH) downto 0);
 
     --Data out stream to DeltaAccumulator
     out_valid                   : out std_logic;
@@ -63,78 +54,134 @@ entity BitUnpacker is
 end BitUnpacker;
 
 architecture behv of BitUnpacker is
-  -- Width of shift amount input of the shifters
-  constant SHIFT_AMOUNT_WIDTH   : natural := log2ceil(DEC_DATA_WIDTH);
-  constant NUM_SHIFT_STAGES     : natural := SHIFT_AMOUNT_WIDTH;
+  constant NUM_SHIFT_STAGES     : natural := log2ceil(DEC_DATA_WIDTH);
+    
+  constant COUNT_WIDTH          : natural := log2floor(MAX_DELTAS_PER_CYCLE)+1;
+  constant WIDTH_WIDTH          : natural := log2floor(PRIM_WIDTH)+1;
+    
+  constant FIFO_WIDTH           : natural := COUNT_WIDTH + WIDTH_WIDTH;
+  constant FIFO_DEPTH           : natural := NUM_SHIFT_STAGES;
 
-  constant SHIFTER_CTRL_WIDTH   : natural := WIDTH_WIDTH;
-  constant SHIFTER_DATA_WIDTH   : natural := DEC_DATA_WIDTH;
-  constant SHIFTER_INPUT_WIDTH  : natural := SHIFT_AMOUNT_WIDTH + SHIFTER_CTRL_WIDTH + SHIFTER_DATA_WIDTH;
-  constant SHIFTER_OUTPUT_WIDTH : natural := SHIFTER_CTRL_WIDTH + SHIFTER_DATA_WIDTH;
+  -- LUTs containing the masks for the result of the shifters. One of these goes unused.
+  constant mask_lut_64 : mask_lut_64_t := init_mask_lut_64;
+  constant mask_lut_32 : mask_lut_32_t := init_mask_lut_32;
+  
+  -- In sync to FiFo and shifters
+  signal in_sync_out_valid      : std_logic_vector(MAX_DELTAS_PER_CYCLE downto 0);
+  signal in_sync_out_ready      : std_logic_vector(MAX_DELTAS_PER_CYCLE downto 0);
 
-  -- Stream in to shifter
-  signal shifter_in_valid       : std_logic;
-  signal shifter_in_ready       : std_logic;
-  signal shifter_in_data        : std_logic_vector(SHIFTER_INPUT_WIDTH-1 downto 0);
+  signal out_sync_in_valid      : std_logic_vector(MAX_DELTAS_PER_CYCLE downto 0);
+  signal out_sync_in_ready      : std_logic_vector(MAX_DELTAS_PER_CYCLE downto 0);
 
-  signal in_amount              : std_logic_vector(SHIFT_AMOUNT_WIDTH-1 downto 0);
+  -- Concatenation of in_count & in_width
+  signal fifo_in_data           : std_logic_vector(FIFO_WIDTH-1 downto 0);
 
-  -- Stream out from shifter
-  signal shifter_out_valid      : std_logic;
-  signal shifter_out_ready      : std_logic;
-  signal shifter_out_data       : std_logic_vector(SHIFTER_OUTPUT_WIDTH-1 downto 0);
+  -- Concatenation of all valid and ready signals of the shifters
+  signal shifters_out_valid     : std_logic_vector(MAX_DELTAS_PER_CYCLE-1 downto 0);
+  signal shifters_out_ready     : std_logic_vector(MAX_DELTAS_PER_CYCLE-1 downto 0);
 
-  signal s_pipe_input           : std_logic_vector(SHIFTER_INPUT_WIDTH-1 downto 0);
-  signal s_pipe_output          : std_logic_vector(SHIFTER_OUTPUT_WIDTH-1 downto 0);
+  -- FiFo to out_sync
+  signal fifo_out_valid         : std_logic;
+  signal fifo_out_ready         : std_logic;
+  signal fifo_out_data          : std_logic_vector(FIFO_WIDTH-1 downto 0);
+  signal fifo_out_count         : std_logic_vector(COUNT_WIDTH-1 downto 0);
+  signal fifo_out_width         : std_logic_vector(WIDTH_WIDTH-1 downto 0);
+
+  signal mask                   : std_logic_vector(PRIM_WIDTH-1 downto 0);
 begin
   
-  -- ID equals the index of the value we are unpacking. Therefore we shift by width*ID to the right.
-  in_amount <= std_logic_vector(resize(unsigned(in_width)*ID, in_amount'length));
-
-  shifter_in_valid <= in_valid;
-  in_ready         <= shifter_in_ready;
-  shifter_in_data  <= in_width & in_amount & in_data;
-
-  pipeline_ctrl: StreamPipelineControl
-    generic map (
-      IN_DATA_WIDTH             => SHIFTER_INPUT_WIDTH,
-      OUT_DATA_WIDTH            => SHIFTER_OUTPUT_WIDTH,
-      NUM_PIPE_REGS             => NUM_SHIFT_STAGES,
-      INPUT_SLICE               => false,
-      RAM_CONFIG                => RAM_CONFIG
+  -- Input: in stream, Output: All shifters plus the FiFo
+  in_sync: StreamSync
+    generic map(
+      NUM_INPUTS                => 1,
+      NUM_OUTPUTS               => MAX_DELTAS_PER_CYCLE+1
     )
-    port map (
+    port map(
       clk                       => clk,
       reset                     => reset,
-      in_valid                  => shifter_in_valid,
-      in_ready                  => shifter_in_ready,
-      in_data                   => shifter_in_data,
-      out_valid                 => shifter_out_valid,
-      out_ready                 => shifter_out_ready,
-      out_data                  => shifter_out_data,
-      pipe_valid                => open,
-      pipe_input                => s_pipe_input,
-      pipe_output               => s_pipe_output
+      in_valid(0)               => in_valid,
+      in_ready(0)               => in_ready,
+      out_valid                 => in_sync_out_valid,
+      out_ready                 => in_sync_out_ready
     );
 
-  pipeline: StreamPipelineBarrel
-    generic map (
-      ELEMENT_WIDTH             => 1,
-      ELEMENT_COUNT             => SHIFTER_DATA_WIDTH,
-      AMOUNT_WIDTH              => SHIFT_AMOUNT_WIDTH,
-      DIRECTION                 => "right",
-      OPERATION                 => "shift",
-      NUM_STAGES                => NUM_SHIFT_STAGES,
-      CTRL_WIDTH                => SHIFTER_CTRL_WIDTH
+  fifo_in_data   <= in_count & in_width;
+  out_count      <= fifo_out_count;
+  fifo_out_width <= fifo_out_data(WIDTH_WIDTH-1 downto 0);
+  fifo_out_count <= fifo_out_data(FIFO_WIDTH-1 downto WIDTH_WIDTH);
+
+  count_width_fifo: StreamFIFO
+    generic map(
+      DEPTH_LOG2         => log2ceil(FIFO_DEPTH),
+      DATA_WIDTH         => FIFO_WIDTH
     )
-    port map (
-      clk                       => clk,
-      reset                     => reset,
-      in_data                   => s_pipe_input(SHIFTER_DATA_WIDTH-1 downto 0),
-      in_ctrl                   => s_pipe_input(SHIFTER_CTRL_WIDTH+SHIFTER_DATA_WIDTH-1 downto SHIFTER_DATA_WIDTH),
-      in_amount                 => s_pipe_input(SHIFTER_INPUT_WIDTH-1 downto SHIFTER_CTRL_WIDTH+SHIFTER_DATA_WIDTH),
-      out_data                  => s_pipe_output(SHIFTER_DATA_WIDTH-1 downto 0),
-      out_ctrl                  => s_pipe_output(SHIFTER_OUTPUT_WIDTH-1 downto SHIFTER_DATA_WIDTH)
+    port map(
+      in_clk             => clk,
+      in_reset           => reset,
+      in_valid           => in_sync_out_valid(in_sync_out_valid'left),
+      in_ready           => in_sync_out_ready(in_sync_out_ready'left),
+      in_data            => fifo_in_data,
+      out_clk            => clk,
+      out_reset          => reset,
+      out_valid          => fifo_out_valid,
+      out_ready          => fifo_out_ready,
+      out_data           => fifo_out_data
+    );
+
+  mask64: if PRIM_WIDTH = 64 generate
+    mask <= mask_lut_64(to_integer(unsigned(fifo_out_width)));
+  end generate mask64;
+
+  mask32: if PRIM_WIDTH = 32 generate
+    mask <= mask_lut_32(to_integer(unsigned(fifo_out_width)));
+  end generate mask32;
+
+  shifter_gen: for i in 0 to MAX_DELTAS_PER_CYCLE-1 generate
+    signal shifter_out_data : std_logic_vector(PRIM_WIDTH-1 downto 0);
+  begin
+    unpack_shifter: BitUnpackerShifter
+      generic map(
+        ID                          => i,
+        DEC_DATA_WIDTH              => DEC_DATA_WIDTH,
+        MAX_DELTAS_PER_CYCLE        => MAX_DELTAS_PER_CYCLE,
+        WIDTH_WIDTH                 => WIDTH_WIDTH,
+        PRIM_WIDTH                  => PRIM_WIDTH,
+        NUM_SHIFT_STAGES            => NUM_SHIFT_STAGES
+      )
+      port map(
+        clk                         => clk,
+        reset                       => reset,
+        in_valid                    => in_sync_out_valid(i),
+        in_ready                    => in_sync_out_ready(i),
+        in_data                     => in_data,
+        in_width                    => in_width,
+        out_valid                   => shifters_out_valid(i),
+        out_ready                   => shifters_out_ready(i),
+        out_data                    => shifter_out_data
+      );
+
+    out_data(PRIM_WIDTH*(i+1)-1 downto PRIM_WIDTH*i) <= shifter_out_data and mask;
+  end generate shifter_gen;
+  
+  out_sync_in_valid(out_sync_in_valid'left) <= fifo_out_valid;
+  out_sync_in_ready(out_sync_in_ready'left) <= fifo_out_ready;
+
+  out_sync_in_valid(MAX_DELTAS_PER_CYCLE-1 downto 0) <= shifters_out_valid;
+  out_sync_in_ready(MAX_DELTAS_PER_CYCLE-1 downto 0) <= shifters_out_ready;
+
+  -- Input: All shifters plus the FiFo, Output: To DeltaAccumulator
+  out_sync: StreamSync
+    generic map(
+      NUM_INPUTS          => MAX_DELTAS_PER_CYCLE+1,
+      NUM_OUTPUTS         => 1
+    )
+    port map(
+      clk                 => clk,
+      reset               => reset,
+      in_valid            => out_sync_in_valid,
+      in_ready            => out_sync_in_ready,
+      out_valid(0)        => out_valid,
+      out_ready(0)        => out_ready
     );
 
 end architecture;

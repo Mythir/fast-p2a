@@ -37,6 +37,9 @@ architecture tb of Delta_tb is
 
   constant shift_lut_64 : shift_lut_64_t := init_shift_lut_64(MAX_DELTAS_PER_CYCLE, DEC_DATA_WIDTH);
   constant shift_lut_32 : shift_lut_32_t := init_shift_lut_32(MAX_DELTAS_PER_CYCLE, DEC_DATA_WIDTH);
+
+  constant mask_lut_64 : mask_lut_64_t := init_mask_lut_64;
+  constant mask_lut_32 : mask_lut_32_t := init_mask_lut_32;
 begin
   test: process
   begin
@@ -50,13 +53,23 @@ begin
       wait for 1 ns;
     end loop;
 
-    for i in 0 to count_lut_64'length-1 loop
+    for i in 0 to shift_lut_64'length-1 loop
       report integer'image(i) & " => " & integer'image(shift_lut_64(i)) severity note;
       wait for 1 ns;
     end loop;
 
-    for i in 0 to count_lut_32'length-1 loop
+    for i in 0 to shift_lut_32'length-1 loop
       report integer'image(i) & " => " & integer'image(shift_lut_32(i)) severity note;
+      wait for 1 ns;
+    end loop;
+
+    for i in 0 to mask_lut_64'length-1 loop
+      report integer'image(i) & " => " severity note;
+      wait for 1 ns;
+    end loop;
+
+    for i in 0 to mask_lut_32'length-1 loop
+      report integer'image(i) & " => " severity note;
       wait for 1 ns;
     end loop;
   wait;
