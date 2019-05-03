@@ -18,7 +18,7 @@ library work;
 -- Fletcher utils for use of log2ceil function.
 use work.Utils.all;
 
-entity DeltaAccumulator is
+entity DeltaAccumulatorFV is
   generic (
     -- Maximum number of unpacked deltas per cycle
     MAX_DELTAS_PER_CYCLE        : natural;
@@ -36,6 +36,8 @@ entity DeltaAccumulator is
     -- Active-high synchronous reset.
     reset                       : in  std_logic;
 
+    ctrl_done                   : out std_logic;
+
     -- Total number of requested values (from host)
     total_num_values            : in  std_logic_vector(31 downto 0);
 
@@ -46,7 +48,7 @@ entity DeltaAccumulator is
     new_page_valid              : in  std_logic;
     new_page_ready              : out std_logic;
     
-    -- Data in stream from BitUnpacker
+    -- Data in stream from DeltaAccumulator
     in_valid                    : in  std_logic;
     in_ready                    : out std_logic;
     in_data                     : in  std_logic_vector(MAX_DELTAS_PER_CYCLE*PRIM_WIDTH-1 downto 0);
@@ -57,11 +59,6 @@ entity DeltaAccumulator is
     fv_ready                    : out std_logic;
     fv_data                     : in  std_logic_vector(PRIM_WIDTH-1 downto 0);
 
-    -- Minimum delta stream to DeltaAccumulator
-    md_valid                    : in  std_logic;
-    md_ready                    : out std_logic;
-    md_data                     : in  std_logic_vector(PRIM_WIDTH-1 downto 0);
-
     --Data out stream to ValuesBuffer
     out_valid                   : out std_logic;
     out_ready                   : in  std_logic;
@@ -69,19 +66,15 @@ entity DeltaAccumulator is
     out_count                   : out std_logic_vector(log2floor(MAX_DELTAS_PER_CYCLE) downto 0);
     out_data                    : out std_logic_vector(MAX_DELTAS_PER_CYCLE*PRIM_WIDTH-1 downto 0)
   );
-end DeltaAccumulator;
+end DeltaAccumulatorFV;
 
-architecture behv of DeltaAccumulator is
+architecture behv of DeltaAccumulatorFV is
 
-  type state_t is (NEW_PAGE, NEW_BLOCK, ADDING, PAGE_DONE, DONE);
-  type prim_array is array (MAX_DELTAS_PER_CYCLE-1 downto 0) of unsigned(PRIM_WIDTH-1 downto 0);
+  type state_t is (REQ_PAGE, REQ_FV, SUMMING, DONE);
 
   type reg_record is record
     state           : state_t;
-    deltas          : prim_array;
-    deltas_valid    : std_logic;
-    first_value     : unsigned(PRIM_WIDTH-1 downto 0);
-    min_delta       : unsigned(PRIM_WIDTH-1 downto 0);
+    last_value      : unsigned(PRIM_WIDTH-1 downto 0);
     page_val_count  : unsigned(31 downto 0);
     total_val_count : unsigned(31 downto 0);
   end record;
@@ -91,70 +84,63 @@ architecture behv of DeltaAccumulator is
 
 begin
   
-  logic_p: process(r, out_ready, md_valid, md_data, fv_valid, fv_data, in_valid, in_data, in_count, new_page_valid, page_num_values, total_num_values)
-    variable v           : reg_record;
-    variable prefix_sum  : prefix_array;
+  logic_p: process(r)
+    variable v : reg_record;
   begin
     v := r;
 
-    fv_ready <= '0';
-    md_ready <= '0';
-    in_ready <= '0';
+    new_page_ready <= '0';
+    fv_ready       <= '0';
+    in_ready       <= '0';
+    out_valid      <= '0';
+
+    ctrl_done <= '0';
+
+    out_count <= in_count;
 
     case r.state is
-      when NEW_PAGE =>
-        fv_ready <= '1'
+      when REQ_PAGE =>
+        new_page_ready <= '1';
 
-        if fv_valid = '1' then
-          v.state          := NEW_BLOCK;
-          v.first_value    := unsigned(fv_data);
+        if new_page_valid = '1' then
+          v.state := REQ_FV;
           v.page_val_count := (others => '0');
         end if;
 
-      when NEW_BLOCK =>
-        md_ready <= '1';
+      when REQ_FV =>
+        fv_ready <= '1';
 
-        if md_valid = '1' then
-          v.state           := PREFIX_SUM;
-          v.min_delta       := unsigned(md_data);
-          v.block_val_count := (others => '0');
+        if fv_valid = '1' then
+          v.last_value := unsigned(fv_data);
+          v.state := SUMMING;
         end if;
 
-      when ADDING =>
-        in_ready <= '1';
-
-        if in_valid <= '1' then
-          for i in 0 to MAX_DELTAS_PER_CYCLE-1 loop
-            v.deltas(i) := unsigned(in_data(PRIM_WIDTH*(i+1)-1 downto PRIM_WIDTH*i)) + signed(r.min_delta);
-          end loop;
-          v.deltas_valid := '1';
-
-
-          prefix_sum(0) := r.first_value + 
-          for i in 0 to MAX_DELTAS_PER_CYCLE-1 loop
-            
-          end loop;
+      when SUMMING =>
+        in_ready  <= out_ready;
+        out_valid <= in_valid;
+        -- Todo: continue here Idea: maybe use records for stages and pipeline this so that calculations for out_count and the prefix sum are separated
+        if in_valid = '1' and out_ready = '1' then
+          v.page_val_count  := r.page_val_count + unsigned(in_count);
+          v.total_val_count := r.total_val_count + unsigned(in_count);
         end if;
-
-      when PAGE_DONE =>
 
       when DONE =>
+        ctrl_done <= '1';
 
     end case;
 
-    d <= v;
+    d <= r;
   end process;
 
   clk_p: process(clk)
   begin
     if rising_edge(clk) then
       if reset = '1' then
-        r.state           <= NEW_PAGE;
+        r.state <= REQ_PAGE;
         r.total_val_count <= (others => '0');
       else
         r <= d;
       end if;
     end if;
   end process;
-
 end architecture;
