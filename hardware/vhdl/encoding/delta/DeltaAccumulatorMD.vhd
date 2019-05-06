@@ -19,6 +19,12 @@ library work;
 use work.Utils.all;
 use work.Streams.all;
 
+-- This module uses the min_delta value obtained from the BlockHeaderReader to calculate the full deltas from the values unpacked by BitUnpacker.
+-- It keeps track of the amount of deltas processed in a block so it knows when to request a new min_delta.
+-- A FiFo buffers multiple min_delta values to allow the BlockHeaderReader to continue with the next block header.
+-- Once a full page worth of values has been processed (as determined by DeltaAccumulatorFV), this module is reset.
+-- This is in order to avoid sending padding values in the block down the pipeline. (Each block is padded to BLOCK_SIZE).
+
 entity DeltaAccumulatorMD is
   generic (
     -- Maximum number of unpacked deltas per cycle
@@ -26,6 +32,9 @@ entity DeltaAccumulatorMD is
 
     -- Amount of values in a block
     BLOCK_SIZE                  : natural;
+
+    -- Amount of miniblocks in a block
+    MINIBLOCKS_IN_BLOCK         : natural;
 
     -- Bit width of a single primitive value
     PRIM_WIDTH                  : natural
@@ -74,7 +83,7 @@ begin
   -- Buffer for the min deltas
   md_fifo: StreamFIFO
     generic map(
-      DEPTH_LOG2                => 2,
+      DEPTH_LOG2                => log2ceil(MINIBLOCKS_IN_BLOCK),
       DATA_WIDTH                => PRIM_WIDTH
     )
     port map(

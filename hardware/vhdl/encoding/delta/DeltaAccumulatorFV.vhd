@@ -19,6 +19,12 @@ library work;
 use work.Utils.all;
 use work.Streams.all;
 
+-- This module adds each delta supplied by DeltaAccumulatorMD to produce the final values.
+-- Also keeps track of the page value count and total value count and is therefore responsible for the control logic
+-- involved with page requests and completion detection.
+-- The addition to the value counts and the control logic involved with the resulting value counts are separated in different stages
+-- to avoid critical path issues.
+
 entity DeltaAccumulatorFV is
   generic (
     -- Maximum number of unpacked deltas per cycle
@@ -188,6 +194,7 @@ begin
     fv_ready       <= '0';
     in_ready       <= '0';
     out_valid      <= '0';
+    out_last       <= '0';
 
     ctrl_done <= '0';
 
@@ -242,6 +249,7 @@ begin
           if slice_out_ready = '1' and slice_out_valid = '1' then
             if r.last_page = '1' then
               v.state := DONE;
+              out_last <= '1';
             else
               v.state := REQ_PAGE;
             end if;
