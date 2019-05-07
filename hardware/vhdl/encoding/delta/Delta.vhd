@@ -239,6 +239,37 @@ package Delta is
     );
   end component;
 
+  component DeltaAccumulator is
+    generic (
+      MAX_DELTAS_PER_CYCLE        : natural;
+      BLOCK_SIZE                  : natural;
+      MINIBLOCKS_IN_BLOCK         : natural;
+      PRIM_WIDTH                  : natural
+    );
+    port (
+      clk                         : in  std_logic;
+      reset                       : in  std_logic;
+      total_num_values            : in  std_logic_vector(31 downto 0);
+      page_num_values             : in  std_logic_vector(31 downto 0);
+      new_page_valid              : in  std_logic;
+      new_page_ready              : out std_logic;
+      in_valid                    : in  std_logic;
+      in_ready                    : out std_logic;
+      in_data                     : in  std_logic_vector(MAX_DELTAS_PER_CYCLE*PRIM_WIDTH-1 downto 0);
+      in_count                    : in  std_logic_vector(log2floor(MAX_DELTAS_PER_CYCLE) downto 0);
+      fv_valid                    : in  std_logic;
+      fv_ready                    : out std_logic;
+      fv_data                     : in  std_logic_vector(PRIM_WIDTH-1 downto 0);
+      md_valid                    : in  std_logic;
+      md_ready                    : out std_logic;
+      md_data                     : in  std_logic_vector(PRIM_WIDTH-1 downto 0);
+      out_valid                   : out std_logic;
+      out_ready                   : in  std_logic;
+      out_last                    : out std_logic;
+      out_count                   : out std_logic_vector(log2floor(MAX_DELTAS_PER_CYCLE) downto 0);
+      out_data                    : out std_logic_vector(MAX_DELTAS_PER_CYCLE*PRIM_WIDTH-1 downto 0)
+    );
+  end component;
   -----------------------------------------------------------------------------
   -- Helper functions
   -----------------------------------------------------------------------------
