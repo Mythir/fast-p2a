@@ -22,6 +22,7 @@ use work.Encoding.all;
 entity DecoderWrapper is
   generic (
     BUS_DATA_WIDTH              : natural;
+    ELEMENTS_PER_CYCLE          : natural;
     PRIM_WIDTH                  : natural;
     ENCODING                    : string := "PLAIN"
   );
@@ -36,11 +37,12 @@ entity DecoderWrapper is
     new_page_ready              : out std_logic;
     total_num_values            : in  std_logic_vector(31 downto 0);
     page_num_values             : in  std_logic_vector(31 downto 0);
+    uncompressed_size           : in  std_logic_vector(31 downto 0);
     out_valid                   : out std_logic;
     out_ready                   : in  std_logic;
     out_last                    : out std_logic;
     out_dvalid                  : out std_logic := '1';
-    out_data                    : out std_logic_vector(BUS_DATA_WIDTH-1 downto 0)
+    out_data                    : out std_logic_vector(log2ceil(ELEMENTS_PER_CYCLE+1) + ELEMENTS_PER_CYCLE*PRIM_WIDTH - 1 downto 0)
   );
 end DecoderWrapper;
 
@@ -51,6 +53,7 @@ begin
     plaindecoder_inst: PlainDecoder
       generic map(
         BUS_DATA_WIDTH            => BUS_DATA_WIDTH,
+        ELEMENTS_PER_CYCLE        => ELEMENTS_PER_CYCLE,
         PRIM_WIDTH                => PRIM_WIDTH
       )
       port map(

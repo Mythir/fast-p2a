@@ -36,7 +36,9 @@ package Ptoa is
       INDEX_WIDTH                                : natural;
       ---------------------------------------------------------------------------
       TAG_WIDTH                                  : natural;
-      CFG                                        : string
+      CFG                                        : string;
+      ENCODING                                   : string;
+      COMPRESSION_CODEC                          : string
     );
     port(
       clk                                        : in  std_logic;

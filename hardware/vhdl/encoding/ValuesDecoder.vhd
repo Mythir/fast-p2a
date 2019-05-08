@@ -59,6 +59,9 @@ entity ValuesDecoder is
     -- Compression
     COMPRESSION_CODEC           : string;
 
+    -- Max amount of elements supplied to the ArrayWriters per cycle
+    ELEMENTS_PER_CYCLE          : natural;
+
     -- Bit width of a single primitive value
     PRIM_WIDTH                  : natural
   );
@@ -114,7 +117,7 @@ entity ValuesDecoder is
     out_ready                   : in  std_logic;
     out_last                    : out std_logic;
     out_dvalid                  : out std_logic := '1';
-    out_data                    : out std_logic_vector(BUS_DATA_WIDTH-1 downto 0)
+    out_data                    : out std_logic_vector(log2ceil(ELEMENTS_PER_CYCLE+1) + ELEMENTS_PER_CYCLE*PRIM_WIDTH - 1 downto 0)
   );
 end ValuesDecoder;
 
@@ -189,6 +192,7 @@ begin
   dcod_inst: DecoderWrapper
     generic map(
       BUS_DATA_WIDTH              => BUS_DATA_WIDTH,
+      ELEMENTS_PER_CYCLE          => ELEMENTS_PER_CYCLE,
       PRIM_WIDTH                  => PRIM_WIDTH,
       ENCODING                    => ENCODING
     )
@@ -203,6 +207,7 @@ begin
       new_page_ready              => page_dcod_ready,
       total_num_values            => total_num_values,
       page_num_values             => page_num_values,
+      uncompressed_size           => uncompressed_size,
       out_valid                   => out_valid,
       out_ready                   => out_ready,
       out_last                    => out_last,

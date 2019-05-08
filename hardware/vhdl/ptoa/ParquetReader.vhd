@@ -49,7 +49,9 @@ entity ParquetReader is
     INDEX_WIDTH                                : natural;
     ---------------------------------------------------------------------------
     TAG_WIDTH                                  : natural;
-    CFG                                        : string
+    CFG                                        : string;
+    ENCODING                                   : string;
+    COMPRESSION_CODEC                          : string
   );
   port(
     clk                                        : in  std_logic;
@@ -93,6 +95,9 @@ entity ParquetReader is
 end ParquetReader;
 
 architecture Implementation of ParquetReader is
+
+  constant PRIM_WIDTH                          : natural := strtoi(parse_arg(CFG, 0));
+  constant ELEMENTS_PER_CYCLE                  : natural := parse_param(CFG, "epc", 1);
 
   -- Metadata signals
   signal mdi_rl_byte_length                    : std_logic_vector(31 downto 0);
@@ -152,7 +157,7 @@ architecture Implementation of ParquetReader is
   signal vd_cw_valid                           : std_logic_vector(0 downto 0);
   signal vd_cw_ready                           : std_logic_vector(0 downto 0);
   signal vd_cw_last                            : std_logic_vector(0 downto 0);
-  signal vd_cw_data                            : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
+  signal vd_cw_data                            : std_logic_vector(log2ceil(ELEMENTS_PER_CYCLE+1) + ELEMENTS_PER_CYCLE*PRIM_WIDTH - 1 downto 0);
   signal vd_cw_dvalid                          : std_logic_vector(0 downto 0);
 
 begin
@@ -163,7 +168,7 @@ begin
       BUS_ADDR_WIDTH      => BUS_ADDR_WIDTH,
       BUS_LEN_WIDTH       => BUS_LEN_WIDTH,
       BUS_BURST_MAX_LEN   => BUS_BURST_MAX_LEN,
-      BUS_FIFO_DEPTH      => 3*BUS_BURST_MAX_LEN
+      BUS_FIFO_DEPTH      => 5*BUS_BURST_MAX_LEN
     )
     port map(
       clk                 => clk,
@@ -238,9 +243,10 @@ begin
       INDEX_WIDTH                 => INDEX_WIDTH,
       MIN_INPUT_BUFFER_DEPTH      => 16,
       CMD_TAG_WIDTH               => TAG_WIDTH,
-      ENCODING                    => "PLAIN",
-      COMPRESSION_CODEC           => "UNCOMPRESSED",
-      PRIM_WIDTH                  => strtoi(parse_arg(CFG, 0))
+      ENCODING                    => ENCODING,
+      COMPRESSION_CODEC           => COMPRESSION_CODEC,
+      ELEMENTS_PER_CYCLE          => ELEMENTS_PER_CYCLE,
+      PRIM_WIDTH                  => PRIM_WIDTH
     )
     port map(
       clk                         => clk,
@@ -283,7 +289,7 @@ begin
       BUS_BURST_STEP_LEN          => BUS_BURST_STEP_LEN,
       BUS_BURST_MAX_LEN           => BUS_BURST_MAX_LEN,
       INDEX_WIDTH                 => INDEX_WIDTH,
-      CFG                         => "prim(" & integer'image(BUS_DATA_WIDTH) & ")", -- ArrayWriter should write the max amount of elements per cycle that the bus width allows
+      CFG                         => CFG,
       CMD_TAG_ENABLE              => true,
       CMD_TAG_WIDTH               => TAG_WIDTH
     )

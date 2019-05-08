@@ -73,8 +73,6 @@ entity DeltaDecoder is
   );
 end DeltaDecoder;
 
--- Don't forget to store page_num_values after every handshake. Don't accept new data until a new page has been handshaked (wait for BitUnpacker and DeltaAccumulator)
-
 architecture behv of DeltaDecoder is
   
   -- The current design requires these two encoding parameters to be constant.
