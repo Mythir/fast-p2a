@@ -19,6 +19,7 @@ library work;
 use work.Utils.all;
 use work.Streams.all;
 use work.Delta.all;
+use work.Ptoa.all;
 
 entity DeltaDecoder is
   generic (
@@ -89,7 +90,6 @@ architecture behv of DeltaDecoder is
 
   type reg_record is record
     state             : state_t;
-    total_num_values  : std_logic_vector(31 downto 0);
     page_num_values   : std_logic_vector(31 downto 0);
     uncompressed_size : std_logic_vector(31 downto 0);
     bytes_counted     : std_logic_vector(31 downto 0);
@@ -168,14 +168,17 @@ architecture behv of DeltaDecoder is
   -- Data BitUnpacker->DeltaAccumulator
   signal bu_da_valid       : std_logic;
   signal bu_da_ready       : std_logic;
-  signal bu_da_data        : std_logic_vector(DEC_DATA_WIDTH-1 downto 0);
   signal bu_da_count       : std_logic_vector(COUNT_WIDTH-1 downto 0);
+  signal bu_da_data        : std_logic_vector(ELEMENTS_PER_CYCLE*PRIM_WIDTH-1 downto 0);
 
 begin
   
   pipeline_reset <= reset or new_page_reset;
 
-  input_p: process(r, in_valid, da_new_page_valid, dhr_in_valid, da_new_page_ready, new_page_valid, total_num_values, page_num_values, uncompressed_size, dhr_in_ready)
+  -- Bytes consumed stream is only important when decoding strings.
+  bc_ready <= '1';
+
+  input_p: process(r, in_valid, da_new_page_valid, dhr_in_valid, da_new_page_ready, new_page_valid, page_num_values, uncompressed_size, dhr_in_ready)
     variable v : reg_record;
   begin
     v := r;
@@ -192,13 +195,13 @@ begin
         dhr_in_valid <= '0';
   
         if da_new_page_valid = '1' and da_new_page_ready = '1' then
-          v.total_num_values  := total_num_values;
           v.page_num_values   := page_num_values;
           v.uncompressed_size := uncompressed_size;
           v.bytes_counted     := (others => '0');
-          v.state             := REQ_PAGE;
+          v.state             := IN_PAGE;
           new_page_reset      <= '1';
         end if;
+
       when IN_PAGE =>
         -- Connect input of DeltaHeaderReader with input of DeltaDecoder and count bytes transferred until a full page has been transferred.
         new_page_ready    <= '0';
@@ -207,7 +210,7 @@ begin
         in_ready     <= dhr_in_ready;
         dhr_in_valid <= in_valid;
 
-        if dhr_in_valid = '1' and dhr_in_ready <= '1' then
+        if dhr_in_valid = '1' and dhr_in_ready = '1' then
           v.bytes_counted := std_logic_vector(unsigned(r.bytes_counted) + BUS_DATA_WIDTH/8);
         end if;
 
@@ -252,7 +255,7 @@ begin
       reset                     => pipeline_reset,
       in_valid                  => dhr_ss_valid,
       in_ready                  => dhr_ss_ready,
-      in_data                   => dhr_ss_data,
+      in_data                   => element_swap(dhr_ss_data, DEC_DATA_WIDTH),
       out_valid                 => ss_bva_valid,
       out_ready                 => ss_bva_ready,
       out_data                  => ss_bva_data
@@ -305,8 +308,8 @@ begin
       in_width                    => bva_bu_width,
       out_valid                   => bu_da_valid,
       out_ready                   => bu_da_ready,
-      out_count                   => bu_da_data,
-      out_data                    => bu_da_count
+      out_count                   => bu_da_count,
+      out_data                    => bu_da_data
     );
 
   da_inst: DeltaAccumulator
@@ -319,8 +322,8 @@ begin
     port map(
       clk                         => clk,
       reset                       => reset,
-      total_num_values            => r.total_num_values,
-      page_num_values             => r.page_num_values,
+      total_num_values            => total_num_values,
+      page_num_values             => page_num_values,
       new_page_valid              => da_new_page_valid,
       new_page_ready              => da_new_page_ready,
       in_valid                    => bu_da_valid,

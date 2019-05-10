@@ -77,12 +77,14 @@ end DeltaAccumulatorFV;
 
 architecture behv of DeltaAccumulatorFV is
 
-  type state_t is (REQ_PAGE, REQ_FV, SUMMING, DONE);
+  type state_t is (REQ_PAGE, REQ_FV, SEND_FV, SUMMING, DONE);
 
   type int_array is array (MAX_DELTAS_PER_CYCLE-1 downto 0) of signed(PRIM_WIDTH-1 downto 0);
 
   type reg_record is record
     state           : state_t;
+    -- Number of values in page locally stored
+    page_num_val    : std_logic_vector(31 downto 0);
     -- Asserted when processing the last page
     last_page       : std_logic;
     -- Register for storing the most recently calculated value in the prefix sum
@@ -109,17 +111,13 @@ architecture behv of DeltaAccumulatorFV is
   signal slice_out_concat   : std_logic_vector(SLICE_WIDTH-1 downto 0);
   
   -- Slice input signals split
-  signal slice_in_tvc       : std_logic_vector(r.total_val_count'length-1 downto 0);
   signal slice_in_pvc       : std_logic_vector(r.page_val_count'length-1 downto 0);
-  signal slice_in_tvc_prev  : std_logic_vector(r.total_val_count'length-1 downto 0);
   signal slice_in_pvc_prev  : std_logic_vector(r.page_val_count'length-1 downto 0);
   signal slice_in_data      : std_logic_vector(in_data'length-1 downto 0);
   signal slice_in_count     : std_logic_vector(in_count'length-1 downto 0);
   
   -- Slice output signals split
-  signal slice_out_tvc      : std_logic_vector(r.total_val_count'length-1 downto 0);
   signal slice_out_pvc      : std_logic_vector(r.page_val_count'length-1 downto 0);
-  signal slice_out_tvc_prev : std_logic_vector(r.total_val_count'length-1 downto 0);
   signal slice_out_pvc_prev : std_logic_vector(r.page_val_count'length-1 downto 0);
   signal slice_out_data     : int_array;
   signal slice_out_count    : std_logic_vector(in_count'length-1 downto 0);
@@ -127,7 +125,12 @@ architecture behv of DeltaAccumulatorFV is
   -- out_data as array
   signal out_data_arr       : int_array;
 
+  -- Internal copy of out_count output
   signal s_out_count        : std_logic_vector(out_count'length-1 downto 0);
+
+  -- In the case of a new page the slice needs to be reset
+  signal new_page_handshake : std_logic;
+  signal slice_reset        : std_logic;
 
 begin
   
@@ -138,13 +141,15 @@ begin
   -------------------------------------------------------------------------------
   slice_in_concat <= slice_in_pvc & slice_in_pvc_prev & slice_in_data & slice_in_count;
 
+  slice_reset <= reset or new_page_handshake;
+
   slice: StreamSlice 
     generic map (
       DATA_WIDTH                  => SLICE_WIDTH
     )
     port map (
       clk                         => clk,
-      reset                       => reset,
+      reset                       => slice_reset,
       in_valid                    => slice_in_valid,
       in_ready                    => slice_in_ready,
       in_data                     => slice_in_concat,
@@ -176,10 +181,6 @@ begin
     out_data_arr(i) <= slice_out_data(i) + out_data_arr(i-1);
   end generate prefix_sum_gen;
 
-  out_data_ser: for i in 0 to MAX_DELTAS_PER_CYCLE-1 generate
-    out_data(PRIM_WIDTH*(i+1)-1 downto PRIM_WIDTH*i) <= std_logic_vector(out_data_arr(i));
-  end generate out_data_ser;
-
   -------------------------------------------------------------------------------
   -- Control logic
   -------------------------------------------------------------------------------  
@@ -196,12 +197,22 @@ begin
     out_valid      <= '0';
     out_last       <= '0';
 
+    slice_in_valid  <= '0';
+    slice_out_ready <= '0';
+
+    new_page_handshake <= '0';
+    
     ctrl_done <= '0';
 
     s_out_count <= slice_out_count;
 
+    for i in 0 to MAX_DELTAS_PER_CYCLE-1 loop
+      out_data(PRIM_WIDTH*(i+1)-1 downto PRIM_WIDTH*i) <= std_logic_vector(out_data_arr(i));
+    end loop;
+
     case r.state is
       when REQ_PAGE =>
+        -- Handshake a new page with the PreDecBuffer and store relevant page metadata.
         new_page_ready <= '1';
 
         if new_page_valid = '1' then
@@ -211,23 +222,42 @@ begin
 
           -- Use the max values register to store the previous value of total_val_count for the next cycle
           v.max_values := r.total_val_count;
+
+          v.page_num_val := page_num_values;
+
+          new_page_handshake <= '1';
         end if;
 
       when REQ_FV =>
+        -- The first value of the page is encoded in the Delta header. In this state the DeltaAccumulator receives that value.
+        -- This state is also used to determine the amount of values we are going to read from this page.
         fv_ready <= '1';
 
         if fv_valid = '1' then
           v.last_value := signed(fv_data);
-          v.state := SUMMING;
+          v.state := SEND_FV;
 
           -- Cap max values to read such that we never read more than the total amount of requested values.
           if r.total_val_count >= unsigned(total_num_values) then
             v.last_page  := '1';
             v.max_values := unsigned(total_num_values) - r.max_values;
           else
-            v.max_values := unsigned(page_num_values);
+            v.max_values := unsigned(r.page_num_val);
           end if;
         end if;
+
+      when SEND_FV =>
+        -- Transfer the first value to the ArrayWriters before we start decoding.
+        out_valid <= '1';
+
+        s_out_count <= std_logic_vector(to_unsigned(1, s_out_count'length));
+        out_data(PRIM_WIDTH-1 downto 0) <= std_logic_vector(r.last_value);
+
+        if out_ready = '1' then
+          v.state := SUMMING;
+          v.page_val_count := r.page_val_count + 1;
+        end if;
+
 
       when SUMMING =>
         -- First stage: calculate new value counts
@@ -257,7 +287,7 @@ begin
         end if;
 
         if slice_out_ready = '1' and slice_out_valid = '1' then
-          v.last_value := out_data_arr(to_integer(unsigned(s_out_count)));
+          v.last_value := out_data_arr(to_integer(unsigned(s_out_count(log2ceil(out_data_arr'length)-1 downto 0))-1));
         end  if;
 
       when DONE =>
@@ -265,7 +295,7 @@ begin
 
     end case;
 
-    d <= r;
+    d <= v;
   end process;
 
   clk_p: process(clk)

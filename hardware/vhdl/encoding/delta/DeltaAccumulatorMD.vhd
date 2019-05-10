@@ -102,7 +102,7 @@ begin
   -- out_count remains unchanged while each of the offsets in the input data gets added to min_delta to create the final delta
   out_count <= in_count;
   sum_gen: for i in 0 to MAX_DELTAS_PER_CYCLE-1 generate
-    out_data(PRIM_WIDTH*(i+1)-1 downto 0) <= std_logic_vector(unsigned(in_data(PRIM_WIDTH*(i+1)-1 downto 0)) + unsigned(resize(signed(md_fifo_out_data), PRIM_WIDTH)));
+    out_data(PRIM_WIDTH*(i+1)-1 downto PRIM_WIDTH*i) <= std_logic_vector(unsigned(in_data(PRIM_WIDTH*(i+1)-1 downto PRIM_WIDTH*i)) + unsigned(resize(signed(md_fifo_out_data), PRIM_WIDTH)));
   end generate sum_gen;
 
   logic_p: process(r, md_fifo_out_valid, in_valid, out_ready, in_count)
@@ -112,6 +112,8 @@ begin
 
     in_ready  <= '0';
     out_valid <= '0';
+
+    md_fifo_out_ready <= '0';
 
     if md_fifo_out_valid = '1' then
       in_ready  <= out_ready;
@@ -124,6 +126,7 @@ begin
       if v.block_val_count = to_unsigned(BLOCK_SIZE, r.block_val_count'length) then
         -- Request new md upon completion of block
         md_fifo_out_ready <= '1';
+        v.block_val_count := (others => '0');
       end if;
     end if;
 
