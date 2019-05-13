@@ -176,7 +176,7 @@ begin
       INDEX_WIDTH                              => INDEX_WIDTH,
       ---------------------------------------------------------------------------------
       TAG_WIDTH                                => TAG_WIDTH,
-      CFG                                      => "prim(32;epc=16)",
+      CFG                                      => "prim(32;epc=8)",
       ENCODING                                 => "DELTA",
       COMPRESSION_CODEC                        => "UNCOMPRESSED"
     )
