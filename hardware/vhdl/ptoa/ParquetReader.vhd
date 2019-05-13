@@ -196,6 +196,7 @@ begin
   DataAligner_inst: DataAligner
     generic map(
       BUS_DATA_WIDTH      => BUS_DATA_WIDTH,
+      BUS_ADDR_WIDTH      => BUS_ADDR_WIDTH,
       NUM_CONSUMERS       => NUM_CONSUMERS,
       NUM_SHIFT_STAGES    => log2ceil(BUS_DATA_WIDTH/8)
     )
@@ -213,7 +214,8 @@ begin
       bc_ready            => bytes_cons_ready,
       prod_alignment      => prod_align_data,
       pa_valid            => prod_align_valid,
-      pa_ready            => prod_align_ready
+      pa_ready            => prod_align_ready,
+      data_size           => max_data_size
     );
 
   MetadataInterpreter_inst: V2MetadataInterpreter
