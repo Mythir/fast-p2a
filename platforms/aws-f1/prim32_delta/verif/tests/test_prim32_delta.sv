@@ -78,7 +78,7 @@ module test_prim32_delta();
 
   //Input file
   int file_descriptor = 0;
-  string file_path = "hw_delta_200ps_int32.parquet";//"int64array_nosnap_nodict.prq";
+  string file_path = "hw_delta_800ps_int32.parquet";//"int64array_nosnap_nodict.prq";
   byte file_data[0:num_page_bytes-1];
   int bytes_read = 0;
 
@@ -235,7 +235,7 @@ initial begin
 
   $display("[%t] : UserCore completed ", $realtime);
 
-  tb.nsec_delay(12000);
+  tb.nsec_delay(2000);
 
   /*************************************************************
   * Transfer Arrow buffer from CL to host
@@ -262,6 +262,8 @@ initial begin
     );
     error_count++;
   end
+
+  tb.nsec_delay(1000);
 
   /*************************************************************
   * Write values in Arrow column to file

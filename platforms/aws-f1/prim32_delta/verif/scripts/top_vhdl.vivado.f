@@ -73,6 +73,8 @@ ${FLETCHER_HARDWARE_DIR}/axi/axi_write_converter.vhd
 
 # PTOA files
 
+${PTOA_HARDWARE_DIR}/vhdl/ptoa/Ptoa.vhd
+${PTOA_HARDWARE_DIR}/vhdl/encoding/Encoding.vhd
 
 ${PTOA_HARDWARE_DIR}/vhdl/encoding/delta/Delta.vhd
 ${PTOA_HARDWARE_DIR}/vhdl/encoding/delta/AdvanceableFiFo.vhd
@@ -87,7 +89,6 @@ ${PTOA_HARDWARE_DIR}/vhdl/encoding/delta/DeltaAccumulator.vhd
 ${PTOA_HARDWARE_DIR}/vhdl/encoding/delta/DeltaHeaderReader.vhd
 ${PTOA_HARDWARE_DIR}/vhdl/encoding/delta/DeltaDecoder.vhd
 
-${PTOA_HARDWARE_DIR}/vhdl/encoding/Encoding.vhd
 ${PTOA_HARDWARE_DIR}/vhdl/encoding/VarIntDecoder.vhd
 ${PTOA_HARDWARE_DIR}/vhdl/encoding/DecoderWrapper.vhd
 ${PTOA_HARDWARE_DIR}/vhdl/encoding/DecompressorWrapper.vhd
@@ -107,7 +108,6 @@ ${PTOA_HARDWARE_DIR}/vhdl/alignment/ShifterRecombiner.vhd
 ${PTOA_HARDWARE_DIR}/vhdl/ingestion/Ingestion.vhd
 ${PTOA_HARDWARE_DIR}/vhdl/ingestion/Ingester.vhd
 
-${PTOA_HARDWARE_DIR}/vhdl/ptoa/Ptoa.vhd
 ${PTOA_HARDWARE_DIR}/vhdl/ptoa/ParquetReader.vhd
 
 ${PTOA_HARDWARE_DIR}/vhdl/ptoa_wrapper.vhd
