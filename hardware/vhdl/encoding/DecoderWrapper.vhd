@@ -18,6 +18,7 @@ library work;
 -- Fletcher utils for use of log2ceil function.
 use work.Utils.all;
 use work.Encoding.all;
+use work.Delta.all;
 
 entity DecoderWrapper is
   generic (
@@ -74,6 +75,34 @@ begin
         out_data                  => out_data
       );
   end generate;
+
+  delta_gen: if ENCODING = "DELTA" generate
+    deltadecoder_inst: DeltaDecoder
+      generic map(
+        BUS_DATA_WIDTH            => BUS_DATA_WIDTH,
+        PRIM_WIDTH                => PRIM_WIDTH,
+        ELEMENTS_PER_CYCLE        => ELEMENTS_PER_CYCLE
+      )
+      port map(
+        clk                       => clk,
+        reset                     => reset,
+        ctrl_done                 => ctrl_done,
+        in_valid                  => in_valid,
+        in_ready                  => in_ready,
+        in_data                   => in_data,
+        new_page_valid            => new_page_valid,
+        new_page_ready            => new_page_ready,
+        total_num_values          => total_num_values,
+        page_num_values           => page_num_values,
+        uncompressed_size         => uncompressed_size,
+        out_valid                 => out_valid,
+        out_ready                 => out_ready,
+        out_last                  => out_last,
+        out_dvalid                => out_dvalid,
+        out_data                  => out_data
+      );
+  end generate;
+
 
 
 end architecture;

@@ -63,6 +63,7 @@ package Delta is
       reset                       : in  std_logic;
       in_valid                    : in  std_logic;
       in_ready                    : out std_logic;
+      in_last                     : in  std_logic;
       in_data                     : in  std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
       fv_valid                    : out std_logic;
       fv_ready                    : in  std_logic;

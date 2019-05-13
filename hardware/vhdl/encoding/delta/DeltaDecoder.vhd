@@ -110,6 +110,7 @@ architecture behv of DeltaDecoder is
   -- Data in to DeltaHeaderReader
   signal dhr_in_valid      : std_logic;
   signal dhr_in_ready      : std_logic;
+  signal dhr_in_last       : std_logic;
   
   -- New page handshake to DeltaAccumulator
   signal da_new_page_valid : std_logic;
@@ -185,6 +186,8 @@ begin
 
     new_page_reset <= '0';
 
+    dhr_in_last    <= '0';
+
     case r.state is
       when REQ_PAGE =>
         -- Wait for new page handshake. When a new page is handshaked, set all registers to the new metadata values and reset where needed.
@@ -216,6 +219,7 @@ begin
 
         if unsigned(v.bytes_counted) >= unsigned(r.uncompressed_size) then
           v.state := REQ_PAGE;
+          dhr_in_last <= '1';
         end if;
       end case;
 
@@ -235,6 +239,7 @@ begin
       reset                      => pipeline_reset,
       in_valid                   => dhr_in_valid,
       in_ready                   => dhr_in_ready,
+      in_last                    => dhr_in_last,
       in_data                    => in_data,
       fv_valid                   => fv_valid,
       fv_ready                   => fv_ready,
