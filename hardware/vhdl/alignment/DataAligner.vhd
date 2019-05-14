@@ -24,6 +24,10 @@ use work.Alignment.all;
 -- actually needed by that consumer (all other bytes are for the next consumer). The DataAligner will use this information and the 
 -- contents of the HistoryBuffer to realign and provide the next consumer with the realigned data.
 --
+-- The DataAligner will count the number of bytes read from the Ingester. Once this equals the total size of the data the DataAligner
+-- will send garbage into the ShifterRecombiner to flush it. This functionality was included late in development to patch a bug
+-- where the DataAligner could get stuck if the data_size supplied to the hardware was a very tight fit for the actually needed data.
+--
 -- Note: If a consumer handshakes an output word, it is expected to need at least 1 byte from it. It can't report back it has consumed
 -- 0 bytes from it. Using all bytes is fine.
 
@@ -31,6 +35,8 @@ entity DataAligner is
   generic (
     -- Bus data width
     BUS_DATA_WIDTH              : natural := 512;
+
+    BUS_ADDR_WIDTH              : natural := 64;
 
     -- Number of consumers requesting aligned data.
     NUM_CONSUMERS               : natural := 5;
@@ -66,7 +72,9 @@ entity DataAligner is
     -- The ingester might read from unaligned memory addresses. Misalignment should stay constant for sequential reads.
     prod_alignment              : in  std_logic_vector(log2ceil(BUS_DATA_WIDTH/8)-1 downto 0);
     pa_valid                    : in  std_logic;
-    pa_ready                    : out std_logic
+    pa_ready                    : out std_logic;
+
+    data_size                   : in  std_logic_vector(BUS_ADDR_WIDTH-1 downto 0)
   );
 end DataAligner;
 
@@ -91,6 +99,10 @@ architecture behv of DataAligner is
   signal alignment                    : std_logic_vector(SHIFT_WIDTH-1 downto 0);
   -- 1 wider to check for overflow
   signal alignment_next               : std_logic_vector(SHIFT_WIDTH downto 0);
+
+  -- Number of bytes in the input data
+  signal bytes_to_read                : signed(BUS_ADDR_WIDTH downto 0);
+  signal bytes_to_read_next           : signed(BUS_ADDR_WIDTH downto 0);
 
   -- Shift_rec input stream
   signal shift_rec_in_valid           : std_logic;
@@ -118,7 +130,12 @@ architecture behv of DataAligner is
   signal first_in_align_group         : std_logic;
   signal first_in_align_group_next    : std_logic;
 
+  -- Internal copy of in_ready
+  signal s_in_ready                   : std_logic;
+
 begin
+
+  in_ready <= s_in_ready;
   
   hist_buffer_inst: HistoryBuffer
   generic map(
@@ -167,7 +184,7 @@ begin
   logic_p: process(c, alignment, state, bc_valid, pa_valid, prod_alignment, bytes_consumed, in_data, 
                    shift_rec_in_ready, hist_buffer_in_ready, in_valid, shift_rec_out_valid, out_ready, 
                    hist_buffer_out_data, hist_buffer_out_valid, end_realignment, shift_rec_out_ready,
-                   first_in_align_group)
+                   first_in_align_group, data_size, s_in_ready, bytes_to_read)
   begin
     -- Default values
     bc_ready <= (others => '0');
@@ -179,7 +196,7 @@ begin
     -- Normally, no data can be exchanged between the DataAligner input and the shift_rec/hist_buf inputs
     shift_rec_in_valid <= '0';
     hist_buffer_in_valid <= '0';
-    in_ready <= '0';
+    s_in_ready <= '0';
 
     hist_buffer_out_ready <= '0';
 
@@ -187,6 +204,7 @@ begin
     alignment_next <= '0' & alignment;
     first_in_align_group_next <= first_in_align_group;
     state_next <= state;
+    bytes_to_read_next <= bytes_to_read;
 
     out_valid <= (others => '0');
     shift_rec_out_ready <= '0';
@@ -204,6 +222,7 @@ begin
       if pa_valid = '1' then
         state_next <= STANDARD;
         alignment_next <= '0' & std_logic_vector(unsigned(alignment) + unsigned(prod_alignment));
+        bytes_to_read_next <= signed(resize((unsigned(prod_alignment) + unsigned(data_size)), bytes_to_read_next'length));
       end if;
 
       when STANDARD =>
@@ -224,12 +243,23 @@ begin
         end if;
         
         -- Synchronize shift_rec and hist_buffer input streams
-        in_ready <= shift_rec_in_ready and hist_buffer_in_ready;
+        s_in_ready <= shift_rec_in_ready and hist_buffer_in_ready;
         shift_rec_in_valid <= in_valid and hist_buffer_in_ready;
         hist_buffer_in_valid <= in_valid and shift_rec_in_ready;
 
         out_valid(c) <= shift_rec_out_valid;
         shift_rec_out_ready <= out_ready(c);
+
+        -- Continuously count bytes consumed from ingester.
+        if in_valid = '1' and s_in_ready = '1' then
+          bytes_to_read_next <= bytes_to_read - BUS_DATA_WIDTH/8;
+        end if;
+
+        -- Once ingester has nothing left to give, put garbage into the ShifterRecombiner.
+        -- This is to avoid the ShifterRecombiner getting stuck on the final real bus word from the ingester.
+        if bytes_to_read < 0 then
+          shift_rec_in_valid <= '1';
+        end if;
 
       when REALIGNING =>
         bc_ready(c) <= '1';
@@ -275,6 +305,7 @@ begin
         alignment <= alignment_next(SHIFT_WIDTH-1 downto 0);
         state <= state_next;
         first_in_align_group <= first_in_align_group_next;
+        bytes_to_read <= bytes_to_read_next;
       end if;
     end if;
   end process;

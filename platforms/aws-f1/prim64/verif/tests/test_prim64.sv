@@ -78,7 +78,7 @@ module test_prim64();
 
   //Input file
   int file_descriptor = 0;
-  string file_path = "java.uncompressed.parquet";//"int64array_nosnap_nodict.prq";
+  string file_path = "java.uncompressed.maxps.parquet";//"int64array_nosnap_nodict.prq";
   byte file_data[0:num_page_bytes-1];
   int bytes_read = 0;
 
@@ -151,7 +151,7 @@ initial begin
 
   // Only proceed if fopen succeeded
   if (file_descriptor) begin
-    $display("[DEBUG] : Loading Parquet file into host memory.");
+    $display("[DEBUG] : Loading Parquet file %s into host memory.", file_path);
     bytes_read = $fread(file_data, file_descriptor);
 
     if(bytes_read == num_page_bytes) begin
@@ -235,7 +235,7 @@ initial begin
 
   $display("[%t] : UserCore completed ", $realtime);
 
-  tb.nsec_delay(10000);
+  tb.nsec_delay(12000);
 
   /*************************************************************
   * Transfer Arrow buffer from CL to host
@@ -253,9 +253,9 @@ initial begin
     status[0] = tb.is_dma_to_buffer_done(.chan(0));
     #10ns;
     timeout_count++;
-  end while ((status != 4'hf) && (timeout_count < 4000));
+  end while ((status != 4'hf) && (timeout_count < 6000));
 
-  if (timeout_count >= 4000) begin
+  if (timeout_count >= 6000) begin
     $display(
       "[%t] : *** ERROR *** Timeout waiting for dma transfers from cl",
       $realtime
@@ -263,7 +263,7 @@ initial begin
     error_count++;
   end
 
-  tb.nsec_delay(10000);
+  tb.nsec_delay(12000);
 
   /*************************************************************
   * Write values in Arrow column to file
@@ -299,6 +299,8 @@ initial begin
   end else begin
     $display("[%t] : *** TEST PASSED ***", $realtime);
   end
+
+  tb.nsec_delay(12000);
 
   $finish;
 

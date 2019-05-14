@@ -36,7 +36,9 @@ package Ptoa is
       INDEX_WIDTH                                : natural;
       ---------------------------------------------------------------------------
       TAG_WIDTH                                  : natural;
-      CFG                                        : string
+      CFG                                        : string;
+      ENCODING                                   : string;
+      COMPRESSION_CODEC                          : string
     );
     port(
       clk                                        : in  std_logic;
@@ -84,6 +86,8 @@ function definition_levels_encoded(cfg : in string) return boolean;
 function repetition_levels_encoded(cfg : in string) return boolean;
 -- Returns maximum length of a varint encoded from an integer of a certain width.
 function max_varint_bytes(width : in natural) return natural;
+
+function element_swap(a : in std_logic_vector; element_width : in natural) return std_logic_vector;
   
 end Ptoa;
 
@@ -111,6 +115,17 @@ package body Ptoa is
   function max_varint_bytes(width : in natural) return natural is
   begin
     return natural(CEIL(real(width)/real(7)));
+  end function;
+
+  function element_swap(a : in std_logic_vector; element_width : in natural) return std_logic_vector is
+    constant elements_in_a : natural := a'length/element_width;
+    variable result : std_logic_vector(a'length-1 downto 0);
+  begin
+    for i in 0 to elements_in_a-1 loop
+      result(element_width*(i+1)-1 downto element_width*i) := a(element_width*(elements_in_a-i)-1 downto element_width*(elements_in_a-i-1));
+    end loop;
+
+    return result;
   end function;
 
 end Ptoa;

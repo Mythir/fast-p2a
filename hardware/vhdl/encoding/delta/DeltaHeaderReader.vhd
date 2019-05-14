@@ -50,6 +50,7 @@ entity DeltaHeaderReader is
     -- Data in stream from decompressor
     in_valid                    : in  std_logic;
     in_ready                    : out std_logic;
+    in_last                     : in  std_logic;
     in_data                     : in  std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
 
     --------------------------------------------------------------------------------
@@ -102,21 +103,26 @@ architecture behv of DeltaHeaderReader is
 
   signal shifter_in_valid             : std_logic;
   signal shifter_in_ready             : std_logic;
-  signal shifter_in_data              : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
+  -- 1 bit for last signal plus bus_data_width bits for data
+  signal shifter_in_data              : std_logic_vector(BUS_DATA_WIDTH downto 0);
   signal shifter_out_valid            : std_logic;
-  signal shifter_out_data             : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
+  -- 1 bit for last signal plus bus_data_width bits for data
+  signal shifter_out_data             : std_logic_vector(BUS_DATA_WIDTH downto 0);
 
   signal recombiner_r_in_ready        : std_logic;
   signal recombiner_r_out_data        : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
   signal recombiner_r_out_valid       : std_logic;
+  signal recombiner_r_out_last        : std_logic;
 
   -- Signal copy of out_valid output
   signal s_out_valid                  : std_logic;
 
   signal s_pipe_delete                : std_logic;
   signal s_pipe_valid                 : std_logic_vector(0 to NUM_SHIFT_STAGES);
-  signal s_pipe_input                 : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
-  signal s_pipe_output                : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
+
+  -- 1 bit for last signal plus bus_data_width bits for data
+  signal s_pipe_input                 : std_logic_vector(BUS_DATA_WIDTH downto 0);
+  signal s_pipe_output                : std_logic_vector(BUS_DATA_WIDTH downto 0);
 
   signal start_varint                 : std_logic;
   signal current_byte_valid           : std_logic;
@@ -130,7 +136,7 @@ begin
   -- Currently inspected byte of the header_data register
   current_byte <= r.header_data(BUS_DATA_WIDTH-1 downto BUS_DATA_WIDTH-8);
 
-  shifter_in_data <= in_data;
+  shifter_in_data <= in_last & in_data;
 
   logic_p: process(in_valid, in_data, r, current_byte, fv_ready, shifter_in_ready)
     variable v : reg_record;
@@ -233,13 +239,13 @@ begin
 
   -- The output of the entire entity is only valid when both the shifter and the recombiner register have valid data. Unless alignment is 0, in which case no recombining is needed.
   s_out_valid <= recombiner_r_out_valid when r.byte_counter = to_unsigned(0, r.byte_counter'length) else
-                 recombiner_r_out_valid and shifter_out_valid;
+                 (recombiner_r_out_valid and shifter_out_valid) or (recombiner_r_out_valid and recombiner_r_out_last);
   out_valid <= s_out_valid;
 
   shifter_ctrl_inst: StreamPipelineControl
     generic map (
-      IN_DATA_WIDTH             => BUS_DATA_WIDTH,
-      OUT_DATA_WIDTH            => BUS_DATA_WIDTH,
+      IN_DATA_WIDTH             => 1+BUS_DATA_WIDTH,
+      OUT_DATA_WIDTH            => 1+BUS_DATA_WIDTH,
       NUM_PIPE_REGS             => NUM_SHIFT_STAGES,
       INPUT_SLICE               => false,
       RAM_CONFIG                => ""
@@ -271,9 +277,11 @@ begin
     port map (
       clk                       => clk,
       reset                     => reset,
-      in_data                   => s_pipe_input,
+      in_data                   => s_pipe_input(BUS_DATA_WIDTH-1 downto 0),
+      in_ctrl(0)                => s_pipe_input(BUS_DATA_WIDTH),
       in_amount                 => std_logic_vector(r.byte_counter(log2floor(DELTA_HEADER_MAX_WIDTH) downto 0)),
-      out_data                  => s_pipe_output
+      out_data                  => s_pipe_output(BUS_DATA_WIDTH-1 downto 0),
+      out_ctrl(0)               => s_pipe_output(BUS_DATA_WIDTH)
     );
 
   varint_first_value_inst: VarIntDecoder
@@ -300,8 +308,9 @@ begin
 
       -- Recombiner register can receive data
       if recombiner_r_in_ready = '1' and shifter_out_valid = '1' then
-        recombiner_r_out_data <= shifter_out_data;
+        recombiner_r_out_data  <= shifter_out_data(BUS_DATA_WIDTH-1 downto 0);
         recombiner_r_out_valid <= '1';
+        recombiner_r_out_last  <= shifter_out_data(BUS_DATA_WIDTH);
       end if;
 
       if reset = '1' then

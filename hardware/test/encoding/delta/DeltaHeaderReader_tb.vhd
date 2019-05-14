@@ -40,6 +40,7 @@ architecture tb of DeltaHeaderReader_tb is
   signal reset                 : std_logic;
   signal in_valid              : std_logic;
   signal in_ready              : std_logic;
+  signal in_last               : std_logic;
   signal in_data               : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
   signal fv_valid              : std_logic;
   signal fv_ready              : std_logic;
@@ -60,6 +61,9 @@ architecture tb of DeltaHeaderReader_tb is
   );
 
 begin
+  
+  in_last <= '0';
+
   dut: entity work.DeltaHeaderReader
     generic map(
       BUS_DATA_WIDTH             => BUS_DATA_WIDTH,
@@ -73,6 +77,7 @@ begin
       reset                      => reset,
       in_valid                   => in_valid,
       in_ready                   => in_ready,
+      in_last                    => in_last,
       in_data                    => in_data,
       fv_valid                   => fv_valid,
       fv_ready                   => fv_ready,

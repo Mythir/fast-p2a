@@ -89,15 +89,17 @@ for i in range(data_blocks_per_consumer):
 
 init_filler_data = "11"*init_misalignment
 print("The initial misalignment in bytes is {init_misalignment}.".format(init_misalignment=init_misalignment))
-print("Please change the proper constant in the DataAligner_tb file to reflect this.")
 full_concatenated_data = init_filler_data + "".join(ordered_data)
 
 DA_input_file = open("DataAligner_input.hex", "w+")
 
+data_size = len(full_concatenated_data)/2-init_misalignment
 while len(full_concatenated_data) >= bytes_in_bus_word*2:
     DA_input_file.write(full_concatenated_data[:bytes_in_bus_word*2]+"\n")
     full_concatenated_data = full_concatenated_data[bytes_in_bus_word*2:]
 
 # Add filler
 DA_input_file.write(full_concatenated_data + "1"*(bytes_in_bus_word*2-len(full_concatenated_data)) + "\n")
-DA_input_file.write("11"*bytes_in_bus_word)
+print("The data size in bytes is {data_size}.".format(data_size=data_size))
+print("Please change the proper constant in the DataAligner_tb file to reflect this.")
+

@@ -22,6 +22,34 @@ use work.Ptoa.all;
 
 package Delta is
 
+  component DeltaDecoder is
+    generic (
+      BUS_DATA_WIDTH              : natural;
+      DEC_DATA_WIDTH              : natural := 64;
+      PRIM_WIDTH                  : natural;
+      ELEMENTS_PER_CYCLE          : natural;
+      RAM_CONFIG                  : string := ""
+    );
+    port (
+      clk                         : in  std_logic;
+      reset                       : in  std_logic;
+      ctrl_done                   : out std_logic;
+      in_valid                    : in  std_logic;
+      in_ready                    : out std_logic;
+      in_data                     : in  std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
+      new_page_valid              : in  std_logic;
+      new_page_ready              : out std_logic;
+      total_num_values            : in  std_logic_vector(31 downto 0);
+      page_num_values             : in  std_logic_vector(31 downto 0);
+      uncompressed_size           : in  std_logic_vector(31 downto 0);
+      out_valid                   : out std_logic;
+      out_ready                   : in  std_logic;
+      out_last                    : out std_logic;
+      out_dvalid                  : out std_logic := '1';
+      out_data                    : out std_logic_vector(log2ceil(ELEMENTS_PER_CYCLE+1) + ELEMENTS_PER_CYCLE*PRIM_WIDTH - 1 downto 0)
+    );
+  end component;
+
   component DeltaHeaderReader is
     generic (
       BUS_DATA_WIDTH              : natural;
@@ -35,6 +63,7 @@ package Delta is
       reset                       : in  std_logic;
       in_valid                    : in  std_logic;
       in_ready                    : out std_logic;
+      in_last                     : in  std_logic;
       in_data                     : in  std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
       fv_valid                    : out std_logic;
       fv_ready                    : in  std_logic;

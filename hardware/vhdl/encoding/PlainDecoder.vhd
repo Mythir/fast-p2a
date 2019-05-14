@@ -29,6 +29,9 @@ entity PlainDecoder is
     -- Bus data width
     BUS_DATA_WIDTH              : natural;
 
+    -- Max amount of elements supplied to the ArrayWriters per cycle
+    ELEMENTS_PER_CYCLE          : natural;
+
     -- Bit width of a single primitive value
     PRIM_WIDTH                  : natural
   );
@@ -61,13 +64,11 @@ entity PlainDecoder is
     out_ready                   : in  std_logic;
     out_last                    : out std_logic;
     out_dvalid                  : out std_logic := '1';
-    out_data                    : out std_logic_vector(BUS_DATA_WIDTH-1 downto 0)
+    out_data                    : out std_logic_vector(log2ceil(ELEMENTS_PER_CYCLE+1) + ELEMENTS_PER_CYCLE*PRIM_WIDTH - 1 downto 0)
   );
 end PlainDecoder;
 
 architecture behv of PlainDecoder is
-  -- The amount of values transferred to the ArrayWriter every cycle
-  constant ELEMENTS_PER_CYCLE : natural := BUS_DATA_WIDTH/PRIM_WIDTH;
 
   type state_t is (IDLE, IN_PAGE, DONE);
 
@@ -96,28 +97,15 @@ architecture behv of PlainDecoder is
   signal buffer_in_valid : std_logic;
   signal buffer_in_ready : std_logic;
   signal buffer_in_last  : std_logic;
+
 begin
 
   s_in_data <= endian_swap(in_data);
 
-  valbuffer_inst: entity work.ValBuffer
-  generic map(
-    BUS_DATA_WIDTH              => BUS_DATA_WIDTH,
-    PRIM_WIDTH                  => PRIM_WIDTH
-  )
-  port map(
-    clk                         => clk,
-    reset                       => reset,
-    in_valid                    => buffer_in_valid,
-    in_ready                    => buffer_in_ready,
-    in_count                    => val_count,
-    in_last                     => buffer_in_last,
-    in_data                     => s_in_data,
-    out_valid                   => out_valid,
-    out_ready                   => out_ready,
-    out_last                    => out_last,
-    out_data                    => out_data
-  );
+  out_valid <= buffer_in_valid;
+  buffer_in_ready <= out_ready;
+  out_last <= buffer_in_last;
+  out_data <= val_count & s_in_data;
 
   full_bus_words_in_page <= resize(r.m_page_num_values(31 downto log2ceil(ELEMENTS_PER_CYCLE)), full_bus_words_in_page'length);
   val_misalignment <= r.m_page_num_values(log2floor(ELEMENTS_PER_CYCLE)-1 downto 0);

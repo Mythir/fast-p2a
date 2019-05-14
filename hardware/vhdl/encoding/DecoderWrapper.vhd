@@ -18,10 +18,12 @@ library work;
 -- Fletcher utils for use of log2ceil function.
 use work.Utils.all;
 use work.Encoding.all;
+use work.Delta.all;
 
 entity DecoderWrapper is
   generic (
     BUS_DATA_WIDTH              : natural;
+    ELEMENTS_PER_CYCLE          : natural;
     PRIM_WIDTH                  : natural;
     ENCODING                    : string := "PLAIN"
   );
@@ -36,11 +38,12 @@ entity DecoderWrapper is
     new_page_ready              : out std_logic;
     total_num_values            : in  std_logic_vector(31 downto 0);
     page_num_values             : in  std_logic_vector(31 downto 0);
+    uncompressed_size           : in  std_logic_vector(31 downto 0);
     out_valid                   : out std_logic;
     out_ready                   : in  std_logic;
     out_last                    : out std_logic;
     out_dvalid                  : out std_logic := '1';
-    out_data                    : out std_logic_vector(BUS_DATA_WIDTH-1 downto 0)
+    out_data                    : out std_logic_vector(log2ceil(ELEMENTS_PER_CYCLE+1) + ELEMENTS_PER_CYCLE*PRIM_WIDTH - 1 downto 0)
   );
 end DecoderWrapper;
 
@@ -51,6 +54,7 @@ begin
     plaindecoder_inst: PlainDecoder
       generic map(
         BUS_DATA_WIDTH            => BUS_DATA_WIDTH,
+        ELEMENTS_PER_CYCLE        => ELEMENTS_PER_CYCLE,
         PRIM_WIDTH                => PRIM_WIDTH
       )
       port map(
@@ -71,6 +75,34 @@ begin
         out_data                  => out_data
       );
   end generate;
+
+  delta_gen: if ENCODING = "DELTA" generate
+    deltadecoder_inst: DeltaDecoder
+      generic map(
+        BUS_DATA_WIDTH            => BUS_DATA_WIDTH,
+        PRIM_WIDTH                => PRIM_WIDTH,
+        ELEMENTS_PER_CYCLE        => ELEMENTS_PER_CYCLE
+      )
+      port map(
+        clk                       => clk,
+        reset                     => reset,
+        ctrl_done                 => ctrl_done,
+        in_valid                  => in_valid,
+        in_ready                  => in_ready,
+        in_data                   => in_data,
+        new_page_valid            => new_page_valid,
+        new_page_ready            => new_page_ready,
+        total_num_values          => total_num_values,
+        page_num_values           => page_num_values,
+        uncompressed_size         => uncompressed_size,
+        out_valid                 => out_valid,
+        out_ready                 => out_ready,
+        out_last                  => out_last,
+        out_dvalid                => out_dvalid,
+        out_data                  => out_data
+      );
+  end generate;
+
 
 
 end architecture;

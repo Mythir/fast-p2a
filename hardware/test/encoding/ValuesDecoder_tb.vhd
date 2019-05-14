@@ -23,6 +23,9 @@ library work;
 -- Fletcher utils for use of the log2ceil function
 use work.Utils.all;
 
+-- This testbench tests the ValuesDecoder in the case of a PLAIN encoding and UNCOMPRESSED compression_codec. Compatible testcase hex files are generated
+-- by PlainDecoder_gen.py. The generated testcase simulates a Parquet file containing all integers 0 to total_num_values sorted from small to large.
+
 entity ValuesDecoder_tb is
 end ValuesDecoder_tb;
 
@@ -30,6 +33,7 @@ architecture tb of ValuesDecoder_tb is
   constant BUS_DATA_WIDTH       : natural := 512;
   constant PRIM_WIDTH           : natural := 32;
   constant TOTAL_NUM_VALUES     : natural := 9320;
+  constant ELEMENTS_PER_CYCLE   : natural := BUS_DATA_WIDTH/PRIM_WIDTH;
 
   constant clk_period           : time    := 10 ns;
 
@@ -68,7 +72,7 @@ architecture tb of ValuesDecoder_tb is
   signal out_ready                   : std_logic;
   signal out_last                    : std_logic;
   signal out_dvalid                  : std_logic := '1';
-  signal out_data                    : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
+  signal out_data                    : std_logic_vector(log2ceil(ELEMENTS_PER_CYCLE+1) + ELEMENTS_PER_CYCLE*PRIM_WIDTH - 1 downto 0);
 begin
 
   dut: entity work.ValuesDecoder
@@ -81,6 +85,7 @@ begin
       RAM_CONFIG                  => RAM_CONFIG,
       ENCODING                    => ENCODING,
       COMPRESSION_CODEC           => COMPRESSION_CODEC,
+      ELEMENTS_PER_CYCLE          => ELEMENTS_PER_CYCLE,
       PRIM_WIDTH                  => PRIM_WIDTH
     )
     port map(
@@ -234,7 +239,9 @@ begin
     constant max_stopped_cycles : real    := 10.0;
 
     variable counter            : natural := 0;
-    variable read_data          : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
+    variable read_data          : std_logic_vector(log2ceil(ELEMENTS_PER_CYCLE+1) + ELEMENTS_PER_CYCLE*PRIM_WIDTH - 1 downto 0);
+    variable read_count         : unsigned(log2ceil(ELEMENTS_PER_CYCLE+1)-1 downto 0);
+    variable read_values        : std_logic_vector(ELEMENTS_PER_CYCLE*PRIM_WIDTH - 1 downto 0);
     variable check_out_last     : std_logic;
 
     variable seed1              : positive := 1227;
@@ -282,10 +289,13 @@ begin
 
       read_data      := out_data;
       check_out_last := out_last;
+
+      read_values    := read_data(ELEMENTS_PER_CYCLE*PRIM_WIDTH-1 downto 0);
+      read_count     := unsigned(read_data(log2ceil(ELEMENTS_PER_CYCLE+1)+ELEMENTS_PER_CYCLE*PRIM_WIDTH-1 downto ELEMENTS_PER_CYCLE*PRIM_WIDTH));
   
-      for i in 0 to integer(floor(real(BUS_DATA_WIDTH)/real(PRIM_WIDTH)))-1 loop
-        assert read_data(PRIM_WIDTH*(i+1)-1 downto PRIM_WIDTH*i) = std_logic_vector(to_unsigned(counter, PRIM_WIDTH))
-          report "Incorrect out_data. Read " & integer'image(to_integer(unsigned(read_data(PRIM_WIDTH*(i+1)-1 downto PRIM_WIDTH*i)))) & " expected " & integer'image(counter) severity failure;
+      for i in 0 to to_integer(read_count)-1 loop
+        assert read_values(PRIM_WIDTH*(i+1)-1 downto PRIM_WIDTH*i) = std_logic_vector(to_unsigned(counter, PRIM_WIDTH))
+          report "Incorrect out_data. Read " & integer'image(to_integer(unsigned(read_values(PRIM_WIDTH*(i+1)-1 downto PRIM_WIDTH*i)))) & " expected " & integer'image(counter) severity failure;
   
         counter := counter + 1;
 
