@@ -101,7 +101,7 @@ std::shared_ptr<arrow::Table> generate_int64_table(int num_values, int modulo=0,
     return arrow::Table::Make(schema, {i64array});
 }
 
-std::shared_ptr<arrow::Table> generate_int32_delta_test_table(int num_values, int run_length, bool write_to_file=true){
+std::shared_ptr<arrow::Table> generate_int32_delta_varied_bit_width_table(int num_values, int run_length, bool write_to_file=true){
     //Generates a non nullable int32 table. Attempts to vary widths of the bit packing.
     arrow::Int32Builder i32builder;
 
@@ -353,10 +353,12 @@ int main(int argc, char **argv) {
     }
 
     std::cout << "Size of Arrow table: " << num_values << " values." << std::endl;
-    std::shared_ptr<arrow::Table> int64_table = generate_int64_table(num_values, modulo, true);
-    std::shared_ptr<arrow::Table> int32_table = generate_int32_delta_test_table(num_values, 256, true);
+    //std::shared_ptr<arrow::Table> int64_table = generate_int64_table(num_values, modulo, true);
+    std::shared_ptr<arrow::Table> int32_table = generate_int32_delta_varied_bit_width_table(num_values, 256, false);
     //std::shared_ptr<arrow::Table> str_table = generate_str_table(num_values, 2, 10);
 
+    std::cout << "Finished Arrow table generation." << std::endl;
+    std::cout << "Starting Parquet file writing." << std::endl;
     /*
     const uint8_t* memrep = int64_table->column(0)->data()->chunk(0)->data()->buffers[1]->data();
 
@@ -365,7 +367,7 @@ int main(int argc, char **argv) {
     }
     */
 
-    write_parquet_file(*int64_table, "../../gen-input/ref_int64array.parquet", num_values, false, false);
+    //write_parquet_file(*int64_table, "../../gen-input/ref_int64array.parquet", num_values, false, false);
     write_parquet_file(*int32_table, "../../gen-input/ref_int32array.parquet", num_values, false, false);
 
     /*
