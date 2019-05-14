@@ -31,13 +31,18 @@ class SWParquetReader {
   public:
     SWParquetReader(std::string file_path);
     ~SWParquetReader(){free(parquet_data);}
-    status read_prim(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array);
-    status read_prim(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, std::shared_ptr<arrow::Buffer> arr_buffer);
+    status read_prim(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, encoding enc);
+    status read_prim(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, std::shared_ptr<arrow::Buffer> arr_buffer, encoding enc);
     status inspect_metadata(int32_t file_offset);
     status count_pages(int32_t file_offset);
 
   private:
   	status read_metadata(uint8_t* metadata, int32_t* uncompressed_size, int32_t* compressed_size, int32_t* num_values, int32_t* def_level_length, int32_t* rep_level_length, int32_t* metadata_size);
+    
+    status read_prim_plain(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array);
+    status read_prim_plain(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, std::shared_ptr<arrow::Buffer> arr_buffer);
+    status read_prim_delta(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array);
+    status read_prim_delta(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, std::shared_ptr<arrow::Buffer> arr_buffer);
 
     int decode_varint32(uint8_t* input, int32_t* result, bool zigzag);
 

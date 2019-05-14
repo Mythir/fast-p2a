@@ -71,8 +71,8 @@ public class Main {
   }
 
   public static void main(String[] args) throws IOException {
-    Path file = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/gen-input/ref_int64array.parquet");
-    Path destPath = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/gen-input/hw_plain_maxps_int64.parquet");
+    Path file = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/gen-input/ref_delta_varied_int32array.parquet");
+    Path destPath = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/gen-input/hw_delta_varied_100ps_int32.parquet");
 
     ParquetFileReader reader = new ParquetFileReader(conf, file, ParquetMetadataConverter.NO_FILTER);
     ParquetMetadata readFooter = reader.getFooter();
@@ -110,11 +110,11 @@ public class Main {
     writerBuilder.withSchema(schema, conf)
                  .withCompressionCodec(CompressionCodecName.UNCOMPRESSED)
                  .withRowGroupSize(Integer.MAX_VALUE)//
-                 .withPageSize(Integer.MAX_VALUE)
-                 .withPageRowCountLimit(Integer.MAX_VALUE)
+                 .withPageSize(100)
+                 .withPageRowCountLimit(200)
                  .withDictionaryEncoding(false)
                  .withValidation(false)
-                 .withValuesWriterFactory(customFactory)
+                 //.withValuesWriterFactory(customFactory)
                  .withWriterVersion(WriterVersion.PARQUET_2_0);
     ParquetWriter<Group> writer = writerBuilder.build();
 
@@ -136,12 +136,13 @@ public class Main {
       r.close();
       writer.close();
     }
-
+    /*
     try{
       PrintFooter.main(new String[] {destPath.toString()});
     } catch (Exception e){
       e.printStackTrace();
     }
+    */
   }
 
 }

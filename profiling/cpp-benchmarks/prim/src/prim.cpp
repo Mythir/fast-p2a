@@ -41,6 +41,7 @@ int main(int argc, char **argv) {
     char* reference_parquet_file_path;
     int iterations;
     bool verify_output;
+    ptoa::encoding enc = ptoa::encoding::PLAIN;
 
     Timer t;
 
@@ -76,7 +77,7 @@ int main(int argc, char **argv) {
     for(int i=0; i<iterations; i++){
         t.start();
         // Reading the Parquet file. The interesting bit.
-        if(reader.read_prim(PRIM_WIDTH, num_values, 4, &array) != ptoa::status::OK){
+        if(reader.read_prim(PRIM_WIDTH, num_values, 4, &array, enc) != ptoa::status::OK){
             return 1;
         }
         t.stop();

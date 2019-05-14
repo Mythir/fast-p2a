@@ -37,9 +37,31 @@ SWParquetReader::SWParquetReader(std::string file_path) {
 
 }
 
+status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, encoding enc) {
+    if(enc == encoding::PLAIN){
+        return read_prim_plain(prim_width, num_values, file_offset, prim_array);
+    } else if(enc == encoding::DELTA){
+        return read_prim_delta(prim_width, num_values, file_offset, prim_array);
+    } else{
+        std::cout<<"Unsupported encoding selected" << std::endl;
+        return status::FAIL;
+    }
+}
+
+status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, std::shared_ptr<arrow::Buffer> arr_buffer, encoding enc) {
+    if(enc == encoding::PLAIN){
+        return read_prim_plain(prim_width, num_values, file_offset, prim_array, arr_buffer);
+    } else if(enc == encoding::DELTA){
+        return read_prim_delta(prim_width, num_values, file_offset, prim_array, arr_buffer);
+    } else{
+        std::cout<<"Unsupported encoding selected" << std::endl;
+        return status::FAIL;
+    }
+}
+
 // Read a number (set by num_values) of either 32 or 64 bit integers (set by prim_width) into prim_array.
 // File_offset is the byte offset in the Parquet file where the first in a contiguous list of Parquet pages is located.
-status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array) {
+status SWParquetReader::read_prim_plain(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array) {
     uint8_t* page_ptr = parquet_data;
     std::shared_ptr<arrow::Buffer> arr_buffer;
     arrow::AllocateBuffer(num_values*prim_width/8, &arr_buffer);
@@ -89,7 +111,7 @@ status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_
 }
 
 // Same as read_prim but with a pre-allocated buffer
-status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, std::shared_ptr<arrow::Buffer> arr_buffer) {
+status SWParquetReader::read_prim_plain(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, std::shared_ptr<arrow::Buffer> arr_buffer) {
     uint8_t* page_ptr = parquet_data;
     uint8_t* arr_buf_ptr = arr_buffer->mutable_data();
 

@@ -29,11 +29,14 @@ set(PRIM prim)
 project(${PRIM} VERSION 0.0.1 DESCRIPTION "prim benchmarks")
 
 set(SOURCES
+		../ptoa/LemireBitUnpacking.cpp
+		../ptoa/SWParquetReaderDelta.cpp
 		../ptoa/SWParquetReader.cpp
 		../../utils/timer.cpp
 		src/prim.cpp)
 
 set(HEADERS
+		../ptoa/LemireBitUnpacking.h
 		../ptoa/SWParquetReader.h
 		../ptoa/ptoa.h
 		../../utils/timer.h)
