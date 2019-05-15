@@ -73,7 +73,7 @@ int main(int argc, char **argv) {
 
     ptoa::SWParquetReader reader(hw_input_file_path);
     //reader.inspect_metadata(4);
-    //reader.count_pages(4);
+    reader.count_pages(4);
 
     std::shared_ptr<arrow::PrimitiveArray> array;
     std::shared_ptr<arrow::Buffer> arr_buffer;

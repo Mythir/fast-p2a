@@ -203,17 +203,20 @@ status SWParquetReader::count_pages(int32_t file_offset) {
 
     }
 
-    std::cout << "Counted " << page_ctr << " pages" << std::endl;
-    std::cout << "Page sizes: " << std::endl;
+    //std::cout << "Page sizes: " << std::endl;
+    int total_page_size = 0;
     for(auto it = size_map.begin(); it != size_map.end(); it++){
-        std::cout << "    Size " << it->first << ": " << it->second <<std::endl;
-    }
+        //std::cout << "    Size " << it->first << ": " << it->second <<std::endl;
+        total_page_size += ((it->first)*(it->second));
+    } 
+    std::cout << "Amount of pages in file   : " << page_ctr << std::endl;
+    std::cout << "Average page size in file : " << total_page_size/page_ctr << std::endl;
 
-    std::cout << "Number of values per page: " << std::endl;
-    for(auto it = value_map.begin(); it != value_map.end(); it++){
-        std::cout << "    " << it->first << ": " << it->second <<std::endl;
-    }
-    std::cout << std::endl;
+    //std::cout << "Number of values per page: " << std::endl;
+    //for(auto it = value_map.begin(); it != value_map.end(); it++){
+    //    std::cout << "    " << it->first << ": " << it->second <<std::endl;
+    //}
+    //std::cout << std::endl;
 
     return status::OK;
 
