@@ -18,7 +18,7 @@
 #include <SWParquetReader.h>
 #include <timer.h>
 
-#define PRIM_WIDTH 64
+#define PRIM_WIDTH 32
 
 //Use standard Arrow library functions to read Arrow array from Parquet file
 //Only works for Parquet version 1 style files.
@@ -41,11 +41,11 @@ int main(int argc, char **argv) {
     char* reference_parquet_file_path;
     int iterations;
     bool verify_output;
-    ptoa::encoding enc = ptoa::encoding::PLAIN;
+    ptoa::encoding enc;
 
     Timer t;
 
-    if (argc > 5) {
+    if (argc > 6) {
       hw_input_file_path = argv[1];
       reference_parquet_file_path = argv[2];
       num_values = (uint32_t) std::strtoul(argv[3], nullptr, 10);
@@ -58,8 +58,16 @@ int main(int argc, char **argv) {
         std::cerr << "Invalid argument. Option \"verify\" should be \"y\" or \"n\"" << std::endl;
         return 1;
       }
+      if(argv[6][0] == 'y') {
+        enc = ptoa::encoding::DELTA;
+      } else if (argv[6][0] == 'n') {
+        enc = ptoa::encoding::PLAIN;
+      } else {
+        std::cerr << "Invalid argument. Option \"delta_encoded\" should be \"y\" or \"n\"" << std::endl;
+        return 1;
+      }
     } else {
-      std::cerr << "Usage: prim parquet_hw_input_file_path reference_parquet_file_path num_values iterations verify(y or n)" << std::endl;
+      std::cerr << "Usage: prim parquet_hw_input_file_path reference_parquet_file_path num_values iterations verify(y or n) delta_encoded(y or n)" << std::endl;
       return 1;
     }
 

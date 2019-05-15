@@ -41,7 +41,7 @@ status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_
     if(enc == encoding::PLAIN){
         return read_prim_plain(prim_width, num_values, file_offset, prim_array);
     } else if(enc == encoding::DELTA){
-        return read_prim_delta(prim_width, num_values, file_offset, prim_array);
+        return read_prim_delta32(num_values, file_offset, prim_array);
     } else{
         std::cout<<"Unsupported encoding selected" << std::endl;
         return status::FAIL;
@@ -52,7 +52,7 @@ status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_
     if(enc == encoding::PLAIN){
         return read_prim_plain(prim_width, num_values, file_offset, prim_array, arr_buffer);
     } else if(enc == encoding::DELTA){
-        return read_prim_delta(prim_width, num_values, file_offset, prim_array, arr_buffer);
+        return read_prim_delta32(num_values, file_offset, prim_array, arr_buffer);
     } else{
         std::cout<<"Unsupported encoding selected" << std::endl;
         return status::FAIL;
@@ -210,7 +210,7 @@ status SWParquetReader::count_pages(int32_t file_offset) {
     }
 
     std::cout << "Number of values per page: " << std::endl;
-    for(auto it = size_map.begin(); it != size_map.end(); it++){
+    for(auto it = value_map.begin(); it != value_map.end(); it++){
         std::cout << "    " << it->first << ": " << it->second <<std::endl;
     }
     std::cout << std::endl;
@@ -220,7 +220,7 @@ status SWParquetReader::count_pages(int32_t file_offset) {
 }
 
 // Decodes variable length integer pointed to by input and stores it in decoded_int. Returns length of variable length integer in bytes.
-int SWParquetReader::decode_varint32(uint8_t* input, int32_t* decoded_int, bool zigzag) {
+int SWParquetReader::decode_varint32(const uint8_t* input, int32_t* decoded_int, bool zigzag) {
     int32_t result = 0;
     int i;
 
@@ -268,10 +268,10 @@ status SWParquetReader::inspect_metadata(int32_t file_offset) {
 }
 
 // Read all relevant fields from the Parquet page header pointed to by uint8_t* metadata.
-status SWParquetReader::read_metadata(uint8_t* metadata, int32_t* uncompressed_size, int32_t* compressed_size, int32_t* num_values, 
+status SWParquetReader::read_metadata(const uint8_t* metadata, int32_t* uncompressed_size, int32_t* compressed_size, int32_t* num_values, 
                                       int32_t* def_level_length, int32_t* rep_level_length, int32_t* metadata_size) {
 
-    uint8_t* current_byte = metadata;
+    const uint8_t* current_byte = metadata;
 
     // PageType
     if(*current_byte != 0x15){
