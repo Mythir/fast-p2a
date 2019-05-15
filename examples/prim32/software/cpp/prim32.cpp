@@ -198,8 +198,6 @@ int main(int argc, char **argv) {
   std::cout << "FPGA Initialize                  : "
             << t.seconds() << std::endl;
 
-  checkMMIO(platform, num_val, file_size, device_parquet_address, context->device_arrays[0]->buffers[0].device_address);
-
   /*************************************************************
   * FPGA host to device copy
   *************************************************************/
@@ -245,9 +243,6 @@ int main(int argc, char **argv) {
     if(result_array->Value(i) != correct_array->Value(i)) {
       error_count++;
     }
-    if(i<20) {
-      std::cout << result_array->Value(i) << " " << correct_array->Value(i) << std::endl;
-    }
 
   }
 
@@ -255,6 +250,11 @@ int main(int argc, char **argv) {
     std::cout << "Test passed!" << std::endl;
   } else {
     std::cout << "Test failed. Found " << error_count << " errors in the output Arrow array" << std::endl;
+    std::cout << "First values: " << std::endl;
+
+    for(int i=0; i<20; i++) {
+      std::cout << result_array->Value(i) << " " << correct_array->Value(i) << std::endl;
+    }
   }
 
   std::free(file_data);

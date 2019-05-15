@@ -20,9 +20,7 @@ cmake_minimum_required(VERSION 3.10)
 project(main)
 
 set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -fPIC")
-set(CMAKE_CXX_FLAGS_DEBUG "-g")
-set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -march=native")
+set(CMAKE_CXX_FLAGS "-Wall -Wextra -fPIC -Ofast -march=native")
 
 set(PRIM prim)
 

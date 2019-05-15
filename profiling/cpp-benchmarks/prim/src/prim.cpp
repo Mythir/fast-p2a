@@ -72,8 +72,8 @@ int main(int argc, char **argv) {
     }
 
     ptoa::SWParquetReader reader(hw_input_file_path);
-    reader.inspect_metadata(4);
-    reader.count_pages(4);
+    //reader.inspect_metadata(4);
+    //reader.count_pages(4);
 
     std::shared_ptr<arrow::PrimitiveArray> array;
     std::shared_ptr<arrow::Buffer> arr_buffer;
@@ -92,7 +92,8 @@ int main(int argc, char **argv) {
         t.record();
     }
 
-    std::cout << "Average time for reading " << num_values << " values = " << t.average() << " seconds." << std::endl;
+    std::cout << "Read " << num_values << " values" << std::endl;
+    std::cout << "Average time in seconds: " << t.average() << std::endl;
 
     if(verify_output) {
         #if PRIM_WIDTH == 64
