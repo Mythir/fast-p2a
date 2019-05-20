@@ -107,7 +107,7 @@ int main(int argc, char **argv) {
         // Verify result
         int error_count = 0;
     
-        for(int i=0; i<correct_array->length(); i++) {
+        for(int i=0; i<num_values; i++) {
             if(result_array->Value(i) != correct_array->Value(i)) {
               error_count++;
               if(error_count<20) {
