@@ -334,6 +334,19 @@ void examine_int64_contents(std::string file_path, int column, int rows){
     }
 }
 
+std::shared_ptr<arrow::Array> readArray(std::string hw_input_file_path) {
+  std::shared_ptr<arrow::io::ReadableFile> infile;
+  arrow::io::ReadableFile::Open(hw_input_file_path, arrow::default_memory_pool(), &infile);
+  
+  std::unique_ptr<parquet::arrow::FileReader> reader;
+  parquet::arrow::OpenFile(infile, arrow::default_memory_pool(), &reader);
+
+  std::shared_ptr<arrow::Array> array;
+  reader->ReadColumn(0, &array);
+
+  return array;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         std::cout << "Usage: prelim num_values [iterations] [modulo]" << std::endl;
