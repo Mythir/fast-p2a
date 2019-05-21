@@ -70,6 +70,7 @@ package Delta is
       first_value                 : out std_logic_vector(PRIM_WIDTH-1 downto 0);
       out_valid                   : out std_logic;
       out_ready                   : in  std_logic;
+      out_last                    : out std_logic;
       out_data                    : out std_logic_vector(BUS_DATA_WIDTH-1 downto 0)
     );
   end component;

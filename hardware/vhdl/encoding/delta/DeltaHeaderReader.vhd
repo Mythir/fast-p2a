@@ -70,6 +70,7 @@ entity DeltaHeaderReader is
     --Data out stream to StreamSerializer
     out_valid                   : out std_logic;
     out_ready                   : in  std_logic;
+    out_last                    : out std_logic;
     out_data                    : out std_logic_vector(BUS_DATA_WIDTH-1 downto 0)
   );
 end DeltaHeaderReader;
@@ -137,6 +138,8 @@ begin
   current_byte <= r.header_data(BUS_DATA_WIDTH-1 downto BUS_DATA_WIDTH-8);
 
   shifter_in_data <= in_last & in_data;
+
+  out_last <= recombiner_r_out_last;
 
   logic_p: process(in_valid, in_data, r, current_byte, fv_ready, shifter_in_ready)
     variable v : reg_record;
