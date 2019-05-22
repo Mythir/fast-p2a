@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
     }
 
     std::cout << "Read " << num_values << " values" << std::endl;
-    std::cout << "Average time in seconds (not pre-allocated): " << t.average() << std::endl;
+    std::cout << "Average time in seconds (pre-allocated): " << t.average() << std::endl;
 
     t.clear_history();
 
@@ -108,7 +108,7 @@ int main(int argc, char **argv) {
     }
 
     std::cout << "Read " << num_values << " values" << std::endl;
-    std::cout << "Average time in seconds (pre-allocated): " << t.average() << std::endl;
+    std::cout << "Average time in seconds (not pre-allocated): " << t.average() << std::endl;
 
     if(verify_output) {
         #if PRIM_WIDTH == 64
