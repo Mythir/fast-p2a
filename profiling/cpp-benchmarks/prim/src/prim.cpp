@@ -41,12 +41,11 @@ int main(int argc, char **argv) {
     char* reference_parquet_file_path;
     int iterations;
     bool verify_output;
-    bool memory_pre_touched;
     ptoa::encoding enc;
 
     Timer t;
 
-    if (argc > 7) {
+    if (argc > 6) {
       hw_input_file_path = argv[1];
       reference_parquet_file_path = argv[2];
       num_values = (uint32_t) std::strtoul(argv[3], nullptr, 10);
@@ -67,16 +66,8 @@ int main(int argc, char **argv) {
         std::cerr << "Invalid argument. Option \"delta_encoded\" should be \"y\" or \"n\"" << std::endl;
         return 1;
       }
-      if(argv[7][0] == 'y') {
-        memory_pre_touched = true;
-      } else if (argv[7][0] == 'n') {
-        memory_pre_touched = false;
-      } else {
-        std::cerr << "Invalid argument. Option \"memory_pre_touched\" should be \"y\" or \"n\"" << std::endl;
-        return 1;
-      }
     } else {
-      std::cerr << "Usage: prim parquet_hw_input_file_path reference_parquet_file_path num_values iterations verify(y or n) delta_encoded(y or n) memory_pre_touched(y or n)" << std::endl;
+      std::cerr << "Usage: prim parquet_hw_input_file_path reference_parquet_file_path num_values iterations verify(y or n) delta_encoded(y or n)" << std::endl;
       return 1;
     }
 
@@ -91,30 +82,35 @@ int main(int argc, char **argv) {
     arrow::AllocateBuffer(num_values*(PRIM_WIDTH/8), &arr_buffer);
     std::memset((void*)(arr_buffer->mutable_data()), 0, num_values*(PRIM_WIDTH/8));
     
-    if(!memory_pre_touched){
-      for(int i=0; i<iterations; i++){
-          t.start();
-          // Reading the Parquet file. The interesting bit.
-          if(reader.read_prim(PRIM_WIDTH, num_values, 4, &array, enc) != ptoa::status::OK){
-              return 1;
-          }
-          t.stop();
-          t.record();
-      }
-    } else{
-      for(int i=0; i<iterations; i++){
-          t.start();
-          // Reading the Parquet file. The interesting bit.
-          if(reader.read_prim(PRIM_WIDTH, num_values, 4, &array, arr_buffer, enc) != ptoa::status::OK){
-              return 1;
-          }
-          t.stop();
-          t.record();
-      }
+
+    for(int i=0; i<iterations; i++){
+        t.start();
+        // Reading the Parquet file. The interesting bit.
+        if(reader.read_prim(PRIM_WIDTH, num_values, 4, &array, enc) != ptoa::status::OK){
+            return 1;
+        }
+        t.stop();
+        t.record();
     }
 
     std::cout << "Read " << num_values << " values" << std::endl;
-    std::cout << "Average time in seconds: " << t.average() << std::endl;
+    std::cout << "Average time in seconds (pre-allocated): " << t.average() << std::endl;
+
+    t.clear_history();
+
+    for(int i=0; i<iterations; i++){
+        t.start();
+        // Reading the Parquet file. The interesting bit.
+        if(reader.read_prim(PRIM_WIDTH, num_values, 4, &array, arr_buffer, enc) != ptoa::status::OK){
+            return 1;
+        }
+        t.stop();
+        t.record();
+    }
+
+
+    std::cout << "Read " << num_values << " values" << std::endl;
+    std::cout << "Average time in seconds (not pre-allocated): " << t.average() << std::endl;
 
     if(verify_output) {
         #if PRIM_WIDTH == 64
