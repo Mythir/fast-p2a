@@ -54,9 +54,6 @@ class SWParquetReader {
 
   	uint8_t* parquet_data;
   	size_t file_size;
-
-    double acc_header_time;
-    double acc_decode_time;
 };
 
 }

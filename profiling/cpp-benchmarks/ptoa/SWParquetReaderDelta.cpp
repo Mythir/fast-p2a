@@ -21,7 +21,6 @@
 #include <SWParquetReader.h>
 #include <LemireBitUnpacking.h>
 #include <ptoa.h>
-#include <timer.h>
 
 namespace ptoa {
 
@@ -38,8 +37,6 @@ status SWParquetReader::read_prim_delta32(int64_t num_values, int32_t file_offse
 }
 
 status SWParquetReader::read_prim_delta32(int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, std::shared_ptr<arrow::Buffer> arr_buffer){
-    Timer debug_t;
-
     uint8_t* page_ptr = parquet_data;
     int32_t* arr_buf_ptr = (int32_t*)arr_buffer->mutable_data();
 
@@ -73,7 +70,6 @@ status SWParquetReader::read_prim_delta32(int64_t num_values, int32_t file_offse
         page_value_counter = 0;
 
         // Read page metadata
-        debug_t.start();
         if(read_metadata(page_ptr, &uncompressed_size, &compressed_size, &page_num_values, &def_level_length, &rep_level_length, &metadata_size) != status::OK) {
             std::cerr << "[ERROR] Corrupted data in Parquet page headers" << std::endl;
             std::cerr << page_ptr-parquet_data << std::endl;
@@ -82,10 +78,7 @@ status SWParquetReader::read_prim_delta32(int64_t num_values, int32_t file_offse
         page_ptr += metadata_size;
         block_ptr = page_ptr;
         page_values_to_read = std::min(page_num_values, (int32_t)(num_values-total_value_counter));
-        debug_t.stop();
-        acc_header_time += debug_t.seconds();
 
-        debug_t.start();
         // Read delta header
         read_delta_header32(block_ptr, &first_value, &header_size);
         block_ptr += header_size;
@@ -118,8 +111,7 @@ status SWParquetReader::read_prim_delta32(int64_t num_values, int32_t file_offse
                 block_ptr += current_bitwidth*((BLOCK_SIZE/MINIBLOCKS_IN_BLOCK)/8);
             }
         }
-        debug_t.stop();
-        acc_decode_time += debug_t.seconds();
+
         end_of_page:
         page_ptr += compressed_size;
         total_value_counter += page_num_values;
@@ -129,7 +121,6 @@ status SWParquetReader::read_prim_delta32(int64_t num_values, int32_t file_offse
 
     free(bitwidths);
     free(unpacked_deltas);
-    std::cout << "Header time " << acc_header_time << " Decode time " << acc_decode_time << std::endl;
     return status::OK;
 }
 
