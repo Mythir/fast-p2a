@@ -119,7 +119,7 @@ status SWParquetReader::read_prim_delta32(int64_t num_values, int32_t file_offse
 
 status SWParquetReader::read_prim_delta32(int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, std::shared_ptr<arrow::Buffer> arr_buffer){
     uint8_t* page_ptr = parquet_data;
-    int32_t* arr_buf_ptr = arr_buffer->mutable_data();
+    int32_t* arr_buf_ptr = (int32_t*)arr_buffer->mutable_data();
 
     int32_t total_value_counter = 0;
     int32_t page_value_counter = 0;
