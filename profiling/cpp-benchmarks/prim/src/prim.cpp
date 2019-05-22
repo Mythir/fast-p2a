@@ -82,6 +82,20 @@ int main(int argc, char **argv) {
     arrow::AllocateBuffer(num_values*(PRIM_WIDTH/8), &arr_buffer);
     std::memset((void*)(arr_buffer->mutable_data()), 0, num_values*(PRIM_WIDTH/8));
     
+    for(int i=0; i<iterations; i++){
+        t.start();
+        // Reading the Parquet file. The interesting bit.
+        if(reader.read_prim(PRIM_WIDTH, num_values, 4, &array, arr_buffer, enc) != ptoa::status::OK){
+            return 1;
+        }
+        t.stop();
+        t.record();
+    }
+
+    std::cout << "Read " << num_values << " values" << std::endl;
+    std::cout << "Average time in seconds (not pre-allocated): " << t.average() << std::endl;
+
+    t.clear_history();
 
     for(int i=0; i<iterations; i++){
         t.start();
@@ -95,22 +109,6 @@ int main(int argc, char **argv) {
 
     std::cout << "Read " << num_values << " values" << std::endl;
     std::cout << "Average time in seconds (pre-allocated): " << t.average() << std::endl;
-
-    t.clear_history();
-
-    for(int i=0; i<iterations; i++){
-        t.start();
-        // Reading the Parquet file. The interesting bit.
-        if(reader.read_prim(PRIM_WIDTH, num_values, 4, &array, arr_buffer, enc) != ptoa::status::OK){
-            return 1;
-        }
-        t.stop();
-        t.record();
-    }
-
-
-    std::cout << "Read " << num_values << " values" << std::endl;
-    std::cout << "Average time in seconds (not pre-allocated): " << t.average() << std::endl;
 
     if(verify_output) {
         #if PRIM_WIDTH == 64
