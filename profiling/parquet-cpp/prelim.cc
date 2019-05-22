@@ -57,6 +57,42 @@ std::string gen_random_string(const int length) {
     return result;
 }
 
+std::shared_ptr<arrow::Table> generate_int32_table(int num_values, int modulo=0, bool write_to_file=false) {
+    // Generate a non nullable int32 table with random numbers. Arguments:
+    // Num_values: size of the table
+    // Modulo: Numbers can take any value between 0 and modulo-1. If modulo == 0 the range is the full range of int32.
+    // Write_to_file: If true the data in the arrow array will also be written to a file called "int32array.bin"
+    arrow::Int32Builder i32builder;
+    int32_t number;
+    std::ofstream check_file;
+    if(write_to_file){
+        check_file.open("int32array.bin");
+    }
+
+    for (int i = 0; i < num_values; i++) {
+        if(modulo <= 0){
+            number = rand();
+        } else{
+            number = rand() % modulo;
+        }
+        PARQUET_THROW_NOT_OK(i32builder.Append(number));
+    }
+    std::shared_ptr<arrow::Array> i32array;
+    PARQUET_THROW_NOT_OK(i32builder.Finish(&i32array));
+
+    std::shared_ptr<arrow::Schema> schema = arrow::schema(
+            {arrow::field("int", arrow::int32(), false)});
+
+
+    if(write_to_file){
+        for(int i=0; i<i32array->data()->buffers[1]->size(); i++){
+            check_file <<i32array->data()->buffers[1]->data()[i];
+        }
+        check_file.close();
+    }
+    return arrow::Table::Make(schema, {i32array});
+}
+
 std::shared_ptr<arrow::Table> generate_int64_table(int num_values, int modulo=0, bool write_to_file=false) {
     // Generate a non nullable int64 table with random numbers. Arguments:
     // Num_values: size of the table
@@ -113,9 +149,9 @@ std::shared_ptr<arrow::Table> generate_int32_delta_varied_bit_width_table(int nu
     std::ofstream hex_check_file;
 
     if(write_to_file){
-        check_file.open("int32array.bin");
-        dec_check_file.open("int32array.dec");
-        hex_check_file.open("int32array.hex");
+        check_file.open("delta_varied_int32array.bin");
+        dec_check_file.open("delta_varied_int32array.dec");
+        hex_check_file.open("delta_varied_int32array.hex");
     }
 
     for (int i = 0; i < num_values; i++) {
@@ -367,7 +403,8 @@ int main(int argc, char **argv) {
 
     std::cout << "Size of Arrow table: " << num_values << " values." << std::endl;
     //std::shared_ptr<arrow::Table> int64_table = generate_int64_table(num_values, modulo, true);
-    std::shared_ptr<arrow::Table> int32_table = generate_int32_delta_varied_bit_width_table(num_values, 256, false);
+    //std::shared_ptr<arrow::Table> int32_table = generate_int32_delta_varied_bit_width_table(num_values, 256, false);
+    std::shared_ptr<arrow::Table> int32_table = generate_int32_table(num_values, modulo, false);
     //std::shared_ptr<arrow::Table> str_table = generate_str_table(num_values, 2, 10);
 
     std::cout << "Finished Arrow table generation." << std::endl;
