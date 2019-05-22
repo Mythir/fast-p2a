@@ -35,6 +35,9 @@ SWParquetReader::SWParquetReader(std::string file_path) {
 
     parquet_file.close();
 
+    acc_header_time = 0;
+    acc_decode_time = 0;
+
 }
 
 status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, encoding enc) {
