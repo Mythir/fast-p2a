@@ -30,10 +30,10 @@ entity BlockValuesAligner_tb is
 end BlockValuesAligner_tb;
 
 architecture tb of BlockValuesAligner_tb is
-  constant DEC_DATA_WIDTH            : natural := 64;
-  constant MAX_DELTAS_PER_CYCLE      : natural := 16;
+  constant DEC_DATA_WIDTH            : natural := 256;
+  constant MAX_DELTAS_PER_CYCLE      : natural := 4;
   constant BYTES_IN_BLOCK_WIDTH      : natural := 16;
-  constant VALUES_TO_READ            : natural := 100000;
+  constant VALUES_TO_READ            : natural := 1000;
   constant clk_period                : time := 10 ns;
 
   constant PRIM_WIDTH                : natural := 32;
@@ -116,6 +116,10 @@ begin
       file_open(input_data, "./test/encoding/delta/bva_tb_in.hex1", read_mode);
     elsif DEC_DATA_WIDTH = 64 then
       file_open(input_data, "./test/encoding/delta/bva_tb_in64.hex1", read_mode);
+    elsif DEC_DATA_WIDTH = 128 then
+      file_open(input_data, "./test/encoding/delta/bva_tb_in128.hex1", read_mode);
+    elsif DEC_DATA_WIDTH = 256 then
+      file_open(input_data, "./test/encoding/delta/bva_tb_in256.hex1", read_mode);
     end if;
 
     in_valid <= '0';
@@ -183,6 +187,10 @@ begin
       file_open(input_data, "./test/encoding/delta/bva_tb_check.hex1", read_mode);
     elsif DEC_DATA_WIDTH = 64 then
       file_open(input_data, "./test/encoding/delta/bva_tb_check64.hex1", read_mode);
+    elsif DEC_DATA_WIDTH = 128 then
+      file_open(input_data, "./test/encoding/delta/bva_tb_check128.hex1", read_mode);
+    elsif DEC_DATA_WIDTH = 256 then
+      file_open(input_data, "./test/encoding/delta/bva_tb_check256.hex1", read_mode);
     end if;
 
     out_ready <= '0';
@@ -242,8 +250,8 @@ begin
 
         last_value := last_value + min_delta + to_integer(signed(unpacked_delta));
 
-        report "Min delta: " & integer'image(min_delta) & ", Delta: " & integer'image(to_integer(signed(unpacked_delta))) & ", Decoded int: " & integer'image(last_value) & ", Count: " 
-          & integer'image(to_integer(signed(consumed_out_count))) & ", i: " & integer'image(i) & ", md_count: " & integer'image(to_integer(md_count)) severity note;
+        --report "Min delta: " & integer'image(min_delta) & ", Delta: " & integer'image(to_integer(signed(unpacked_delta))) & ", Decoded int: " & integer'image(last_value) & ", Count: " 
+          --& integer'image(to_integer(signed(consumed_out_count))) & ", i: " & integer'image(i) & ", md_count: " & integer'image(to_integer(md_count)) severity note;
 
         assert last_value = to_integer(signed(decoded_int))
           report "Unpacking and decoding aligned integer resulted in " & integer'image(last_value) & " instead of the correct value " & integer'image(to_integer(signed(decoded_int))) severity failure;

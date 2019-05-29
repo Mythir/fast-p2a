@@ -99,7 +99,9 @@ architecture behv of BlockShiftControl is
   constant VALUES_IN_MINIBLOCK : natural := BLOCK_SIZE/MINIBLOCKS_IN_BLOCK;
 
   constant BL_WIDTH_BYTES   : natural := log2floor(max_varint_bytes(PRIM_WIDTH)+MINIBLOCKS_IN_BLOCK) + 1;
-  constant BL_WIDTH_BITS    : natural := BL_WIDTH_BYTES+log2ceil(8);
+  -- The amount of bits used to represent block header width can not be smaller than amount_width
+  -- This is to avoid problems with null ranges
+  constant BL_WIDTH_BITS    : natural := MAX(BL_WIDTH_BYTES+log2ceil(8), AMOUNT_WIDTH);
 
   -- Tables containing the amount of values to unpack per cycle for every bit width. Depending on PRIM_WIDTH one of these tables goes unused.
   constant count_lut_64 : count_lut_64_t := init_count_lut_64(MAX_DELTAS_PER_CYCLE, DEC_DATA_WIDTH);
@@ -131,6 +133,7 @@ architecture behv of BlockShiftControl is
   signal d : reg_record;
 
   -- Used to store amount of bytes in block header multiplied by 8
+  -- Cannot be smaller than amount width to avoid problems with null ranges down the line
   signal bits_in_block_header   : unsigned(BL_WIDTH_BITS-1 downto 0);
 
   -- Stream from bit width FiFo
@@ -180,7 +183,7 @@ begin
   out_amount <= std_logic_vector(r.current_shift);
 
   -- Multiply bytes in block header by 8
-  bits_in_block_header <= shift_left(resize(unsigned(bl_data), bl_data'length + log2ceil(8)), log2ceil(8));
+  bits_in_block_header <= shift_left(resize(unsigned(bl_data), bits_in_block_header'length), log2ceil(8));
 
   logic_p: process(r, in_valid, bl_valid, out_ready, page_num_values, in_data, bits_in_block_header, fifo_out_valid, fifo_out_data)
     variable v : reg_record;
@@ -189,6 +192,8 @@ begin
 
     variable current_unpack_count : unsigned(COUNT_WIDTH-1 downto 0);
     variable current_unpack_shift : unsigned(AMOUNT_WIDTH downto 0);
+
+    variable bl_longer_than_data_word : boolean;
   begin
     v := r;
 
@@ -221,7 +226,16 @@ begin
           next_shift := resize(r.current_shift, r.current_shift'length + 1) + bits_in_block_header(AMOUNT_WIDTH-1 downto 0);
           if bl_valid = '1' then
             -- We can only do something if we know the length of the block header
-            if bits_in_block_header(BL_WIDTH_BITS-1 downto AMOUNT_WIDTH) /= r.skip_counter then
+
+            bl_longer_than_data_word := false;
+
+            for i in r.skip_counter'low to r.skip_counter'high loop
+              if bits_in_block_header(i+AMOUNT_WIDTH) /= r.skip_counter(i) then
+                bl_longer_than_data_word := true;
+              end if;
+            end loop;
+
+            if bl_longer_than_data_word then
               -- If the block header is longer than a data word we have to advance the input stream
               if in_valid = '1' then
                 in_ready       <= '1';
