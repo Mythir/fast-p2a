@@ -15,7 +15,7 @@
 import bincopy as bc
 
 # Parameters
-dec_data_width = 128  # In bits
+dec_data_width = 256  # In bits
 header_length = 39 # How many bytes to skip in the input file
 #input_file = "../../../../profiling/gen-input/hw_delta_xsim_test.parquet"
 input_file = "../../../../profiling/parquet-cpp/debug/head_int32_array.bin"
@@ -24,7 +24,7 @@ f = bc.BinFile()
 
 f.add_binary_file(input_file)
 
-with open("bva_tb_in128.hex1", "w") as output:
+with open("bva_tb_in256.hex1", "w") as output:
     bin_data = "".join('{:02x}'.format(x) for x in f.as_binary())
     bin_data = bin_data[header_length*2:]
 
