@@ -81,7 +81,22 @@ int main(int argc, char **argv) {
     // Only relevant for the benchmark with pre-allocated (and memset) buffer
     arrow::AllocateBuffer(num_values*(PRIM_WIDTH/8), &arr_buffer);
     std::memset((void*)(arr_buffer->mutable_data()), 0, num_values*(PRIM_WIDTH/8));
-  
+    
+    for(int i=0; i<iterations; i++){
+        t.start();
+        // Reading the Parquet file. The interesting bit.
+        if(reader.read_prim(PRIM_WIDTH, num_values, 4, &array, arr_buffer, enc) != ptoa::status::OK){
+            return 1;
+        }
+        t.stop();
+        t.record();
+    }
+
+    std::cout << "Read " << num_values << " values" << std::endl;
+    std::cout << "Average time in seconds (pre-allocated): " << t.average() << std::endl;
+
+    t.clear_history();
+
     for(int i=0; i<iterations; i++){
         t.start();
         // Reading the Parquet file. The interesting bit.
@@ -93,7 +108,7 @@ int main(int argc, char **argv) {
     }
 
     std::cout << "Read " << num_values << " values" << std::endl;
-    std::cout << "Average time in seconds: " << t.average() << std::endl;
+    std::cout << "Average time in seconds (not pre-allocated): " << t.average() << std::endl;
 
     if(verify_output) {
         #if PRIM_WIDTH == 64
@@ -107,7 +122,7 @@ int main(int argc, char **argv) {
         // Verify result
         int error_count = 0;
     
-        for(int i=0; i<result_array->length(); i++) {
+        for(int i=0; i<num_values; i++) {
             if(result_array->Value(i) != correct_array->Value(i)) {
               error_count++;
               if(error_count<20) {

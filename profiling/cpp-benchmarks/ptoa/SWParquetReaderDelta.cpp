@@ -28,9 +28,16 @@ namespace ptoa {
 status SWParquetReader::read_prim_delta32(int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array){
     const int32_t prim_width = 32;
 
-    uint8_t* page_ptr = parquet_data;
     std::shared_ptr<arrow::Buffer> arr_buffer;
     arrow::AllocateBuffer(num_values*prim_width/8, &arr_buffer);
+
+    read_prim_delta32(num_values, file_offset, prim_array, arr_buffer);
+
+    return status::OK;
+}
+
+status SWParquetReader::read_prim_delta32(int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, std::shared_ptr<arrow::Buffer> arr_buffer){
+    uint8_t* page_ptr = parquet_data;
     int32_t* arr_buf_ptr = (int32_t*)arr_buffer->mutable_data();
 
     int32_t total_value_counter = 0;
@@ -115,11 +122,6 @@ status SWParquetReader::read_prim_delta32(int64_t num_values, int32_t file_offse
     free(bitwidths);
     free(unpacked_deltas);
     return status::OK;
-}
-
-status SWParquetReader::read_prim_delta32(int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, std::shared_ptr<arrow::Buffer> arr_buffer){
-    std::cout<< "Delta reading for pre allocated buffers not yet implemented"<<std::endl;
-    return status::FAIL;
 }
 
 status SWParquetReader::read_delta_header32(const uint8_t* header, int32_t* first_value, int32_t* header_size){

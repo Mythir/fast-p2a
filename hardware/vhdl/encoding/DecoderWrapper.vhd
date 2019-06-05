@@ -80,6 +80,7 @@ begin
     deltadecoder_inst: DeltaDecoder
       generic map(
         BUS_DATA_WIDTH            => BUS_DATA_WIDTH,
+        DEC_DATA_WIDTH            => 128,
         PRIM_WIDTH                => PRIM_WIDTH,
         ELEMENTS_PER_CYCLE        => ELEMENTS_PER_CYCLE
       )
