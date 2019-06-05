@@ -19,11 +19,17 @@ library work;
 use work.Utils.all;
 use work.Streams.all;
 use work.Delta.all;
+use work.Encoding.all;
 
 entity CharBuffer is
   generic (
     -- Bus data width
     BUS_DATA_WIDTH              : natural;
+
+    -- Amount of chars supplied to Fletcher per cycle
+    CHARS_PER_CYCLE             : natural;
+
+    BYTES_IN_BLOCK_WIDTH        : natural;
 
     RAM_CONFIG                  : string := ""
   );
@@ -60,7 +66,7 @@ entity CharBuffer is
     out_ready                   : in  std_logic;
     out_last                    : out std_logic;
     out_dvalid                  : out std_logic := '1';
-    out_data                    : out std_logic_vector(log2ceil(BUS_DATA_WIDTH/8+1) + BUS_DATA_WIDTH - 1 downto 0)
+    out_data                    : out std_logic_vector(log2ceil(CHARS_PER_CYCLE+1) + BUS_DATA_WIDTH - 1 downto 0)
   );
 end CharBuffer;
 
@@ -69,26 +75,33 @@ architecture behv of CharBuffer is
   type state_t is (REQ_PAGE, SKIP_LENGTHS, PASS_CHARS, DONE);
 
   -- 16 bits is a suitable size for adv_count in the case of the default 128 block_size, 4 miniblocks configuration.
-  constant ADV_COUNT_WIDTH      : natural := 16;
-  constant OUT_COUNT_WIDTH      : natural := log2ceil(BUS_DATA_WIDTH/8+1);
+  constant ADV_COUNT_WIDTH      : natural := BYTES_IN_BLOCK_WIDTH;
+  constant OUT_COUNT_WIDTH      : natural := log2ceil(CHARS_PER_CYCLE+1);
+  constant OUT_CHARS_WIDTH      : natural := CHARS_PER_CYCLE*8;
 
   constant SHIFT_AMOUNT_WIDTH   : natural := log2ceil(BUS_DATA_WIDTH/8);
   constant NUM_SHIFT_STAGES     : natural := SHIFT_AMOUNT_WIDTH;
-  -- 1 bit for last signal, count width for count signal
-  constant SHIFTER_CTRL_WIDTH   : natural := 1 + OUT_COUNT_WIDTH;
+
+  constant SHIFTER_CTRL_WIDTH   : natural := 0;
   constant SHIFTER_DATA_WIDTH   : natural := 2*BUS_DATA_WIDTH;
   constant SHIFTER_INPUT_WIDTH  : natural := SHIFTER_CTRL_WIDTH + SHIFTER_DATA_WIDTH;
   constant SHIFTER_OUTPUT_WIDTH : natural := SHIFTER_CTRL_WIDTH + SHIFTER_DATA_WIDTH;
 
   constant FIFO_DATA_WIDTH      : natural := 1 + BUS_DATA_WIDTH;
 
-  record reg_record is record
-    state          : state_t;
-    bc_accumulator : unsigned(31 downto 0);
-    skipped_words  : unsigned(31-SHIFT_AMOUNT_WIDTH downto 0);
-    chars_to_read  : unsigned(31 downto 0);
-    hold           : std_logic_vector(BUS_DATA_WIDTH-1);
-    last_page      : std_logic;
+  type reg_record is record
+    state             : state_t;
+    -- Accumulate bytes (string lengths) to skip
+    bc_accumulator    : unsigned(31 downto 0);
+    -- Keep track of how much has been skipped
+    skipped_words     : unsigned(31-SHIFT_AMOUNT_WIDTH downto 0);
+    -- Characters left to read in page
+    chars_to_read     : unsigned(31 downto 0);
+    -- Hold registers for shifter_in
+    hold              : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
+    hold_last         : std_logic;
+    -- '1' if last page
+    last_page         : std_logic;
   end record;
 
   signal r : reg_record;
@@ -119,13 +132,21 @@ architecture behv of CharBuffer is
   signal shifter_out_data       : std_logic_vector(SHIFTER_OUTPUT_WIDTH-1 downto 0);
 
   -- Separate components of shifter_out_data
-  signal shifter_in_last        : std_logic;
-  signal shifter_in_count       : std_logic_vector(OUT_COUNT_WIDTH-1 downto 0);
   signal shifter_in_chars       : std_logic_vector(2*BUS_DATA_WIDTH-1 downto 0);
 
+  signal s_out_valid            : std_logic;
+  signal s_out_ready            : std_logic;
+  signal out_count              : std_logic_vector(OUT_COUNT_WIDTH-1 downto 0);
+  signal out_chars              : std_logic_vector(OUT_CHARS_WIDTH-1 downto 0);
+
 begin
+  
+  -----------------------------------------------------------------------------
+  -- FiFo used to buffer data from DeltaHeaderReader and skip string lengths
+  -----------------------------------------------------------------------------
 
   fifo_in_data <= in_last & in_data;
+  adv_count <= std_logic_vector(resize(r.bc_accumulator(31 downto SHIFT_AMOUNT_WIDTH) - r.skipped_words, adv_count'length));
 
   -- Depth 32 should be plenty
   in_buffer: AdvanceableFiFo
@@ -148,7 +169,11 @@ begin
       adv_count               => adv_count
     );
 
-  shifter_in_data <= shifter_in_last & shifter_in_count & shifter_in_chars;
+  ---------------------------------------------------------------------------------------------------
+  -- Barrel shifter for re-aligning data from DeltaHeaderReader after having read all string lengths
+  ---------------------------------------------------------------------------------------------------
+  shifter_in_data <= shifter_in_chars;
+  shift_amount <= std_logic_vector(r.bc_accumulator(SHIFT_AMOUNT_WIDTH-1 downto 0));
 
   pipeline_ctrl: StreamPipelineControl
     generic map (
@@ -172,17 +197,12 @@ begin
       pipe_output               => s_pipe_output
     );
 
-  -- out_valid <= shifter_out_valid;
-  -- shifter_out_ready <= out_ready;
-  -- out_data <= shifter_out_data(OUT_COUNT_WIDTH + SHIFTER_DATA_WIDTH - 1 downto SHIFTER_DATA_WIDTH) & shifter_out_data(BUS_DATA_WIDTH-1 downto 0);
-  -- out_last <= shifter_out_data(SHIFTER_OUTPUT_WIDTH);
-
   pipeline: StreamPipelineBarrel
     generic map (
       ELEMENT_WIDTH             => 8,
       ELEMENT_COUNT             => SHIFTER_DATA_WIDTH,
       AMOUNT_WIDTH              => SHIFT_AMOUNT_WIDTH,
-      DIRECTION                 => "right",
+      DIRECTION                 => "left",
       OPERATION                 => "shift",
       NUM_STAGES                => NUM_SHIFT_STAGES,
       CTRL_WIDTH                => SHIFTER_CTRL_WIDTH
@@ -197,12 +217,48 @@ begin
       out_ctrl                  => s_pipe_output(SHIFTER_OUTPUT_WIDTH-1 downto SHIFTER_DATA_WIDTH)
     );
 
-  adv_count <= std_logic_vector(resize(r.bc_accumulator(31 downto SHIFT_AMOUNT_WIDTH) - r.skipped_words, adv_count'length));
-  shift_amount <= r.bc_accumulator(SHIFT_AMOUNT_WIDTH-1 downto 0)
+  -----------------------------------------------------------
+  -- If chars per cycle is limited serialize shifter output
+  -----------------------------------------------------------
 
-  logic_p: process(r, new_page_valid)
+  serialization_required: if BUS_DATA_WIDTH /= OUT_CHARS_WIDTH generate
+  begin
+    ss_inst: StreamSerializer
+      generic map(
+        DATA_WIDTH                => BUS_DATA_WIDTH,
+        IN_COUNT_MAX              => BUS_DATA_WIDTH/OUT_CHARS_WIDTH,
+        IN_COUNT_WIDTH            => log2ceil(BUS_DATA_WIDTH/OUT_CHARS_WIDTH)
+      )
+      port map(
+        clk                       => clk,
+        reset                     => reset,
+        in_valid                  => shifter_out_valid,
+        in_ready                  => shifter_out_ready,
+        in_data                   => shifter_out_data(SHIFTER_DATA_WIDTH-1 downto BUS_DATA_WIDTH),
+        out_valid                 => s_out_valid,
+        out_ready                 => s_out_ready,
+        out_data                  => out_chars
+      );
+  end generate;
+
+  no_serialization_required: if BUS_DATA_WIDTH = OUT_CHARS_WIDTH generate
+  begin
+    shifter_out_ready <= s_out_ready;
+    s_out_valid       <= shifter_out_valid;
+    out_chars         <= shifter_out_data(SHIFTER_DATA_WIDTH-1 downto BUS_DATA_WIDTH);
+  end generate;
+
+  out_valid   <= s_out_valid;
+  s_out_ready <= out_ready;
+  out_data    <= out_count & out_chars;
+
+  -------------------
+  -- State machine
+  -------------------
+
+  logic_p: process(r, new_page_valid, shifter_in_valid, bc_data, adv_ready, fifo_out_valid, bc_valid, nc_valid, nc_last, nc_data, fifo_out_data, shifter_in_ready,
+                   s_out_ready, s_out_valid)
     variable v : reg_record;
-    variable last_word_in_page : boolean;
   begin
     v := r;
 
@@ -212,7 +268,10 @@ begin
     nc_ready         <= '0';
 
     shifter_in_valid <= '0';
-    fifo_in_ready    <= '0';
+    fifo_out_ready   <= '0';
+
+    out_count <= std_logic_vector(to_unsigned(CHARS_PER_CYCLE, out_count'length));
+    out_last  <= '0';
 
     case r.state is
       when REQ_PAGE =>
@@ -222,7 +281,7 @@ begin
         if new_page_valid = '1' then
           v.state          := SKIP_LENGTHS;
           v.bc_accumulator := (others => '0');
-          v.skipped_bytes  := (others => '0');
+          v.skipped_words  := (others => '0');
         end if;
 
       when SKIP_LENGTHS =>
@@ -239,42 +298,43 @@ begin
           adv_valid <= '1';
 
           if adv_ready = '1' then
-            v.skipped_words <= r.bc_accumulator(31 downto SHIFT_AMOUNT_WIDTH);
+            v.skipped_words := r.bc_accumulator(31 downto SHIFT_AMOUNT_WIDTH);
           end if;
         elsif nc_valid = '1' and bc_valid = '0' and fifo_out_valid = '1' then
           -- If DeltaHeaderReader has a char count ready, if block values aligner has no more bc info, and if the fifo has valid data on its output, start passing characters to the output stream
-          nc_ready        <= '1';
-          fifo_out_ready  <= '1';
-          v.state         := PASS_CHARS;
-          v.chars_to_read := unsigned(nc_data);
-          v.last_page     := nc_last;
-          v.hold          := fifo_out_data;
+          nc_ready            <= '1';
+          fifo_out_ready      <= '1';
+          v.state             := PASS_CHARS;
+          v.chars_to_read     := unsigned(nc_data);
+          v.last_page         := nc_last;
+          v.hold              := fifo_out_data(BUS_DATA_WIDTH-1 downto 0);
+          v.hold_last         := fifo_out_data(BUS_DATA_WIDTH);
         end if;
 
       when PASS_CHARS =>
-        -- Pass characters to the output stream
-        -- Todo: make all this work
-        last_word_in_page := r.chars_to_read <= unsigned(BUS_DATA_WIDTH/8, out_count'length);
-
-        if last_word_in_page then
-          shifter_in_valid <= fifo_out_valid;
-          fifo_out_ready   <= shifter_in_ready;
-
-
-        shifter_in_count <= std_logic_vector(unsigned(BUS_DATA_WIDTH/8, out_count'length));
-        shifter_in_last  <= '0';
-        shifter_in_chars <= fifo_out_data & r.hold;
-
-        if last_word_in_page then
-          shifter_in_count <= resize(r.chars_to_read, out_count'length);
-          if r.last_page = '1' then
-            shifter_in_last <= '1';
-          end if;
-        end if;
+        shifter_in_valid <= fifo_out_valid or r.hold_last;
 
         if shifter_in_valid = '1' and shifter_in_ready = '1' then
+          fifo_out_ready  <= '1';
+          v.hold          := fifo_out_data(BUS_DATA_WIDTH-1 downto 0);
+          v.hold_last     := fifo_out_data(BUS_DATA_WIDTH);
+        end if;
 
+        if r.chars_to_read <= CHARS_PER_CYCLE then
+          out_count <= std_logic_vector(resize(r.chars_to_read, out_count'length));
+          if r.last_page = '1' then
+            out_last <= '1';
+          end if;
 
+          if s_out_valid = '1' and s_out_ready = '1' then
+            v.chars_to_read := r.chars_to_read - CHARS_PER_CYCLE;
+            if r.last_page = '1' then
+              v.state := DONE;
+            else
+              v.state := REQ_PAGE;
+            end if;
+          end if;
+        end if;
 
 
       when DONE =>
