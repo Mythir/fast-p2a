@@ -188,11 +188,32 @@ std::shared_ptr<arrow::Table> generate_int32_delta_varied_bit_width_table(int nu
 }
 
 
-std::shared_ptr<arrow::Table> generate_str_table(int num_values, int min_length, int max_length) {
+std::shared_ptr<arrow::Table> generate_str_table(int num_values, int min_length, int max_length, bool write_to_file=true) {
+    std::ofstream hex_length_file;
+    std::ofstream hex_char_file;
+    std::ofstream bin_length_file;
+    std::ofstream bin_char_file;
+
+    if(write_to_file){
+        hex_length_file.open("lengths_small_strarray.hex");
+        hex_char_file.open("chars_small_strarray.hex");
+        bin_length_file.open("lengths_small_strarray.bin");
+        bin_char_file.open("chars_small_strarray.bin");
+    }
+
     arrow::StringBuilder strbuilder;
     for (int i = 0; i < num_values; i++) {
         int length = rand() % (max_length - min_length + 1) + min_length;
-        PARQUET_THROW_NOT_OK(strbuilder.Append(gen_random_string(length)));
+        std::string rand_string = gen_random_string(length);
+
+        if(write_to_file){
+            hex_length_file << std::hex << std::setfill('0') << std::setw(8) << length << std::dec << std::endl;
+            for(char& c : rand_string){
+                hex_char_file << std::hex << std::setfill('0') << std::setw(2) << (int) c << std::dec << std::endl;
+            }
+        }
+
+        PARQUET_THROW_NOT_OK(strbuilder.Append(rand_string));
     }
     std::shared_ptr<arrow::Array> strarray;
     PARQUET_THROW_NOT_OK(strbuilder.Finish(&strarray));
@@ -200,11 +221,23 @@ std::shared_ptr<arrow::Table> generate_str_table(int num_values, int min_length,
     std::shared_ptr<arrow::Schema> schema = arrow::schema(
             {arrow::field("str", arrow::utf8(), true)});
 
+    if(write_to_file){
+        for(int i=0; i<strarray->data()->buffers[1]->size(); i++){
+            bin_length_file << strarray->data()->buffers[1]->data()[i];
+        }
+        for(int i=0; i<strarray->data()->buffers[2]->size(); i++){
+            bin_char_file << strarray->data()->buffers[2]->data()[i];
+        }
+        hex_length_file.close();
+        hex_char_file.close();
+        bin_length_file.close();
+        bin_char_file.close();
+    }
+
     return arrow::Table::Make(schema, {strarray});
 }
 
 std::shared_ptr<arrow::Table> generate_int64_str_table(int num_values, int min_length, int max_length, int modulo=0) {
-
 
     //Generate ints
     arrow::Int64Builder i64builder;
@@ -404,8 +437,8 @@ int main(int argc, char **argv) {
     std::cout << "Size of Arrow table: " << num_values << " values." << std::endl;
     //std::shared_ptr<arrow::Table> int64_table = generate_int64_table(num_values, modulo, true);
     //std::shared_ptr<arrow::Table> int32_table = generate_int32_delta_varied_bit_width_table(num_values, 256, false);
-    std::shared_ptr<arrow::Table> int32_table = generate_int32_table(num_values, modulo, false);
-    //std::shared_ptr<arrow::Table> str_table = generate_str_table(num_values, 2, 10);
+    //std::shared_ptr<arrow::Table> int32_table = generate_int32_table(num_values, modulo, false);
+    std::shared_ptr<arrow::Table> str_table = generate_str_table(num_values, 2, 10, true);
 
     std::cout << "Finished Arrow table generation." << std::endl;
     std::cout << "Starting Parquet file writing." << std::endl;
@@ -418,7 +451,8 @@ int main(int argc, char **argv) {
     */
 
     //write_parquet_file(*int64_table, "../../gen-input/ref_int64array.parquet", num_values, false, false);
-    write_parquet_file(*int32_table, "../../gen-input/ref_int32array.parquet", num_values, false, false);
+    //write_parquet_file(*int32_table, "../../gen-input/ref_int32array.parquet", num_values, false, false);
+    write_parquet_file(*str_table, "../../gen-input/ref_small_strarray.parquet", num_values, false, false);
 
     /*
     write_parquet_file(*int64_table, "int64array_nosnap.prq", num_values, false, true);

@@ -71,8 +71,8 @@ public class Main {
   }
 
   public static void main(String[] args) throws IOException {
-    Path file = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/gen-input/ref_int32array.parquet");
-    Path destPath = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/gen-input/hw_random_maxps_int32.parquet");
+    Path file = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/gen-input/ref_small_strarray.parquet");
+    Path destPath = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/gen-input/hw_small_maxps_str.parquet");
 
     ParquetFileReader reader = new ParquetFileReader(conf, file, ParquetMetadataConverter.NO_FILTER);
     ParquetMetadata readFooter = reader.getFooter();
@@ -114,7 +114,7 @@ public class Main {
                  .withPageRowCountLimit(Integer.MAX_VALUE)
                  .withDictionaryEncoding(false)
                  .withValidation(false)
-                 //.withValuesWriterFactory(customV2Factory)
+                 .withValuesWriterFactory(customV2Factory)
                  .withWriterVersion(WriterVersion.PARQUET_2_0);
     ParquetWriter<Group> writer = writerBuilder.build();
 
