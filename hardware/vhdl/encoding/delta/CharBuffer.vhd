@@ -65,8 +65,7 @@ entity CharBuffer is
     out_valid                   : out std_logic;
     out_ready                   : in  std_logic;
     out_last                    : out std_logic;
-    out_dvalid                  : out std_logic := '1';
-    out_data                    : out std_logic_vector(log2ceil(CHARS_PER_CYCLE+1) + BUS_DATA_WIDTH - 1 downto 0)
+    out_data                    : out std_logic_vector(log2ceil(CHARS_PER_CYCLE+1) + CHARS_PER_CYCLE*8 - 1 downto 0)
   );
 end CharBuffer;
 
@@ -151,7 +150,7 @@ begin
   -- Depth 32 should be plenty
   in_buffer: AdvanceableFiFo
     generic map(
-      DATA_WIDTH              => BUS_DATA_WIDTH,
+      DATA_WIDTH              => BUS_DATA_WIDTH+1,
       ADV_COUNT_WIDTH         => ADV_COUNT_WIDTH,
       DEPTH_LOG2              => 5
     )
@@ -200,7 +199,7 @@ begin
   pipeline: StreamPipelineBarrel
     generic map (
       ELEMENT_WIDTH             => 8,
-      ELEMENT_COUNT             => SHIFTER_DATA_WIDTH,
+      ELEMENT_COUNT             => SHIFTER_DATA_WIDTH/8,
       AMOUNT_WIDTH              => SHIFT_AMOUNT_WIDTH,
       DIRECTION                 => "left",
       OPERATION                 => "shift",

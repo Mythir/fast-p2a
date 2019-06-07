@@ -50,6 +50,35 @@ package Delta is
     );
   end component;
 
+  component DeltaLengthDecoder is
+    generic (
+      BUS_DATA_WIDTH              : natural;
+      DEC_DATA_WIDTH              : natural;
+      INDEX_WIDTH                 : natural := 32;
+      CHARS_PER_CYCLE             : natural;
+      LENGTHS_PER_CYCLE           : natural;
+      RAM_CONFIG                  : string := ""
+    );
+    port (
+      clk                         : in  std_logic;
+      reset                       : in  std_logic;
+      ctrl_done                   : out std_logic;
+      in_valid                    : in  std_logic;
+      in_ready                    : out std_logic;
+      in_data                     : in  std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
+      new_page_valid              : in  std_logic;
+      new_page_ready              : out std_logic;
+      total_num_values            : in  std_logic_vector(31 downto 0);
+      page_num_values             : in  std_logic_vector(31 downto 0);
+      uncompressed_size           : in  std_logic_vector(31 downto 0);
+      out_valid                   : out std_logic_vector(1 downto 0);
+      out_ready                   : in  std_logic_vector(1 downto 0);
+      out_last                    : out std_logic_vector(1 downto 0);
+      out_dvalid                  : out std_logic_vector(1 downto 0) := (others => '1');
+      out_data                    : out std_logic_vector(log2ceil(CHARS_PER_CYCLE+1) + CHARS_PER_CYCLE*8 + log2ceil(LENGTHS_PER_CYCLE+1) + LENGTHS_PER_CYCLE*INDEX_WIDTH - 1 downto 0)
+    );
+  end component;
+
   component DeltaHeaderReader is
     generic (
       BUS_DATA_WIDTH              : natural;
@@ -274,6 +303,7 @@ package Delta is
       MAX_DELTAS_PER_CYCLE        : natural;
       BLOCK_SIZE                  : natural;
       MINIBLOCKS_IN_BLOCK         : natural;
+      DECODING_STRINGS            : boolean := false;
       PRIM_WIDTH                  : natural
     );
     port (
@@ -293,6 +323,10 @@ package Delta is
       md_valid                    : in  std_logic;
       md_ready                    : out std_logic;
       md_data                     : in  std_logic_vector(PRIM_WIDTH-1 downto 0);
+      nc_valid                    : out std_logic;
+      nc_ready                    : in  std_logic := '1';
+      nc_last                     : out std_logic;
+      nc_data                     : out std_logic_vector(31 downto 0);
       out_valid                   : out std_logic;
       out_ready                   : in  std_logic;
       out_last                    : out std_logic;
@@ -300,6 +334,37 @@ package Delta is
       out_data                    : out std_logic_vector(MAX_DELTAS_PER_CYCLE*PRIM_WIDTH-1 downto 0)
     );
   end component;
+
+  component CharBuffer is
+    generic (
+      BUS_DATA_WIDTH              : natural;
+      CHARS_PER_CYCLE             : natural;
+      BYTES_IN_BLOCK_WIDTH        : natural;
+      RAM_CONFIG                  : string := ""
+    );
+    port (
+      clk                         : in  std_logic;
+      reset                       : in  std_logic;
+      in_valid                    : in  std_logic;
+      in_ready                    : out std_logic;
+      in_last                     : in  std_logic;
+      in_data                     : in  std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
+      bc_valid                    : in  std_logic;
+      bc_ready                    : out std_logic;
+      bc_data                     : in  std_logic_vector(BYTES_IN_BLOCK_WIDTH-1 downto 0);
+      nc_valid                    : in  std_logic;
+      nc_ready                    : out std_logic;
+      nc_last                     : in  std_logic;
+      nc_data                     : in  std_logic_vector(31 downto 0);
+      new_page_valid              : in  std_logic;
+      new_page_ready              : out std_logic;
+      out_valid                   : out std_logic;
+      out_ready                   : in  std_logic;
+      out_last                    : out std_logic;
+      out_data                    : out std_logic_vector(log2ceil(CHARS_PER_CYCLE+1) + BUS_DATA_WIDTH - 1 downto 0)
+    );
+  end component;
+
   -----------------------------------------------------------------------------
   -- Helper functions
   -----------------------------------------------------------------------------

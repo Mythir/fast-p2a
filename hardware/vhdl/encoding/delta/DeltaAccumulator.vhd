@@ -34,6 +34,9 @@ entity DeltaAccumulator is
     -- Amount of miniblocks in a block 
     MINIBLOCKS_IN_BLOCK         : natural := 4;
 
+    -- Whether the DeltaAccumulator is used for decoding string lengths or not
+    DECODING_STRINGS            : boolean := false;
+
     -- Bit width of a single primitive value
     PRIM_WIDTH                  : natural := 32
   );
@@ -72,7 +75,7 @@ entity DeltaAccumulator is
 
     -- Num chars stream to CharBuffer (in case of string decoding)
     nc_valid                    : out std_logic;
-    nc_ready                    : in  std_logic;
+    nc_ready                    : in  std_logic := '1';
     nc_last                     : out std_logic;
     nc_data                     : out std_logic_vector(31 downto 0);
 
@@ -261,56 +264,60 @@ begin
     -------------------------------------------------------------------
     -- Stuff that is only relevant when decoding strings
     -------------------------------------------------------------------
-    s_nc_ready <= nc_ready;
-    nc_valid   <= s_nc_valid;
-    nc_last    <= nc.last_page;
-    nc_data    <= std_logic_vector(nc.num_chars);
 
-    s_nc_valid <= (s_new_page_ready or fv_ctrl_done) and not nc.transfer_done;
-
-    -- This process determines the sum of all string lengths so the CharBuffer knows how many characters to read
-    clk_p: process(clk)
-      variable add_operands : operand_array;
-      variable add_result   : unsigned(31 downto 0);
-      variable nc_prev      : nc_record;
+    nc_gen: if DECODING_STRINGS generate
     begin
-      if rising_edge(clk) then
-        if pipeline_reset = '1' then
-          nc.num_chars     <= (others => '0');
-          nc.last_page     <= '0';
-          nc.transfer_done <= '0';
-        else
-          nc_prev := nc;
-
-          if slice3.o.valid = '1' and slice3.o.ready = '1' then
-            -- Determine amount of valid lengths in output
-            for i in 0 to MAX_DELTAS_PER_CYCLE-1 loop
-              if i < unsigned(s_out_count) then
-                add_operands(i) := unsigned(s_out_data(PRIM_WIDTH*(i+1)-1 downto PRIM_WIDTH*i));
-              else
-                add_operands(i) := (others => '0');
-              end if;
-            end loop;
+      s_nc_ready <= nc_ready;
+      nc_valid   <= s_nc_valid;
+      nc_last    <= nc.last_page;
+      nc_data    <= std_logic_vector(nc.num_chars);
   
-            -- Sum all valid lengths
-            add_result := nc_prev.num_chars;
-            for i in 0 to MAX_DELTAS_PER_CYCLE-1 loop
-              add_result := add_result + add_operands(i);
-            end loop;
+      s_nc_valid <= (s_new_page_ready or fv_ctrl_done) and not nc.transfer_done;
   
-            nc.num_chars <= add_result;
-            nc.last_page <= s_out_last;
+      -- This process determines the sum of all string lengths so the CharBuffer knows how many characters to read
+      clk_p: process(clk)
+        variable add_operands : operand_array;
+        variable add_result   : unsigned(31 downto 0);
+        variable nc_prev      : nc_record;
+      begin
+        if rising_edge(clk) then
+          if pipeline_reset = '1' then
+            nc.num_chars     <= (others => '0');
+            nc.last_page     <= '0';
+            nc.transfer_done <= '0';
           else
-            nc.num_chars     <= nc_prev.num_chars;
-            nc.last_page     <= nc_prev.last_page;
-            nc.transfer_done <= nc_prev.transfer_done;
-          end if;
-
-          if s_nc_valid = '1' and s_nc_ready = '1' then
-            nc.transfer_done <= '1';
+            nc_prev := nc;
+  
+            if slice3.o.valid = '1' and slice3.o.ready = '1' then
+              -- Determine amount of valid lengths in output
+              for i in 0 to MAX_DELTAS_PER_CYCLE-1 loop
+                if i < unsigned(s_out_count) then
+                  add_operands(i) := unsigned(s_out_data(PRIM_WIDTH*(i+1)-1 downto PRIM_WIDTH*i));
+                else
+                  add_operands(i) := (others => '0');
+                end if;
+              end loop;
+    
+              -- Sum all valid lengths
+              add_result := nc_prev.num_chars;
+              for i in 0 to MAX_DELTAS_PER_CYCLE-1 loop
+                add_result := add_result + add_operands(i);
+              end loop;
+    
+              nc.num_chars <= add_result;
+              nc.last_page <= s_out_last;
+            else
+              nc.num_chars     <= nc_prev.num_chars;
+              nc.last_page     <= nc_prev.last_page;
+              nc.transfer_done <= nc_prev.transfer_done;
+            end if;
+  
+            if s_nc_valid = '1' and s_nc_ready = '1' then
+              nc.transfer_done <= '1';
+            end if;
           end if;
         end if;
-      end if;
-    end process;
+      end process;
+    end generate;
 
 end architecture;
