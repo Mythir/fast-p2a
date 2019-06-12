@@ -49,6 +49,8 @@ entity BlockValuesAligner is
     -- Active-high synchronous reset.
     reset                       : in  std_logic;
 
+    done                        : out std_logic;
+
     -- Data in stream from StreamSerializer
     in_valid                    : in  std_logic;
     in_ready                    : out std_logic;
@@ -149,6 +151,7 @@ begin
   bhr_in_valid    <= sync_out_valid(0);
   sync_out_ready  <= fifo_in_ready  & bhr_in_ready;
   sync_out_enable <= (not bsc_page_done) & (not bhr_page_done);
+  done            <= bsc_page_done and bhr_page_done;
 
   -- Connect output signals
   out_valid         <= shifter_out_valid;

@@ -106,6 +106,13 @@ architecture behv of DeltaLengthDecoder is
   signal new_page_reset : std_logic;
   signal pipeline_reset : std_logic;
 
+  -- BlockValuesAligner done signal
+  signal bva_done       : std_logic;
+
+  -- Enable for the StreamSerializer/CharBuffer sync
+  signal ss_cb_enable   : std_logic_vector(1 downto 0);
+
+
   --------------------------------------------------------------------
   -- Streams
   --------------------------------------------------------------------
@@ -296,9 +303,10 @@ begin
       out_data                   => dhr_ss_data
     );  
 
-  ss_ss_valid    <= dec_sync_out_valid(1);
-  ss_cb_valid    <= dec_sync_out_valid(0);
+  ss_ss_valid        <= dec_sync_out_valid(1);
+  ss_cb_valid        <= dec_sync_out_valid(0);
   dec_sync_out_ready <= ss_ss_ready & ss_cb_ready;
+  ss_cb_enable       <= (not bva_done) & '1';
 
   cb_ss_sync: StreamSync
     generic map(
@@ -311,7 +319,8 @@ begin
       in_valid(0)               => dhr_ss_valid,
       in_ready(0)               => dhr_ss_ready,
       out_valid                 => dec_sync_out_valid,
-      out_ready                 => dec_sync_out_ready
+      out_ready                 => dec_sync_out_ready,
+      out_enable                => ss_cb_enable
     );
 
   cb_inst: CharBuffer
@@ -324,6 +333,7 @@ begin
     port map(
       clk                         => clk,
       reset                       => reset,
+      lengths_processed           => bva_done,
       in_valid                    => ss_cb_valid,
       in_ready                    => ss_cb_ready,
       in_last                     => dhr_ss_last,
@@ -374,6 +384,7 @@ begin
     port map(
       clk                         => clk,
       reset                       => pipeline_reset,
+      done                        => bva_done,
       in_valid                    => ss_bva_valid,
       in_ready                    => ss_bva_ready,
       in_data                     => ss_bva_data,

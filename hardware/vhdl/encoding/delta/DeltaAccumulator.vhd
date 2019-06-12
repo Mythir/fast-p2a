@@ -271,8 +271,9 @@ begin
       nc_valid   <= s_nc_valid;
       nc_last    <= nc.last_page;
       nc_data    <= std_logic_vector(nc.num_chars);
-  
-      s_nc_valid <= (s_new_page_ready or fv_ctrl_done) and not nc.transfer_done;
+      
+      -- Num chars stream is valid when DeltaAccumulator is done (for this page), the stream has not been handshaked yet (for this page), and there is no more data in slice3
+      s_nc_valid <= (s_new_page_ready or fv_ctrl_done) and not nc.transfer_done and not slice3.o.valid;
   
       -- This process determines the sum of all string lengths so the CharBuffer knows how many characters to read
       clk_p: process(clk)

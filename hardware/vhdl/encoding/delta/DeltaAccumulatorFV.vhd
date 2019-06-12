@@ -293,6 +293,9 @@ begin
       when DONE =>
         ctrl_done <= '1';
 
+        -- Avoid blocking the stream (important in case of string decoding when chars follow the deltas)
+        in_ready <= '1';
+
     end case;
 
     d <= v;

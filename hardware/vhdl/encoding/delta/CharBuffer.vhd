@@ -40,6 +40,9 @@ entity CharBuffer is
     -- Active-high synchronous reset.
     reset                       : in  std_logic;
 
+    -- If all lengths in the page have been read (from BlockValuesAligner)
+    lengths_processed           : in  std_logic;
+
     -- Data in stream from DeltaHeaderReader
     in_valid                    : in  std_logic;
     in_ready                    : out std_logic;
@@ -138,7 +141,13 @@ architecture behv of CharBuffer is
   signal out_count              : std_logic_vector(OUT_COUNT_WIDTH-1 downto 0);
   signal out_chars              : std_logic_vector(OUT_CHARS_WIDTH-1 downto 0);
 
+  -- Reset certain components upon handshaking a new page
+  signal new_page_reset         : std_logic;
+  signal pipeline_reset         : std_logic;
+
 begin
+
+  pipeline_reset <= reset or new_page_reset;
   
   -----------------------------------------------------------------------------
   -- FiFo used to buffer data from DeltaHeaderReader and skip string lengths
@@ -156,7 +165,7 @@ begin
     )
     port map(
       clk                     => clk,
-      reset                   => reset,
+      reset                   => pipeline_reset,
       in_valid                => in_valid,
       in_ready                => in_ready,
       in_data                 => fifo_in_data,
@@ -171,6 +180,7 @@ begin
   ---------------------------------------------------------------------------------------------------
   -- Barrel shifter for re-aligning data from DeltaHeaderReader after having read all string lengths
   ---------------------------------------------------------------------------------------------------
+  shifter_in_chars <= r.hold & fifo_out_data(BUS_DATA_WIDTH-1 downto 0);
   shifter_in_data <= shifter_in_chars;
   shift_amount <= std_logic_vector(r.bc_accumulator(SHIFT_AMOUNT_WIDTH-1 downto 0));
 
@@ -184,7 +194,7 @@ begin
     )
     port map (
       clk                       => clk,
-      reset                     => reset,
+      reset                     => pipeline_reset,
       in_valid                  => shifter_in_valid,
       in_ready                  => shifter_in_ready,
       in_data                   => shifter_in_data,
@@ -208,7 +218,7 @@ begin
     )
     port map (
       clk                       => clk,
-      reset                     => reset,
+      reset                     => pipeline_reset,
       in_data                   => s_pipe_input(SHIFTER_DATA_WIDTH-1 downto 0),
       in_ctrl                   => s_pipe_input(SHIFTER_CTRL_WIDTH+SHIFTER_DATA_WIDTH-1 downto SHIFTER_DATA_WIDTH),
       in_amount                 => shift_amount,
@@ -230,7 +240,7 @@ begin
       )
       port map(
         clk                       => clk,
-        reset                     => reset,
+        reset                     => pipeline_reset,
         in_valid                  => shifter_out_valid,
         in_ready                  => shifter_out_ready,
         in_data                   => shifter_out_data(SHIFTER_DATA_WIDTH-1 downto BUS_DATA_WIDTH),
@@ -247,16 +257,15 @@ begin
     out_chars         <= shifter_out_data(SHIFTER_DATA_WIDTH-1 downto BUS_DATA_WIDTH);
   end generate;
 
-  out_valid   <= s_out_valid;
-  s_out_ready <= out_ready;
-  out_data    <= out_count & out_chars;
+  -- out_chars endian swapped to comply with Fletcher LSB alignment requirements
+  out_data    <= out_count & endian_swap(out_chars);
 
   -------------------
   -- State machine
   -------------------
 
   logic_p: process(r, new_page_valid, shifter_in_valid, bc_data, adv_ready, fifo_out_valid, bc_valid, nc_valid, nc_last, nc_data, fifo_out_data, shifter_in_ready,
-                   s_out_ready, s_out_valid)
+                   s_out_ready, s_out_valid, lengths_processed, out_ready)
     variable v : reg_record;
   begin
     v := r;
@@ -269,6 +278,11 @@ begin
     shifter_in_valid <= '0';
     fifo_out_ready   <= '0';
 
+    out_valid   <= '0';
+    s_out_ready <= '0';
+
+    new_page_reset <= '0';
+
     out_count <= std_logic_vector(to_unsigned(CHARS_PER_CYCLE, out_count'length));
     out_last  <= '0';
 
@@ -278,6 +292,7 @@ begin
         new_page_ready <= '1';
 
         if new_page_valid = '1' then
+          new_page_reset   <= '1';
           v.state          := SKIP_LENGTHS;
           v.bc_accumulator := (others => '0');
           v.skipped_words  := (others => '0');
@@ -299,7 +314,7 @@ begin
           if adv_ready = '1' then
             v.skipped_words := r.bc_accumulator(31 downto SHIFT_AMOUNT_WIDTH);
           end if;
-        elsif nc_valid = '1' and bc_valid = '0' and fifo_out_valid = '1' then
+        elsif nc_valid = '1' and bc_valid = '0' and fifo_out_valid = '1' and lengths_processed = '1' then
           -- If DeltaHeaderReader has a char count ready, if block values aligner has no more bc info, and if the fifo has valid data on its output, start passing characters to the output stream
           nc_ready            <= '1';
           fifo_out_ready      <= '1';
@@ -311,14 +326,25 @@ begin
         end if;
 
       when PASS_CHARS =>
+        -- Connect output of charbuffer to Shifter/StreamSerializer
+        out_valid   <= s_out_valid;
+        s_out_ready <= out_ready;
+
         shifter_in_valid <= fifo_out_valid or r.hold_last;
 
+        -- Feed data into the shifter
         if shifter_in_valid = '1' and shifter_in_ready = '1' then
           fifo_out_ready  <= '1';
           v.hold          := fifo_out_data(BUS_DATA_WIDTH-1 downto 0);
           v.hold_last     := fifo_out_data(BUS_DATA_WIDTH);
         end if;
 
+        -- Upon handshake, decrease amount of chars left to read
+        if s_out_valid = '1' and s_out_ready = '1' then
+          v.chars_to_read := r.chars_to_read - CHARS_PER_CYCLE;
+        end if;
+
+        -- When we are almost done, cut out_count short and determine if this was the last page
         if r.chars_to_read <= CHARS_PER_CYCLE then
           out_count <= std_logic_vector(resize(r.chars_to_read, out_count'length));
           if r.last_page = '1' then
@@ -326,7 +352,6 @@ begin
           end if;
 
           if s_out_valid = '1' and s_out_ready = '1' then
-            v.chars_to_read := r.chars_to_read - CHARS_PER_CYCLE;
             if r.last_page = '1' then
               v.state := DONE;
             else

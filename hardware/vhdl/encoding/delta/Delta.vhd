@@ -117,6 +117,7 @@ package Delta is
     port (
       clk                         : in  std_logic;
       reset                       : in  std_logic;
+      done                        : out std_logic;
       in_valid                    : in  std_logic;
       in_ready                    : out std_logic;
       in_data                     : in  std_logic_vector(DEC_DATA_WIDTH-1 downto 0);
@@ -345,6 +346,7 @@ package Delta is
     port (
       clk                         : in  std_logic;
       reset                       : in  std_logic;
+      lengths_processed           : in  std_logic;
       in_valid                    : in  std_logic;
       in_ready                    : out std_logic;
       in_last                     : in  std_logic;

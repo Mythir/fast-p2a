@@ -253,7 +253,14 @@ begin
                   v.byte_counter      := r.byte_counter + 1;
                   v.header_data       := std_logic_vector(shift_left(unsigned(r.header_data), 8));
                   v.miniblock_counter := r.miniblock_counter + 1;
-                  v.bytes_packed_data := r.bytes_packed_data + (unsigned(current_byte) * (VALUES_IN_MINIBLOCK/8));
+
+                  -- Add to the page val counter for every miniblock processed
+                  v.page_val_counter  := r.page_val_counter + VALUES_IN_MINIBLOCK;
+
+                  -- If after previous miniblocks all values in the page have been read, then no more miniblocks will be encoded. No matter what the block header says.
+                  if r.page_val_counter < unsigned(page_num_values) then
+                    v.bytes_packed_data := r.bytes_packed_data + (unsigned(current_byte) * (VALUES_IN_MINIBLOCK/8));
+                  end if;
 
                   -- Cycle save below does not work because of overwriting v.bytes_packed_data.
                   ---- Save a cycle by checking if we can progress to SKIPPING while streaming out the last byte. 
@@ -275,9 +282,6 @@ begin
                     -- Compensate bytes_packed_data (which will be used for SKIPPING) for the packed bytes present in the header_data register
                     v.bytes_packed_data  := r.bytes_packed_data - DEC_DATA_WIDTH/8 + r.byte_counter;
                   end if;
-
-                  -- Block done, so add to amount of values processed
-                  v.page_val_counter  := r.page_val_counter + BLOCK_SIZE;
 
                   -- When decoding strings: tell CharBuffer the size of the packed data
                   v.bc_handshake_state := VALID;
