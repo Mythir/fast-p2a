@@ -219,7 +219,7 @@ std::shared_ptr<arrow::Table> generate_str_table(int num_values, int min_length,
     PARQUET_THROW_NOT_OK(strbuilder.Finish(&strarray));
 
     std::shared_ptr<arrow::Schema> schema = arrow::schema(
-            {arrow::field("str", arrow::utf8(), true)});
+            {arrow::field("str", arrow::utf8(), false)});
 
     if(write_to_file){
         for(int i=0; i<strarray->data()->buffers[1]->size(); i++){
