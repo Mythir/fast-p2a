@@ -69,6 +69,7 @@ package Ptoa is
       max_data_size                              : in  std_logic_vector(BUS_ADDR_WIDTH-1 downto 0);
       total_num_values                           : in  std_logic_vector(31 downto 0);
       values_buffer_addr                         : in  std_logic_vector(BUS_ADDR_WIDTH-1 downto 0);
+      offsets_buffer_addr                        : in  std_logic_vector(BUS_ADDR_WIDTH-1 downto 0) := (others => '0');
       ---------------------------------------------------------------------------
       start                                      : in  std_logic;
       stop                                       : in  std_logic;

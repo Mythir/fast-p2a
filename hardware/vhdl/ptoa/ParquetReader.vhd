@@ -24,6 +24,7 @@ use work.Arrow.all;
 use work.Arrays.all;
 use work.Interconnect.all;
 use work.Wrapper.all;
+use work.ArrayConfig.all;
 use work.ArrayConfigParse.all;
 
 -- Ptoa
@@ -86,6 +87,8 @@ entity ParquetReader is
     total_num_values                           : in  std_logic_vector(31 downto 0);
     -- Pointer to Arrow values buffer
     values_buffer_addr                         : in  std_logic_vector(BUS_ADDR_WIDTH-1 downto 0);
+    -- Pointer to Arrow offsets buffer
+    offsets_buffer_addr                        : in  std_logic_vector(BUS_ADDR_WIDTH-1 downto 0) := (others => '0');
     ---------------------------------------------------------------------------
     start                                      : in  std_logic;
     stop                                       : in  std_logic;
@@ -97,7 +100,6 @@ end ParquetReader;
 architecture Implementation of ParquetReader is
 
   constant PRIM_WIDTH                          : natural := strtoi(parse_arg(CFG, 0));
-  constant ELEMENTS_PER_CYCLE                  : natural := parse_param(CFG, "epc", 1);
 
   -- Metadata signals
   signal mdi_rl_byte_length                    : std_logic_vector(31 downto 0);
@@ -154,11 +156,11 @@ architecture Implementation of ParquetReader is
   signal unl_tag                               : std_logic_vector(TAG_WIDTH-1 downto 0);
 
   -- Data stream
-  signal vd_cw_valid                           : std_logic_vector(0 downto 0);
-  signal vd_cw_ready                           : std_logic_vector(0 downto 0);
-  signal vd_cw_last                            : std_logic_vector(0 downto 0);
-  signal vd_cw_data                            : std_logic_vector(log2ceil(ELEMENTS_PER_CYCLE+1) + ELEMENTS_PER_CYCLE*PRIM_WIDTH - 1 downto 0);
-  signal vd_cw_dvalid                          : std_logic_vector(0 downto 0);
+  signal vd_cw_valid                           : std_logic_vector(arcfg_userCount(CFG)-1 downto 0);
+  signal vd_cw_ready                           : std_logic_vector(arcfg_userCount(CFG)-1 downto 0);
+  signal vd_cw_last                            : std_logic_vector(arcfg_userCount(CFG)-1 downto 0);
+  signal vd_cw_data                            : std_logic_vector(arcfg_userWidth(CFG, INDEX_WIDTH)-1 downto 0);
+  signal vd_cw_dvalid                          : std_logic_vector(arcfg_userCount(CFG)-1 downto 0);
 
 begin
 
@@ -245,9 +247,9 @@ begin
       INDEX_WIDTH                 => INDEX_WIDTH,
       MIN_INPUT_BUFFER_DEPTH      => 16,
       CMD_TAG_WIDTH               => TAG_WIDTH,
+      CFG                         => CFG,
       ENCODING                    => ENCODING,
       COMPRESSION_CODEC           => COMPRESSION_CODEC,
-      ELEMENTS_PER_CYCLE          => ELEMENTS_PER_CYCLE,
       PRIM_WIDTH                  => PRIM_WIDTH
     )
     port map(
@@ -263,6 +265,7 @@ begin
       total_num_values            => total_num_values,
       page_num_values             => mdi_dd_num_values,
       values_buffer_addr          => values_buffer_addr,
+      offsets_buffer_addr         => offsets_buffer_addr,
       bc_data                     => bytes_cons_data(2*log2ceil(BUS_DATA_WIDTH/8)+1 downto log2ceil(BUS_DATA_WIDTH/8)+1),
       bc_ready                    => bytes_cons_ready(1),
       bc_valid                    => bytes_cons_valid(1),
@@ -275,10 +278,10 @@ begin
       unl_valid                   => unl_valid,
       unl_ready                   => unl_ready,
       unl_tag                     => unl_tag,
-      out_valid                   => vd_cw_valid(0),
-      out_ready                   => vd_cw_ready(0),
-      out_last                    => vd_cw_last(0),
-      out_dvalid                  => vd_cw_dvalid(0),
+      out_valid                   => vd_cw_valid,
+      out_ready                   => vd_cw_ready,
+      out_last                    => vd_cw_last,
+      out_dvalid                  => vd_cw_dvalid,
       out_data                    => vd_cw_data
     );
 

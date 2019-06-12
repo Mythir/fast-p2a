@@ -46,7 +46,7 @@ entity axi_top is
     -- Accelerator properties
     TAG_WIDTH                   : natural := 1;
     NUM_ARROW_BUFFERS           : natural := 1;
-    NUM_REGS                    : natural := 9;
+    NUM_REGS                    : natural := 11;
     REG_WIDTH                   : natural := SLV_BUS_DATA_WIDTH
   );
 

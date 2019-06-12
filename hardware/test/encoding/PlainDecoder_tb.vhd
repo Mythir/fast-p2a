@@ -27,7 +27,7 @@ entity PlainDecoder_tb is
 end PlainDecoder_tb;
 
 architecture tb of PlainDecoder_tb is
-  constant BUS_DATA_WIDTH       : natural := 256;
+  constant BUS_DATA_WIDTH       : natural := 512;
   constant PRIM_WIDTH           : natural := 64;
   constant TOTAL_NUM_VALUES     : natural := 15573;
   constant ELEMENTS_PER_CYCLE   : natural := BUS_DATA_WIDTH/PRIM_WIDTH;
@@ -46,7 +46,7 @@ architecture tb of PlainDecoder_tb is
   signal out_ready              : std_logic;
   signal out_last               : std_logic;
   signal out_dvalid             : std_logic := '1';
-  signal out_data               : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
+  signal out_data               : std_logic_vector(log2ceil(ELEMENTS_PER_CYCLE+1) + ELEMENTS_PER_CYCLE*PRIM_WIDTH - 1 downto 0);
 begin
 
   dut: entity work.PlainDecoder
@@ -182,7 +182,7 @@ begin
     constant max_stopped_cycles : real    := 10.0;
 
     variable counter            : natural := 0;
-    variable read_data          : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
+    variable read_data          : std_logic_vector(log2ceil(ELEMENTS_PER_CYCLE+1) + ELEMENTS_PER_CYCLE*PRIM_WIDTH - 1 downto 0);
     variable check_out_last     : std_logic;
 
     variable seed1              : positive := 1227;

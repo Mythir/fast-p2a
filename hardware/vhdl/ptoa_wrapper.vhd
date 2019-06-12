@@ -92,6 +92,8 @@ architecture behv of ptoa_wrapper is
   constant REG_MAX_SIZE1                     : natural := 6;
   constant REG_VAL_ADDR0                     : natural := 7;
   constant REG_VAL_ADDR1                     : natural := 8;
+  constant REG_OFF_ADDR0                     : natural := 9;
+  constant REG_OFF_ADDR1                     : natural := 10;
 
   ---------------------------------------
   -- Fletcher UserCoreController signals
@@ -140,6 +142,8 @@ begin
   regs_out_en(REG_MAX_SIZE1)   <= '0';
   regs_out_en(REG_VAL_ADDR0)   <= '0';
   regs_out_en(REG_VAL_ADDR1)   <= '0';
+  regs_out_en(REG_OFF_ADDR0)   <= '0';
+  regs_out_en(REG_OFF_ADDR1)   <= '0';
 
   -- Reset the ParquetReader when the UserCoreController or the top level requests it
   pr_reset <= uctrl_reset or bus_reset;
@@ -204,6 +208,7 @@ begin
       max_data_size                            => regs_in((REG_MAX_SIZE1+1)*REG_WIDTH-1 downto REG_WIDTH*REG_MAX_SIZE0),
       total_num_values                         => regs_in((REG_NUM_VAL+1)*REG_WIDTH-1 downto REG_WIDTH*REG_NUM_VAL),
       values_buffer_addr                       => regs_in((REG_VAL_ADDR1+1)*REG_WIDTH-1 downto REG_WIDTH*REG_VAL_ADDR0),
+      offsets_buffer_addr                      => regs_in((REG_OFF_ADDR1+1)*REG_WIDTH-1 downto REG_WIDTH*REG_OFF_ADDR0),
       start                                    => uctrl_start,
       stop                                     => uctrl_stop,
       done                                     => uctrl_done
