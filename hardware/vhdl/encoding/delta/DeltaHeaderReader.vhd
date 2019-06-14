@@ -17,8 +17,8 @@ use ieee.math_real.all;
 
 library work;
 -- Fletcher utils for use of log2ceil function.
-use work.Utils.all;
-use work.Streams.all;
+use work.UtilInt_pkg.all;
+use work.Stream_pkg.all;
 use work.Encoding.all;
 
 -- This module reads the values in the Delta header and aligns the data to the first block header.

@@ -16,9 +16,9 @@ use ieee.numeric_std.all;
 
 library work;
 -- Fletcher utils for use of log2ceil function.
-use work.Utils.all;
+use work.UtilInt_pkg.all;
 use work.Delta.all;
-use work.Streams.all;
+use work.Stream_pkg.all;
 
 -- This module takes the aligned bit-packed data plus count and width information from the BlockValuesAligner and unpacks the values.
 -- For each value that needs to be unpacked (limited by MAX_DELTAS_PER_CYCLE) a shifter pipeline is generated.

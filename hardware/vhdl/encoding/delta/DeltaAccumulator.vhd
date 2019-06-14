@@ -16,8 +16,8 @@ use ieee.numeric_std.all;
 
 library work;
 -- Fletcher utils for use of log2ceil function.
-use work.Utils.all;
-use work.Streams.all;
+use work.UtilInt_pkg.all;
+use work.Stream_pkg.all;
 use work.Delta.all;
 
 -- This module determines the encoded values from the unpacked deltas, min_delta, and first_value. Also takes

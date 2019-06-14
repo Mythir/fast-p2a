@@ -22,8 +22,8 @@ use ieee.std_logic_misc.all;
 
 library work;
 -- Fletcher
-use work.Interconnect.all;
-use work.Wrapper.all;
+use work.Interconnect_pkg.all;
+use work.Wrapper_pkg.all;
 
 -- Ptoa
 use work.Ptoa.all;
@@ -154,10 +154,10 @@ begin
       REG_WIDTH                                => REG_WIDTH
     )
     port map (
-      acc_clk                                  => acc_clk,
-      acc_reset                                => acc_reset,
-      bus_clk                                  => bus_clk,
-      bus_reset                                => bus_reset,
+      kcd_clk                                  => acc_clk,
+      kcd_reset                                => acc_reset,
+      bcd_clk                                  => bus_clk,
+      bcd_reset                                => bus_reset,
       status                                   => regs_out((REG_STATUS+1)*REG_WIDTH-1 downto REG_WIDTH*REG_STATUS),
       control                                  => regs_in((REG_CONTROL+1)*REG_WIDTH-1 downto REG_WIDTH*REG_CONTROL),
       start                                    => uctrl_start,
@@ -180,8 +180,10 @@ begin
       INDEX_WIDTH                              => INDEX_WIDTH,
       ---------------------------------------------------------------------------------
       TAG_WIDTH                                => TAG_WIDTH,
-      CFG                                      => "prim(32;epc=4)",
-      ENCODING                                 => "DELTA",
+      CFG                                      => "listprim(8;lepc=4,epc=64)",
+      ENCODING                                 => "DELTA_LENGTH",
+      --CFG                                      => "prim(32;epc=8)",
+      --ENCODING                                 => "DELTA",
       COMPRESSION_CODEC                        => "UNCOMPRESSED"
     )
     port map(
@@ -225,8 +227,8 @@ begin
       MAX_OUTSTANDING                          => 16
     )
     port map (
-      bus_clk                                  => bus_clk,
-      bus_reset                                => bus_reset,
+      bcd_clk                                  => bus_clk,
+      bcd_reset                                => bus_reset,
       bsv_wdat_valid                           => bsv_wdat_valid,
       bsv_wdat_ready                           => bsv_wdat_ready,
       bsv_wdat_data                            => bsv_wdat_data,
@@ -257,8 +259,8 @@ begin
       MAX_OUTSTANDING                          => 16
     )
     port map (
-      bus_clk                                  => bus_clk,
-      bus_reset                                => bus_reset,
+      bcd_clk                                  => bus_clk,
+      bcd_reset                                => bus_reset,
       bsv_rreq_valid                           => bsv_rreq_valid,
       bsv_rreq_ready                           => bsv_rreq_ready,
       bsv_rreq_addr                            => bsv_rreq_addr,

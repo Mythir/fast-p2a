@@ -19,13 +19,13 @@ use ieee.std_logic_misc.all;
 library work;
 
 -- Fletcher
-use work.Utils.all;
-use work.Arrow.all;
-use work.Arrays.all;
-use work.Interconnect.all;
-use work.Wrapper.all;
-use work.ArrayConfig.all;
-use work.ArrayConfigParse.all;
+use work.UtilInt_pkg.all;
+use work.Arrow_pkg.all;
+use work.Array_pkg.all;
+use work.Interconnect_pkg.all;
+use work.Wrapper_pkg.all;
+use work.ArrayConfig_pkg.all;
+use work.ArrayConfigParse_pkg.all;
 
 -- Ptoa
 use work.Encoding.all;
@@ -147,7 +147,7 @@ architecture Implementation of ParquetReader is
   signal cmd_ready                             : std_logic;
   signal cmd_firstIdx                          : std_logic_vector(INDEX_WIDTH-1 downto 0);
   signal cmd_lastIdx                           : std_logic_vector(INDEX_WIDTH-1 downto 0);
-  signal cmd_ctrl                              : std_logic_vector(BUS_ADDR_WIDTH-1 downto 0);
+  signal cmd_ctrl                              : std_logic_vector(arcfg_ctrlWidth(CFG, BUS_ADDR_WIDTH)-1 downto 0);
   signal cmd_tag                               : std_logic_vector(TAG_WIDTH-1 downto 0);
 
   -- Unlock stream
@@ -299,10 +299,10 @@ begin
       CMD_TAG_WIDTH               => TAG_WIDTH
     )
     port map (
-      bus_clk                     => clk,
-      bus_reset                   => reset,
-      acc_clk                     => clk,
-      acc_reset                   => reset,
+      bcd_clk                     => clk,
+      bcd_reset                   => reset,
+      kcd_clk                     => clk,
+      kcd_reset                   => reset,
       cmd_valid                   => cmd_valid,
       cmd_ready                   => cmd_ready,
       cmd_firstIdx                => cmd_firstIdx,
@@ -323,8 +323,8 @@ begin
       bus_wdat_data               => bus_wdat_data,
       bus_wdat_strobe             => bus_wdat_strobe,
       bus_wdat_last               => bus_wdat_last,
-      unlock_valid                => unl_valid,
-      unlock_ready                => unl_ready,
-      unlock_tag                  => unl_tag
+      unl_valid                => unl_valid,
+      unl_ready                => unl_ready,
+      unl_tag                  => unl_tag
     );
 end architecture;

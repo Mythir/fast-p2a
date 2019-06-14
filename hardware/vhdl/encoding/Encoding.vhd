@@ -16,9 +16,10 @@ use ieee.std_logic_misc.all;
 use ieee.numeric_std.all;
 
 library work;
-use work.Utils.all;
-use work.ArrayConfig.all;
-use work.ArrayConfigParse.all;
+use work.UtilInt_pkg.all;
+use work.UtilConv_pkg.all;
+use work.ArrayConfig_pkg.all;
+use work.ArrayConfigParse_pkg.all;
 
 package Encoding is
 

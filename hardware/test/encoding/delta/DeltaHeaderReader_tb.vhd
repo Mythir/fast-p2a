@@ -21,7 +21,7 @@ use ieee.math_real.all;
 
 library work;
 -- Fletcher utils for use of the log2ceil function
-use work.Utils.all;
+use work.UtilInt_pkg.all;
 
 -- Very simple testbench for DeltaHeaderReader. Does not verify the output, is simply meant as a tool for seeing how the DeltaHeaderReader reacts to different inputs.
 

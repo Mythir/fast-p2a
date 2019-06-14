@@ -16,8 +16,9 @@ use ieee.numeric_std.all;
 
 library work;
 -- Fletcher utils for use of log2ceil function.
-use work.Utils.all;
-use work.Streams.all;
+use work.UtilInt_pkg.all;
+use work.UtilMisc_pkg.all;
+use work.Stream_pkg.all;
 use work.Delta.all;
 use work.Encoding.all;
 
@@ -232,9 +233,9 @@ begin
 
   serialization_required: if BUS_DATA_WIDTH /= OUT_CHARS_WIDTH generate
   begin
-    ss_inst: StreamSerializer
+    ss_inst: StreamGearboxSerializer
       generic map(
-        DATA_WIDTH                => BUS_DATA_WIDTH,
+        ELEMENT_WIDTH                => BUS_DATA_WIDTH,
         IN_COUNT_MAX              => BUS_DATA_WIDTH/OUT_CHARS_WIDTH,
         IN_COUNT_WIDTH            => log2ceil(BUS_DATA_WIDTH/OUT_CHARS_WIDTH)
       )
@@ -258,7 +259,7 @@ begin
   end generate;
 
   -- out_chars endian swapped to comply with Fletcher LSB alignment requirements
-  out_data    <= out_count & endian_swap(out_chars);
+  out_data    <= out_count & endianSwap(out_chars);
 
   -------------------
   -- State machine

@@ -20,7 +20,7 @@ use ieee.std_logic_textio.all;
 use ieee.math_real.all;
 
 library work;
-use work.Utils.all;
+use work.UtilInt_pkg.all;
 use work.Delta.all;
 
 -- Small testbench file for testing the functions used to generate the tables containing the amount of values to unpack for each bit width.

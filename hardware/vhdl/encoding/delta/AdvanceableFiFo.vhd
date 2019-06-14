@@ -15,7 +15,8 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 library work;
-use work.Utils.all;
+use work.UtilInt_pkg.all;
+use work.UtilRam_pkg.all;
 
 -- A special FiFo that allows for deleting/skipping entries. If the adv stream is left alone it just function as a normal FiFo.
 -- If a count is presented to the adv stream no data words can be written or read from the FiFo in that cycle. Instead, 
@@ -84,7 +85,7 @@ architecture behv of AdvanceableFiFo is
   signal fifo_empty             : std_logic;
 
 begin
-  ram_inst: Ram1R1W
+  ram_inst: UtilRam1R1W
     generic map (
       WIDTH                     => DATA_WIDTH,
       DEPTH_LOG2                => DEPTH_LOG2,

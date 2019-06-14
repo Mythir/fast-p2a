@@ -18,7 +18,7 @@ use ieee.math_real.all;
 library work;
 use work.Encoding.all;
 -- Fletcher utils, for use of the log2ceil function
-use work.Utils.all;
+use work.UtilInt_pkg.all;
 
 -- Variable length integer decoder that works by feeding it one byte at a time.
 -- Necessary for deserializing Thrift structures (page headers) and decoding repetition/definition levels.

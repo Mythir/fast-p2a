@@ -21,9 +21,9 @@ use ieee.math_real.all;
 
 library work;
 -- Fletcher utils for use of the log2ceil function
-use work.Utils.all;
-use work.ArrayConfig.all;
-use work.ArrayConfigParse.all;
+use work.UtilInt_pkg.all;
+use work.ArrayConfig_pkg.all;
+use work.ArrayConfigParse_pkg.all;
 
 -- This testbench tests the ValuesDecoder in the case of a PLAIN encoding and UNCOMPRESSED compression_codec. Compatible testcase hex files are generated
 -- by PlainDecoder_gen.py. The generated testcase simulates a Parquet file containing all integers 0 to total_num_values sorted from small to large.

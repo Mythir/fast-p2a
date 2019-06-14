@@ -15,8 +15,8 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 library work;
-use work.Utils.all;
-use work.Streams.all;
+use work.UtilInt_pkg.all;
+use work.Stream_pkg.all;
 use work.Delta.all;
 use work.Ptoa.all;
 
@@ -101,7 +101,7 @@ architecture behv of BlockShiftControl is
   constant BL_WIDTH_BYTES   : natural := log2floor(max_varint_bytes(PRIM_WIDTH)+MINIBLOCKS_IN_BLOCK) + 1;
   -- The amount of bits used to represent block header width can not be smaller than amount_width
   -- This is to avoid problems with null ranges
-  constant BL_WIDTH_BITS    : natural := MAX(BL_WIDTH_BYTES+log2ceil(8), AMOUNT_WIDTH);
+  constant BL_WIDTH_BITS    : natural := imax(BL_WIDTH_BYTES+log2ceil(8), AMOUNT_WIDTH);
 
   -- Tables containing the amount of values to unpack per cycle for every bit width. Depending on PRIM_WIDTH one of these tables goes unused.
   constant count_lut_64 : count_lut_64_t := init_count_lut_64(MAX_DELTAS_PER_CYCLE, DEC_DATA_WIDTH);

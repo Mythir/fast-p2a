@@ -16,8 +16,8 @@ use ieee.numeric_std.all;
 
 library work;
 -- Fletcher utils for use of log2ceil function.
-use work.Utils.all;
-use work.Streams.all;
+use work.UtilInt_pkg.all;
+use work.Stream_pkg.all;
 
 -- This module adds each delta supplied by DeltaAccumulatorMD to produce the final values.
 -- Also keeps track of the page value count and total value count and is therefore responsible for the control logic

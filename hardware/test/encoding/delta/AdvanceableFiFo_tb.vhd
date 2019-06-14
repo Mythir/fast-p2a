@@ -16,7 +16,7 @@ use ieee.numeric_std.all;
 use ieee.math_real.all;
 
 library work;
-use work.Utils.all;
+use work.UtilInt_pkg.all;
 
 entity AdvanceableFiFo_tb is
 end AdvanceableFiFo_tb;

@@ -16,8 +16,8 @@ use ieee.numeric_std.all;
 
 library work;
 -- Fletcher utils for use of log2ceil function.
-use work.Utils.all;
-use work.Streams.all;
+use work.UtilInt_pkg.all;
+use work.Stream_pkg.all;
 
 -- This module uses the min_delta value obtained from the BlockHeaderReader to calculate the full deltas from the values unpacked by BitUnpacker.
 -- It keeps track of the amount of deltas processed in a block so it knows when to request a new min_delta.

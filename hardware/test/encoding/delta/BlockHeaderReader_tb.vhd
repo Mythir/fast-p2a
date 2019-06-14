@@ -21,7 +21,7 @@ use ieee.math_real.all;
 
 library work;
 -- Fletcher utils for use of log2ceil function.
-use work.Utils.all;
+use work.UtilInt_pkg.all;
 use work.Ptoa.all;
 use work.Encoding.all;
 

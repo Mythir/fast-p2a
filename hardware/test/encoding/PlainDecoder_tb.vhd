@@ -21,7 +21,7 @@ use ieee.math_real.all;
 
 library work;
 -- Fletcher utils for use of the log2ceil function
-use work.Utils.all;
+use work.UtilInt_pkg.all;
 
 entity PlainDecoder_tb is
 end PlainDecoder_tb;

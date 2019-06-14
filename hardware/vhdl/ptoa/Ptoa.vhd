@@ -18,9 +18,9 @@ use ieee.math_real.all;
 
 library work;
 -- Use Fletcher ArrayConfig system for parsing the cfg strings
-use work.ArrayConfig.all;
-use work.ArrayConfigParse.all;
-use work.Utils.all;
+use work.ArrayConfig_pkg.all;
+use work.ArrayConfigParse_pkg.all;
+use work.UtilInt_pkg.all;
 
 package Ptoa is
 

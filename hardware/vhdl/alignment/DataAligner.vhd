@@ -16,7 +16,7 @@ use ieee.numeric_std.all;
 
 library work;
 -- Fletcher utils, for use of log2ceil function.
-use work.Utils.all;
+use work.UtilInt_pkg.all;
 use work.Alignment.all;
 
 -- In essence, the DataAligner is a pipelined barrel shifter with a buffer containing recently processed (unaligned) input words. 

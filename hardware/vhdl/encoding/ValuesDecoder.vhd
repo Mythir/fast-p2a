@@ -16,9 +16,9 @@ use ieee.numeric_std.all;
 
 library work;
 -- Fletcher utils for use of log2ceil function.
-use work.Utils.all;
-use work.ArrayConfig.all;
-use work.ArrayConfigParse.all;
+use work.UtilInt_pkg.all;
+use work.ArrayConfig_pkg.all;
+use work.ArrayConfigParse_pkg.all;
 use work.Encoding.all;
 
 -- The ValuesDecoder is mostly a wrapper for more interesting components. Values in a page get fed into the ValuesDecoder after which the following

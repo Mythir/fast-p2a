@@ -16,7 +16,8 @@ use ieee.numeric_std.all;
 
 library work;
 -- Include Fletcher Utils for use of the 1-read 1-write RAM
-use work.Utils.all;
+use work.UtilInt_pkg.all;
+use work.UtilRam_pkg.all;
 
 -- Stream data into this buffer for possible later re-use. At any point the HistoryBuffer can be signaled to start rewind mode via start_rewind, in which case it will transmit
 -- all of its content to the output stream. The end of rewind mode is signaled by asserting end_rewind when this unit has determined that there is nothing left to output.
@@ -93,7 +94,7 @@ architecture behv of HistoryBuffer is
   --pragma translate_on
 
 begin
-  ram_inst: Ram1R1W
+  ram_inst: UtilRam1R1W
     generic map(
       WIDTH           => BUS_DATA_WIDTH,
       DEPTH_LOG2      => DEPTH_LOG2

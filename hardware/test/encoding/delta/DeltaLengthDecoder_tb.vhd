@@ -21,7 +21,7 @@ use ieee.math_real.all;
 
 library work;
 -- Fletcher utils for use of the log2ceil function
-use work.Utils.all;
+use work.UtilInt_pkg.all;
 use work.Delta.all;
 
 -- Testbench for DeltaLengthDecoder, adapted from the testbench for the DeltaDecoder. Unlike the DeltaDecoder testbench this testbench can not test multiple pages.

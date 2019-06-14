@@ -18,7 +18,7 @@ use ieee.numeric_std.all;
 use ieee.std_logic_misc.all;
 
 library work;
-use work.axi.all;
+use work.Axi_pkg.all;
 
 -------------------------------------------------------------------------------
 -- AXI4 compatible top level for Fletcher generated accelerators.
@@ -249,7 +249,7 @@ begin
   -----------------------------------------------------------------------------
   -- Buffering bursts is disabled (ENABLE_FIFO=false) because BufferReaders
   -- are already able to absorb full bursts.
-  axi_read_conv_inst: axi_read_converter
+  axi_read_conv_inst: AxiReadConverter
     generic map (
       ADDR_WIDTH                => BUS_ADDR_WIDTH,
       MASTER_DATA_WIDTH         => BUS_DATA_WIDTH,
@@ -286,7 +286,7 @@ begin
   -----------------------------------------------------------------------------
   -- Buffering bursts is disabled (ENABLE_FIFO=false) because BufferWriters
   -- are already able to absorb full bursts.
-  axi_write_conv_inst: axi_write_converter
+  axi_write_conv_inst: AxiWriteConverter
     generic map (
       ADDR_WIDTH                => BUS_ADDR_WIDTH,
       MASTER_DATA_WIDTH         => BUS_DATA_WIDTH,
@@ -323,7 +323,7 @@ begin
   -----------------------------------------------------------------------------
   -- AXI MMIO
   -----------------------------------------------------------------------------
-  axi_mmio_inst : axi_mmio
+  axi_mmio_inst : AxiMmio
     generic map (
       BUS_ADDR_WIDTH            => SLV_BUS_ADDR_WIDTH,
       BUS_DATA_WIDTH            => SLV_BUS_DATA_WIDTH,

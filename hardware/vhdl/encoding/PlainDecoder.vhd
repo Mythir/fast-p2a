@@ -16,7 +16,8 @@ use ieee.numeric_std.all;
 
 library work;
 -- Fletcher utils for use of log2ceil function.
-use work.Utils.all;
+use work.UtilInt_pkg.all;
+use work.UtilMisc_pkg.all;
 
 -- This PlainDecoder does not actually have to decode anything because the "PLAIN" encoding just stores the values as normal integers or floats. Instead
 -- the complexity comes from the fact that each page can have an arbitrary number of values and we always want to sent <elements_per_cycle> values
@@ -100,7 +101,7 @@ architecture behv of PlainDecoder is
 
 begin
 
-  s_in_data <= endian_swap(in_data);
+  s_in_data <= endianSwap(in_data);
 
   out_valid <= buffer_in_valid;
   buffer_in_ready <= out_ready;

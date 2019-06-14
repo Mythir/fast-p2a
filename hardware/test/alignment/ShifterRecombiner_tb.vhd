@@ -16,7 +16,7 @@ use ieee.numeric_std.all;
 
 library work;
 -- Fletcher utils, for use of log2ceil function.
-use work.Utils.all;
+use work.UtilInt_pkg.all;
 
 -- This is a testbench for the ShifterRecombiner. The ShifterRecombiner will shift the bus words in its pipeline with a constant amount and then 
 -- recombine the split bus words into complete (aligned) bus words.

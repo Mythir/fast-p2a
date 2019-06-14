@@ -17,7 +17,7 @@ use ieee.numeric_std.all;
 use ieee.math_real.all;
 
 library work;
-use work.Utils.all;
+use work.UtilInt_pkg.all;
 use work.Ptoa.all;
 
 package Delta is
@@ -405,7 +405,7 @@ package body Delta is
 
   function round_down_pow2(a : natural) return natural is
   begin
-    return work.Utils.MIN(2 ** log2floor(a), 32);
+    return imin(2 ** log2floor(a), 32);
   end function;
 
   function unpacking_count(width : natural; MAX_DELTAS_PER_CYCLE : natural; DEC_DATA_WIDTH : natural) return natural is
@@ -413,7 +413,7 @@ package body Delta is
     if width = 0 then
       return MAX_DELTAS_PER_CYCLE;
     else
-      return work.Utils.MIN(MAX_DELTAS_PER_CYCLE, round_down_pow2(natural(FLOOR(real(DEC_DATA_WIDTH)/real(width)))));
+      return imin(MAX_DELTAS_PER_CYCLE, round_down_pow2(natural(FLOOR(real(DEC_DATA_WIDTH)/real(width)))));
     end if;
   end function;
 

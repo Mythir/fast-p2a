@@ -16,7 +16,7 @@ use ieee.numeric_std.all;
 
 library work;
 -- Fletcher streams library for use of the pipelined barrel shifter
-use work.Streams.all;
+use work.Stream_pkg.all;
 
 -- The ShifterRecombiner can shift and recombine its input words with an arbitrary amount of bits. For this it uses the PipelineBarrelShifter from the Fletcher streams library.
 -- To be used when unaligned data crosses bus word boundaries as seen in this example:

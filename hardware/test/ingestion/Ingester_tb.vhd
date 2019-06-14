@@ -20,8 +20,8 @@ use ieee.std_logic_textio.all;
 use ieee.math_real.all;
 
 library work;
-use work.Utils.all;
-use work.Interconnect.all;
+use work.UtilInt_pkg.all;
+use work.Interconnect_pkg.all;
 use work.Ptoa_sim.all;
 
 -- Todo: description

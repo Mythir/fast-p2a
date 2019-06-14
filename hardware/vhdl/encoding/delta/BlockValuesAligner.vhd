@@ -15,8 +15,9 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 library work;
-use work.Utils.all;
-use work.Streams.all;
+use work.UtilInt_pkg.all;
+use work.UtilMisc_pkg.all;
+use work.Stream_pkg.all;
 use work.Delta.all;
 use work.Ptoa.all;
 
@@ -252,7 +253,7 @@ begin
       page_done                 => bsc_page_done,
       in_valid                  => fifo_out_valid,
       in_ready                  => fifo_out_ready,
-      in_data                   => endian_swap(fifo_out_data),
+      in_data                   => endianSwap(fifo_out_data),
       page_num_values           => page_num_values,
       bw_valid                  => bw_valid,
       bw_ready                  => bw_ready,
