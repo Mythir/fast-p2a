@@ -27,7 +27,7 @@ def endian_swap(word):
 
 # Parameters
 bus_data_width = 512
-int_width_bits = 32
+int_width_bits = 64
 int_width_bytes = int_width_bits//8
 ints_per_bus_word = bus_data_width//int_width_bits
 min_page_size = 1

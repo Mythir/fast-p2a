@@ -356,7 +356,7 @@ begin
 
   ss_inst: StreamGearboxSerializer
     generic map(
-      ELEMENT_WIDTH                => DEC_DATA_WIDTH,
+      ELEMENT_WIDTH             => DEC_DATA_WIDTH,
       IN_COUNT_MAX              => BUS_DATA_WIDTH/DEC_DATA_WIDTH,
       IN_COUNT_WIDTH            => log2ceil(BUS_DATA_WIDTH/DEC_DATA_WIDTH)
     )

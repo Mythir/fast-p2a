@@ -33,7 +33,7 @@ end ValuesDecoder_tb;
 
 architecture tb of ValuesDecoder_tb is
   constant BUS_DATA_WIDTH       : natural := 512;
-  constant PRIM_WIDTH           : natural := 32;
+  constant PRIM_WIDTH           : natural := 64;
   constant TOTAL_NUM_VALUES     : natural := 9320;
 
   constant clk_period           : time    := 10 ns;
@@ -43,7 +43,7 @@ architecture tb of ValuesDecoder_tb is
   constant MIN_INPUT_BUFFER_DEPTH    : natural := 32;
   constant CMD_TAG_WIDTH             : natural := 1;
   constant RAM_CONFIG                : string := "";
-  constant CFG                       : string := "prim(32;epc=8)";
+  constant CFG                       : string := "prim(64;epc=8)";
   constant ENCODING                  : string := "PLAIN";
   constant COMPRESSION_CODEC         : string := "UNCOMPRESSED";
   constant ELEMENTS_PER_CYCLE        : natural := parse_param(cfg, "epc", 1);
