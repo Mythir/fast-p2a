@@ -9,16 +9,12 @@
 #SBATCH --mail-user=l.t.j.vanleeuwen@student.tudelft.nl
 #SBATCH --mail-type=ALL
 
-SCRIPT=$(readlink -f "$0")
-SCRIPTPATH=$(dirname "$SCRIPT")
-
-cd $SCRIPTPATH
-
-source /home/ltjvanleeuwen/github/github/fletcher/env.sh
+source /home/ltjvanleeuwen/github/fletcher/env.sh
 source /opt/applics/bin/xilinx-vivado-2018.3.sh
 source /home/ltjvanleeuwen/github/fast-p2a/env.sh
 source /home/ltjvanleeuwen/github/aws-fpga/hdk_setup.sh
 
-export CL_DIR=$SCRIPTPATH
+export CL_DIR=/home/ltjvanleeuwen/bulk/github/fast-p2a/platforms/aws-f1/prim32_delta
 
-source $CL_DIR/build/scripts/aws_build_dcp_from_cl.sh
+cd $CL_DIR/build/scripts
+source ./aws_build_dcp_from_cl.sh -clock_recipe_a A1 -foreground

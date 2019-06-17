@@ -115,7 +115,7 @@ file copy -force $FLETCHER_HARDWARE_DIR/axi/AxiReadConverter.vhd              $T
 file copy -force $FLETCHER_HARDWARE_DIR/axi/AxiWriteConverter.vhd             $TARGET_DIR
 
 # PTOA specific files
-file copy -force ${PTOA_HARDWARE_DIR}/vhdl/ptoa_wrapper.vhd                          $TARGET_DIR
+file copy -force ${PTOA_DIR}/examples/prim64/hardware/ptoa_wrapper_plain_uncompressed.vhd                          $TARGET_DIR
 file copy -force ${PTOA_HARDWARE_DIR}/vhdl/axi_top.vhd                               $TARGET_DIR
 
 file copy -force ${PTOA_HARDWARE_DIR}/vhdl/thrift/V2MetadataInterpreter.vhd          $TARGET_DIR

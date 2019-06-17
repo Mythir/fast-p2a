@@ -96,5 +96,5 @@ ${PTOA_HARDWARE_DIR}/vhdl/ingestion/Ingester.vhd
 ${PTOA_HARDWARE_DIR}/vhdl/ptoa/Ptoa.vhd
 ${PTOA_HARDWARE_DIR}/vhdl/ptoa/ParquetReader.vhd
 
-${PTOA_HARDWARE_DIR}/vhdl/ptoa_wrapper.vhd
+${PTOA_DIR}/examples/prim64/hardware/ptoa_wrapper_plain_uncompressed.vhd
 ${PTOA_HARDWARE_DIR}/vhdl/axi_top.vhd
