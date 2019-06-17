@@ -182,7 +182,7 @@ begin
       TAG_WIDTH                                => TAG_WIDTH,
       --CFG                                      => "listprim(8;lepc=4,epc=64)",
       --ENCODING                                 => "DELTA_LENGTH",
-      CFG                                      => "prim(64;epc=16)",
+      CFG                                      => "prim(64;epc=8)",
       ENCODING                                 => "PLAIN",
       COMPRESSION_CODEC                        => "UNCOMPRESSED"
     )

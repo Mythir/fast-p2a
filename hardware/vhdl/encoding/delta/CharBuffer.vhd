@@ -337,7 +337,10 @@ begin
         if shifter_in_valid = '1' and shifter_in_ready = '1' then
           fifo_out_ready  <= '1';
           v.hold          := fifo_out_data(BUS_DATA_WIDTH-1 downto 0);
-          v.hold_last     := fifo_out_data(BUS_DATA_WIDTH);
+          -- Only set hold_last if the output of the fifo is valid
+          if fifo_out_valid = '1' then
+            v.hold_last     := fifo_out_data(BUS_DATA_WIDTH);
+          end if;
         end if;
 
         -- Upon handshake, decrease amount of chars left to read

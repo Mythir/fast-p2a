@@ -170,7 +170,7 @@ begin
       BUS_ADDR_WIDTH      => BUS_ADDR_WIDTH,
       BUS_LEN_WIDTH       => BUS_LEN_WIDTH,
       BUS_BURST_MAX_LEN   => BUS_BURST_MAX_LEN,
-      BUS_FIFO_DEPTH      => 5*BUS_BURST_MAX_LEN
+      BUS_FIFO_DEPTH      => 8*BUS_BURST_MAX_LEN
     )
     port map(
       clk                 => clk,

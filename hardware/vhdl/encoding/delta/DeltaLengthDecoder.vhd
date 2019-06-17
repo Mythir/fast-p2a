@@ -137,10 +137,6 @@ architecture behv of DeltaLengthDecoder is
   signal sy_new_page_valid : std_logic;
   signal sy_new_page_ready : std_logic;
 
-  -- Aggregate new page sync out
-  signal page_sync_out_valid : std_logic_vector(1 downto 0);
-  signal page_sync_out_ready : std_logic_vector(1 downto 0);
-
   -- Data out from DeltaAccumulator to Fletcher ArrayWriter
   signal da_out_valid         : std_logic;
   signal da_out_ready         : std_logic;
@@ -459,23 +455,21 @@ begin
       out_data                    => da_out_data(LENGTHS_PER_CYCLE*INDEX_WIDTH-1 downto 0)
     );
 
-  da_new_page_valid   <= page_sync_out_valid(1);
-  cb_new_page_valid   <= page_sync_out_valid(0);
-  page_sync_out_ready <= da_new_page_ready & cb_new_page_ready;
-
-  new_page_sync: StreamSync
-    generic map(
-      NUM_INPUTS                => 1,
-      NUM_OUTPUTS               => 2
-    )
-    port map(
-      clk                       => clk,
-      reset                     => reset,
-      in_valid(0)               => sy_new_page_valid,
-      in_ready(0)               => sy_new_page_ready,
-      out_valid                 => page_sync_out_valid,
-      out_ready                 => page_sync_out_ready
-    );
+  -- Sync for the new page streams. This sync is not entirely conformant with AXI style handshakes because the valid waits for a ready.
+  -- Unfortunately, the handshakes with CharBuffer and DeltaAccumulator need to be perfectly synchronized for this design to work, making
+  -- this slightly awkward syncing strategy a neccessity.
+  sync_p: process(da_new_page_valid, cb_new_page_valid, da_new_page_ready, cb_new_page_ready, sy_new_page_valid)
+  begin
+    if cb_new_page_ready = '1' and da_new_page_ready = '1' then
+      cb_new_page_valid <= sy_new_page_valid;
+      da_new_page_valid <= sy_new_page_valid;
+      sy_new_page_ready <= '1';
+    else
+      cb_new_page_valid <= '0';
+      da_new_page_valid <= '0';
+      sy_new_page_ready <= '0';
+    end if;
+  end process;
 
   out_valid    <= cb_out_valid & da_out_valid;
   da_out_ready <= out_ready(0);
