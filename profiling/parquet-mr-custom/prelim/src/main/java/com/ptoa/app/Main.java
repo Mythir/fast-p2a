@@ -72,7 +72,7 @@ public class Main {
 
   public static void main(String[] args) throws IOException {
     Path file = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/gen-input/ref_small_strarray.parquet");
-    Path destPath = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/gen-input/hw_small_maxps_str.parquet");
+    Path destPath = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/gen-input/hw_small_100ps_str.parquet");
 
     ParquetFileReader reader = new ParquetFileReader(conf, file, ParquetMetadataConverter.NO_FILTER);
     ParquetMetadata readFooter = reader.getFooter();
@@ -110,8 +110,8 @@ public class Main {
     writerBuilder.withSchema(schema, conf)
                  .withCompressionCodec(CompressionCodecName.UNCOMPRESSED)
                  .withRowGroupSize(Integer.MAX_VALUE)//
-                 .withPageSize(Integer.MAX_VALUE)
-                 .withPageRowCountLimit(Integer.MAX_VALUE)
+                 .withPageSize(100)
+                 .withPageRowCountLimit(1000)
                  .withDictionaryEncoding(false)
                  .withValidation(false)
                  .withValuesWriterFactory(customV2Factory)

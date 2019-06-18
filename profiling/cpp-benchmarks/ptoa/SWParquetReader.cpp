@@ -59,6 +59,24 @@ status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_
     }
 }
 
+status SWParquetReader::read_string(int64_t num_strings, int64_t num_chars, int32_t file_offset, std::shared_ptr<arrow::StringArray>* string_array, encoding enc) {
+    if(enc == encoding::DELTA_LENGTH){
+        return read_string_delta_length(num_strings, num_chars, file_offset, string_array);
+    } else{
+        std::cout<<"Unsupported encoding selected" << std::endl;
+        return status::FAIL;
+    }
+}
+status SWParquetReader::read_string(int64_t num_strings, int32_t file_offset, std::shared_ptr<arrow::StringArray>* string_array, std::shared_ptr<arrow::Buffer> off_buffer, std::shared_ptr<arrow::Buffer> val_buffer, encoding enc) {
+    if(enc == encoding::DELTA_LENGTH){
+        return read_string_delta_length(num_strings, file_offset, string_array, off_buffer, val_buffer);
+    } else{
+        std::cout<<"Unsupported encoding selected" << std::endl;
+        return status::FAIL;
+    }
+}
+
+
 // Read a number (set by num_values) of either 32 or 64 bit integers (set by prim_width) into prim_array.
 // File_offset is the byte offset in the Parquet file where the first in a contiguous list of Parquet pages is located.
 status SWParquetReader::read_prim_plain(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array) {

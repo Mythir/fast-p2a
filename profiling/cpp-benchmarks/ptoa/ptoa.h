@@ -24,7 +24,8 @@ enum status {
 
 enum encoding{
 	PLAIN,
-	DELTA
+	DELTA,
+	DELTA_LENGTH
 };
 
 }
