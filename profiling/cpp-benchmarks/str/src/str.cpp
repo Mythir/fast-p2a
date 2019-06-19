@@ -123,6 +123,10 @@ int main(int argc, char **argv) {
               }
             }
         }
+
+        if(result_array->length() != num_strings){
+          error_count++;
+        }
     
         if(error_count == 0) {
           std::cout << "Test passed!" << std::endl;

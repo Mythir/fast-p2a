@@ -44,27 +44,31 @@
 // Fletcher
 #include "fletcher/api.h"
 
-#define PRIM_WIDTH 32
 
-std::shared_ptr<arrow::RecordBatch> prepareRecordBatch(uint32_t num_val) {
+std::shared_ptr<arrow::RecordBatch> prepareRecordBatch(uint32_t num_strings, uint32_t num_chars) {
   std::shared_ptr<arrow::Buffer> values;
+  std::shared_ptr<arrow::Buffer> offsets;
 
-  if (!arrow::AllocateBuffer(arrow::default_memory_pool(), sizeof(int32_t)*num_val, &values).ok()) {
+  if (!arrow::AllocateBuffer(arrow::default_memory_pool(), num_chars, &values).ok()) {
     throw std::runtime_error("Could not allocate values buffer.");
   }
 
-  auto array = std::make_shared<arrow::Int32Array>(arrow::int32(), num_val, values);
+  if (!arrow::AllocateBuffer(arrow::default_memory_pool(), sizeof(int32_t)*(num_strings+1), &offsets).ok()) {
+    throw std::runtime_error("Could not allocate offsets buffer.");
+  }
+
+  auto array = std::make_shared<arrow::StringArray>(num_strings, offsets, values);
 
   auto schema_meta = metaMode(fletcher::Mode::WRITE);
 
-  std::shared_ptr<arrow::Schema> schema = arrow::schema({arrow::field("int", arrow::int32(), false)}, schema_meta);
+  std::shared_ptr<arrow::Schema> schema = arrow::schema({arrow::field("str", arrow::utf8(), false)}, schema_meta);
 
-  auto rb = arrow::RecordBatch::Make(schema, num_val, {array});
+  auto rb = arrow::RecordBatch::Make(schema, num_strings, {array});
 
   return rb;
 }
 
-void setPtoaArguments(std::shared_ptr<fletcher::Platform> platform, uint32_t num_val, uint64_t max_size, da_t device_parquet_address, da_t device_arrow_address) {
+void setPtoaArguments(std::shared_ptr<fletcher::Platform> platform, uint32_t num_val, uint64_t max_size, da_t device_parquet_address, da_t device_arrow_offsets_address, da_t device_arrow_values_address) {
   dau_t mmio64_writer;
 
   platform->writeMMIO(2, num_val);
@@ -77,21 +81,15 @@ void setPtoaArguments(std::shared_ptr<fletcher::Platform> platform, uint32_t num
   platform->writeMMIO(5, mmio64_writer.lo);
   platform->writeMMIO(6, mmio64_writer.hi);
   
-  mmio64_writer.full = device_arrow_address;
+  mmio64_writer.full = device_arrow_values_address;
   platform->writeMMIO(7, mmio64_writer.lo);
   platform->writeMMIO(8, mmio64_writer.hi);
+  
+  mmio64_writer.full = device_arrow_offsets_address;
+  platform->writeMMIO(9, mmio64_writer.lo);
+  platform->writeMMIO(10, mmio64_writer.hi);
 
   return;
-}
-
-void checkMMIO(std::shared_ptr<fletcher::Platform> platform, uint32_t num_val, uint64_t max_size, da_t device_parquet_address, da_t device_arrow_address) {
-  uint64_t value64;
-  uint32_t value32;
-
-  platform->readMMIO(2, &value32);
-
-  std::cout << "MMIO num_val=" << value32 << ", should be " << num_val << std::endl;
-
 }
 
 //Use standard Arrow library functions to read Arrow array from Parquet file
@@ -119,17 +117,18 @@ int main(int argc, char **argv) {
 
   char* hw_input_file_path;
   char* reference_parquet_file_path;
-  uint32_t num_val;
+  uint32_t num_strings;
+  uint32_t num_chars;
   uint64_t file_size;
   uint8_t* file_data;
 
   if (argc > 3) {
     hw_input_file_path = argv[1];
     reference_parquet_file_path = argv[2];
-    num_val = (uint32_t) std::strtoul(argv[3], nullptr, 10);
+    num_strings = (uint32_t) std::strtoul(argv[3], nullptr, 10);
 
   } else {
-    std::cerr << "Usage: prim32 <parquet_hw_input_file_path> <reference_parquet_file_path> <num_values>" << std::endl;
+    std::cerr << "Usage: prim32 <parquet_hw_input_file_path> <reference_parquet_file_path> <num_strings>" << std::endl;
     return 1;
   }
 
@@ -145,6 +144,12 @@ int main(int argc, char **argv) {
     std::cerr << "Error opening Parquet file" << std::endl;
     return 1;
   }
+
+  //Reference array
+  auto correct_array = std::dynamic_pointer_cast<arrow::StringArray>(readArray(std::string(reference_parquet_file_path)));
+
+  // Get total amount of characters from string array for buffer allocation
+  num_chars = correct_array->value_offset(num_strings);
 
   //Get filesize
   parquet_file.seekg (0, parquet_file.end);
@@ -162,7 +167,7 @@ int main(int argc, char **argv) {
   *************************************************************/
 
   t.start();
-  auto arrow_rb_fpga = prepareRecordBatch(num_val);
+  auto arrow_rb_fpga = prepareRecordBatch(num_strings, num_chars);
   t.stop();
   std::cout << "Prepare FPGA RecordBatch         : "
             << t.seconds() << std::endl;
@@ -193,7 +198,7 @@ int main(int argc, char **argv) {
 
   // Set all the MMIO registers to their correct value
   // Add 4 to device_parquet_address to skip magic number
-  setPtoaArguments(platform, num_val, file_size, device_parquet_address+4, context->device_arrays[0]->buffers[0].device_address);
+  setPtoaArguments(platform, num_strings, file_size, device_parquet_address+4, context->device_arrays[0]->buffers[0].device_address, context->device_arrays[0]->buffers[1].device_address);
   t.stop();
   std::cout << "FPGA Initialize                  : "
             << t.seconds() << std::endl;
@@ -224,11 +229,17 @@ int main(int argc, char **argv) {
   *************************************************************/
 
   t.start();
-  auto result_array = std::dynamic_pointer_cast<arrow::Int32Array>(arrow_rb_fpga->column(0));
-  auto result_buffer_raw_data = result_array->values()->mutable_data();
+  auto result_array = std::dynamic_pointer_cast<arrow::StringArray>(arrow_rb_fpga->column(0));
+  auto result_buffer_raw_offsets = result_array->value_offsets()->mutable_data();
+  auto result_buffer_raw_values = result_array->value_data()->mutable_data();
+
   platform->copyDeviceToHost(context->device_arrays[0]->buffers[0].device_address,
-                             result_buffer_raw_data,
-                             sizeof(int32_t) * (num_val));
+                             result_buffer_raw_offsets,
+                             sizeof(int32_t) * (num_strings+1));
+
+  platform->copyDeviceToHost(context->device_arrays[0]->buffers[1].device_address,
+                             result_buffer_raw_values,
+                             num_chars);
   t.stop();
   std::cout << "FPGA device to host copy         : "
             << t.seconds() << std::endl;
@@ -236,17 +247,15 @@ int main(int argc, char **argv) {
   /*************************************************************
   * Check results
   *************************************************************/
-
-  auto correct_array = std::dynamic_pointer_cast<arrow::Int32Array>(readArray(std::string(reference_parquet_file_path)));
   int error_count = 0;
   for(int i=0; i<result_array->length(); i++) {
-    if(result_array->Value(i) != correct_array->Value(i)) {
+    if(result_array->GetString(i).compare(correct_array->GetString(i)) != 0) {
       error_count++;
     }
 
   }
 
-  if(result_array->length() != num_val){
+  if(result_array->length() != num_strings){
     error_count++;
   }
 
@@ -257,7 +266,7 @@ int main(int argc, char **argv) {
     std::cout << "First values: " << std::endl;
 
     for(int i=0; i<20; i++) {
-      std::cout << result_array->Value(i) << " " << correct_array->Value(i) << std::endl;
+      std::cout << result_array->GetString(i) << " " << correct_array->GetString(i) << std::endl;
     }
   }
 

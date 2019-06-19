@@ -438,7 +438,7 @@ int main(int argc, char **argv) {
     //std::shared_ptr<arrow::Table> int64_table = generate_int64_table(num_values, modulo, true);
     //std::shared_ptr<arrow::Table> int32_table = generate_int32_delta_varied_bit_width_table(num_values, 256, false);
     //std::shared_ptr<arrow::Table> int32_table = generate_int32_table(num_values, modulo, false);
-    std::shared_ptr<arrow::Table> str_table = generate_str_table(num_values, 2, 10, true);
+    std::shared_ptr<arrow::Table> str_table = generate_str_table(num_values, 2, 500, false);
 
     std::cout << "Finished Arrow table generation." << std::endl;
     std::cout << "Starting Parquet file writing." << std::endl;
@@ -452,7 +452,7 @@ int main(int argc, char **argv) {
 
     //write_parquet_file(*int64_table, "../../gen-input/ref_int64array.parquet", num_values, false, false);
     //write_parquet_file(*int32_table, "../../gen-input/ref_int32array.parquet", num_values, false, false);
-    write_parquet_file(*str_table, "../../gen-input/ref_small_strarray.parquet", num_values, false, false);
+    write_parquet_file(*str_table, "../../gen-input/ref_large_strarray.parquet", num_values, false, false);
 
     /*
     write_parquet_file(*int64_table, "int64array_nosnap.prq", num_values, false, true);
