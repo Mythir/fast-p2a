@@ -251,6 +251,10 @@ int main(int argc, char **argv) {
 
   }
 
+  if(result_array->length() != num_val){
+    error_count++;
+  }
+
   if(error_count == 0) {
     std::cout << "Test passed!" << std::endl;
   } else {
