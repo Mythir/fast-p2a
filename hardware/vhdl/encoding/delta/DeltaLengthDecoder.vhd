@@ -312,7 +312,7 @@ begin
     )
     port map(
       clk                       => clk,
-      reset                     => reset,
+      reset                     => pipeline_reset,
       in_valid(0)               => dhr_ss_valid,
       in_ready(0)               => dhr_ss_ready,
       out_valid                 => dec_sync_out_valid,
