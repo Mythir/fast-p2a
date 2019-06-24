@@ -47,24 +47,25 @@ file copy -force $FLETCHER_HARDWARE_DIR/vhlib/util/UtilRam_pkg.vhd              
 file copy -force $FLETCHER_HARDWARE_DIR/vhlib/util/UtilRam1R1W.vhd                      $TARGET_DIR
 file copy -force $FLETCHER_HARDWARE_DIR/vhlib/util/UtilConv_pkg.vhd                      $TARGET_DIR
 file copy -force $FLETCHER_HARDWARE_DIR/vhlib/util/UtilStr_pkg.vhd                      $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhlib/util/UtilMem64_pkg.vhd                      $TARGET_DIR
 
-file copy -force $FLETCHER_HARDWARE_DIR/stream/Stream_pkg.vhd                     $TARGET_DIR
-file copy -force $FLETCHER_HARDWARE_DIR/stream/StreamArb.vhd                   $TARGET_DIR
-file copy -force $FLETCHER_HARDWARE_DIR/stream/StreamBuffer.vhd                $TARGET_DIR
-file copy -force $FLETCHER_HARDWARE_DIR/stream/StreamFIFOCounter.vhd           $TARGET_DIR
-file copy -force $FLETCHER_HARDWARE_DIR/stream/StreamFIFO.vhd                  $TARGET_DIR
-file copy -force $FLETCHER_HARDWARE_DIR/stream/StreamGearbox.vhd               $TARGET_DIR
-file copy -force $FLETCHER_HARDWARE_DIR/stream/StreamNormalizer.vhd            $TARGET_DIR
-file copy -force $FLETCHER_HARDWARE_DIR/stream/StreamGearboxParallelizer.vhd          $TARGET_DIR
-file copy -force $FLETCHER_HARDWARE_DIR/stream/StreamPipelineControl.vhd       $TARGET_DIR
-file copy -force $FLETCHER_HARDWARE_DIR/stream/StreamPipelineBarrel.vhd        $TARGET_DIR
-file copy -force $FLETCHER_HARDWARE_DIR/stream/StreamGearboxSerializer.vhd            $TARGET_DIR
-file copy -force $FLETCHER_HARDWARE_DIR/stream/StreamSlice.vhd                 $TARGET_DIR
-file copy -force $FLETCHER_HARDWARE_DIR/stream/StreamSync.vhd                  $TARGET_DIR
-file copy -force $FLETCHER_HARDWARE_DIR/stream/StreamElementCounter.vhd        $TARGET_DIR
-file copy -force $FLETCHER_HARDWARE_DIR/stream/StreamPseudoRandomGenerator.vhd $TARGET_DIR
-file copy -force $FLETCHER_HARDWARE_DIR/stream/StreamAccumulator.vhd           $TARGET_DIR
-file copy -force $FLETCHER_HARDWARE_DIR/stream/StreamReshaper.vhd              $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhlib/stream/Stream_pkg.vhd                     $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhlib/stream/StreamArb.vhd                   $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhlib/stream/StreamBuffer.vhd                $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhlib/stream/StreamFIFOCounter.vhd           $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhlib/stream/StreamFIFO.vhd                  $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhlib/stream/StreamGearbox.vhd               $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhlib/stream/StreamNormalizer.vhd            $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhlib/stream/StreamGearboxParallelizer.vhd          $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhlib/stream/StreamPipelineControl.vhd       $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhlib/stream/StreamPipelineBarrel.vhd        $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhlib/stream/StreamGearboxSerializer.vhd            $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhlib/stream/StreamSlice.vhd                 $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhlib/stream/StreamSync.vhd                  $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhlib/stream/StreamElementCounter.vhd        $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhlib/stream/StreamReshaper.vhd              $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhlib/stream/StreamPRNG.vhd              $TARGET_DIR
+file copy -force $FLETCHER_HARDWARE_DIR/vhlib/stream/StreamPrefixSum.vhd              $TARGET_DIR
 
 file copy -force $FLETCHER_HARDWARE_DIR/arrays/ArrayConfigParse_pkg.vhd           $TARGET_DIR
 file copy -force $FLETCHER_HARDWARE_DIR/arrays/ArrayConfig_pkg.vhd                $TARGET_DIR
@@ -132,11 +133,13 @@ file copy -force ${PTOA_HARDWARE_DIR}/vhdl/encoding/delta/BitUnpacker.vhd       
 file copy -force ${PTOA_HARDWARE_DIR}/vhdl/encoding/delta/BlockValuesAligner.vhd     $TARGET_DIR
 file copy -force ${PTOA_HARDWARE_DIR}/vhdl/encoding/delta/BlockHeaderReader.vhd      $TARGET_DIR
 file copy -force ${PTOA_HARDWARE_DIR}/vhdl/encoding/delta/BlockShiftControl.vhd      $TARGET_DIR
+file copy -force ${PTOA_HARDWARE_DIR}/vhdl/encoding/delta/CharBuffer.vhd             $TARGET_DIR
 file copy -force ${PTOA_HARDWARE_DIR}/vhdl/encoding/delta/DeltaAccumulatorFV.vhd     $TARGET_DIR
 file copy -force ${PTOA_HARDWARE_DIR}/vhdl/encoding/delta/DeltaAccumulatorMD.vhd     $TARGET_DIR
 file copy -force ${PTOA_HARDWARE_DIR}/vhdl/encoding/delta/DeltaAccumulator.vhd       $TARGET_DIR
 file copy -force ${PTOA_HARDWARE_DIR}/vhdl/encoding/delta/DeltaHeaderReader.vhd      $TARGET_DIR
 file copy -force ${PTOA_HARDWARE_DIR}/vhdl/encoding/delta/DeltaDecoder.vhd           $TARGET_DIR
+file copy -force ${PTOA_HARDWARE_DIR}/vhdl/encoding/delta/DeltaLengthDecoder.vhd     $TARGET_DIR
 
 file copy -force ${PTOA_HARDWARE_DIR}/vhdl/encoding/Encoding.vhd                     $TARGET_DIR
 file copy -force ${PTOA_HARDWARE_DIR}/vhdl/encoding/VarIntDecoder.vhd                $TARGET_DIR
