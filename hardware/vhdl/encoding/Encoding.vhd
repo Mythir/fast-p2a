@@ -210,29 +210,18 @@ package Encoding is
   -----------------------------------------------------------------------------
   -- Helper functions
   -----------------------------------------------------------------------------
-  -- Decodes zigzag encoded integers to correct integer value;
-  function decode_zigzag(a : in std_logic_vector) return integer;
-  -- Encodes integers to zigzag.
-  function encode_zigzag(a : in std_logic_vector) return integer;
+  -- Decodes zigzag encoded integers to correct signed value;
+  function decode_zigzag(a : in std_logic_vector) return signed;
 
 end Encoding;
 
 package body Encoding is
-  function encode_zigzag(a : in std_logic_vector) return integer is
-    variable x : signed(a'length - 1 downto 0);
-    variable y : signed(a'length - 1 downto 0);
-  begin
-    x := shift_right(signed(a), a'length - 1);
-    y := shift_left(signed(a), 1);
-    return to_integer(signed(x xor y));
-  end function;
-
-  function decode_zigzag(a : in std_logic_vector) return integer is
+  function decode_zigzag(a : in std_logic_vector) return signed is
     variable x : std_logic_vector(a'length - 1 downto 0);
     variable y : std_logic_vector(a'length - 1 downto 0);
   begin
     x := std_logic_vector(shift_right(unsigned(a), 1));
     y := std_logic_vector(-signed(a and slv(1, a'length)));
-    return to_integer(signed(x xor y));
+    return signed(x xor y);
   end function;
 end Encoding;
