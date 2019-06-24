@@ -315,6 +315,10 @@ begin
           v.header_state      := MIN_DELTA;
         end if;
 
+        if r.page_val_counter >= unsigned(page_num_values) then
+          v.state := DONE;
+        end if;
+
       when DONE =>
         page_done <= '1';
     end case;
