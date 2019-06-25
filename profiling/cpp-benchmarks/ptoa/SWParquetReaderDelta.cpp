@@ -157,6 +157,7 @@ status SWParquetReader::read_string_delta_length(int64_t num_strings, int32_t fi
         // If the last block processed was not the last block in the page we need to keep reading bitwidths to find the first character
         while(page_value_counter<page_num_values){
             read_block_header32(block_ptr, &min_delta, bitwidths, &header_size);
+            block_ptr += header_size;
 
             for(int i=0; i<MINIBLOCKS_IN_BLOCK; i++){
                 block_ptr += bitwidths[i]*((BLOCK_SIZE/MINIBLOCKS_IN_BLOCK)/8);
