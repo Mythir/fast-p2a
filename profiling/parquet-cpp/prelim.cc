@@ -28,6 +28,7 @@
 #include <fstream>
 #include <ctime>
 #include <cmath>
+#include <random>
 
 #include <arrow/api.h>
 #include <arrow/io/api.h>
@@ -105,12 +106,13 @@ std::shared_ptr<arrow::Table> generate_int64_table(int num_values, int modulo=0,
         check_file.open("int64array.bin");
     }
 
+    std::mt19937_64 gen(std::random_device{}());
+
     for (int i = 0; i < num_values; i++) {
         if(modulo <= 0){
-            number = rand()*2;
-            number = (number << 32) | rand();
+            number = gen();
         } else{
-            number = rand() % modulo;
+            number = gen() % modulo;
         }
         /*
         if (i == 60 || i == 62){
@@ -133,6 +135,59 @@ std::shared_ptr<arrow::Table> generate_int64_table(int num_values, int modulo=0,
             check_file <<i64array->data()->buffers[1]->data()[i];
         }
         check_file.close();
+    }
+    return arrow::Table::Make(schema, {i64array});
+}
+
+std::shared_ptr<arrow::Table> generate_int64_delta_varied_bit_width_table(int num_values, int run_length, bool write_to_file=true){
+    //Generates a non nullable int64 table. Attempts to vary widths of the bit packing.
+    arrow::Int64Builder i64builder;
+
+    int64_t modulo = 0;
+    int64_t number;
+
+    std::ofstream check_file;
+    std::ofstream dec_check_file;
+    std::ofstream hex_check_file;
+
+    std::mt19937_64 gen(std::random_device{}());
+
+
+    if(write_to_file){
+        check_file.open("delta_varied_int64array.bin");
+        dec_check_file.open("delta_varied_int64array.dec");
+        hex_check_file.open("delta_varied_int64array.hex");
+    }
+
+    for (int i = 0; i < num_values; i++) {
+        if((i%run_length) == 0){
+            modulo = 1ULL << (gen() % 64);
+        }
+        number = gen() % modulo;
+
+        //std::cout<<modulo<<" "<<std::log2(modulo)<<" "<<number<<std::endl;
+
+        PARQUET_THROW_NOT_OK(i64builder.Append(number));
+
+        if(write_to_file){
+            dec_check_file << number << std::endl;
+            hex_check_file << std::hex << std::setfill('0') << std::setw(8) << number << std::dec << std::endl;
+        }
+    }
+    std::shared_ptr<arrow::Array> i64array;
+    PARQUET_THROW_NOT_OK(i64builder.Finish(&i64array));
+
+    std::shared_ptr<arrow::Schema> schema = arrow::schema(
+            {arrow::field("int", arrow::int64(), false)});
+
+
+    if(write_to_file){
+        for(int i=0; i<i64array->data()->buffers[1]->size(); i++){
+            check_file <<i64array->data()->buffers[1]->data()[i];
+        }
+        check_file.close();
+        dec_check_file.close();
+        hex_check_file.close();
     }
     return arrow::Table::Make(schema, {i64array});
 }
@@ -436,9 +491,10 @@ int main(int argc, char **argv) {
 
     std::cout << "Size of Arrow table: " << num_values << " values." << std::endl;
     //std::shared_ptr<arrow::Table> int64_table = generate_int64_table(num_values, modulo, true);
+    std::shared_ptr<arrow::Table> int64_table = generate_int64_delta_varied_bit_width_table(num_values, 256, false);
     //std::shared_ptr<arrow::Table> int32_table = generate_int32_delta_varied_bit_width_table(num_values, 256, false);
     //std::shared_ptr<arrow::Table> int32_table = generate_int32_table(num_values, modulo, false);
-    std::shared_ptr<arrow::Table> str_table = generate_str_table(num_values, 2, 500, false);
+    //std::shared_ptr<arrow::Table> str_table = generate_str_table(num_values, 2, 500, false);
 
     std::cout << "Finished Arrow table generation." << std::endl;
     std::cout << "Starting Parquet file writing." << std::endl;
@@ -452,7 +508,8 @@ int main(int argc, char **argv) {
 
     //write_parquet_file(*int64_table, "../../gen-input/ref_int64array.parquet", num_values, false, false);
     //write_parquet_file(*int32_table, "../../gen-input/ref_int32array.parquet", num_values, false, false);
-    write_parquet_file(*str_table, "../../gen-input/ref_large_strarray.parquet", num_values, false, false);
+    //write_parquet_file(*str_table, "../../gen-input/ref_large_strarray.parquet", num_values, false, false);
+    write_parquet_file(*int64_table, "../../gen-input/ref_delta_varied_int64.parquet", num_values, false, false);
 
     /*
     write_parquet_file(*int64_table, "int64array_nosnap.prq", num_values, false, true);

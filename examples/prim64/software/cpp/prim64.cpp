@@ -232,8 +232,13 @@ int main(int argc, char **argv) {
                              result_buffer_raw_data,
                              sizeof(int64_t) * (num_val));
   t.stop();
+
+  size_t total_arrow_size = sizeof(int64_t) * num_val;
+  
   std::cout << "FPGA device to host copy         : "
             << t.seconds() << std::endl;
+  std::cout << "Arrow buffers total size         : "
+            << total_arrow_size << std::endl;
 
   /*************************************************************
   * Check results
