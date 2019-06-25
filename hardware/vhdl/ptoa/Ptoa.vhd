@@ -14,11 +14,13 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.std_logic_misc.all;
 use ieee.numeric_std.all;
+use ieee.math_real.all;
 
 library work;
--- Use Fletcher ColumnConfig system for parsing the cfg strings
-use work.ColumnConfig.all;
-use work.ColumnConfigParse.all;
+-- Use Fletcher ArrayConfig system for parsing the cfg strings
+use work.ArrayConfig_pkg.all;
+use work.ArrayConfigParse_pkg.all;
+use work.UtilInt_pkg.all;
 
 package Ptoa is
 
@@ -34,7 +36,9 @@ package Ptoa is
       INDEX_WIDTH                                : natural;
       ---------------------------------------------------------------------------
       TAG_WIDTH                                  : natural;
-      CFG                                        : string
+      CFG                                        : string;
+      ENCODING                                   : string;
+      COMPRESSION_CODEC                          : string
     );
     port(
       clk                                        : in  std_logic;
@@ -65,6 +69,7 @@ package Ptoa is
       max_data_size                              : in  std_logic_vector(BUS_ADDR_WIDTH-1 downto 0);
       total_num_values                           : in  std_logic_vector(31 downto 0);
       values_buffer_addr                         : in  std_logic_vector(BUS_ADDR_WIDTH-1 downto 0);
+      offsets_buffer_addr                        : in  std_logic_vector(BUS_ADDR_WIDTH-1 downto 0) := (others => '0');
       ---------------------------------------------------------------------------
       start                                      : in  std_logic;
       stop                                       : in  std_logic;
@@ -80,6 +85,10 @@ package Ptoa is
 function definition_levels_encoded(cfg : in string) return boolean;
 -- Returns true if the Parquet pages described by the cfg string contain encoded repetition levels
 function repetition_levels_encoded(cfg : in string) return boolean;
+-- Returns maximum length of a varint encoded from an integer of a certain width.
+function max_varint_bytes(width : in natural) return natural;
+
+function element_swap(a : in std_logic_vector; element_width : in natural) return std_logic_vector;
   
 end Ptoa;
 
@@ -102,6 +111,22 @@ package body Ptoa is
     else
       return false;
     end if;
+  end function;
+
+  function max_varint_bytes(width : in natural) return natural is
+  begin
+    return natural(CEIL(real(width)/real(7)));
+  end function;
+
+  function element_swap(a : in std_logic_vector; element_width : in natural) return std_logic_vector is
+    constant elements_in_a : natural := a'length/element_width;
+    variable result : std_logic_vector(a'length-1 downto 0);
+  begin
+    for i in 0 to elements_in_a-1 loop
+      result(element_width*(i+1)-1 downto element_width*i) := a(element_width*(elements_in_a-i)-1 downto element_width*(elements_in_a-i-1));
+    end loop;
+
+    return result;
   end function;
 
 end Ptoa;

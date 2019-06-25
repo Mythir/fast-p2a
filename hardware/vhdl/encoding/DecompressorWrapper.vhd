@@ -16,7 +16,7 @@ use ieee.numeric_std.all;
 
 library work;
 -- Fletcher utils for use of log2ceil function.
-use work.Utils.all;
+use work.UtilInt_pkg.all;
 use work.Encoding.all;
 
 -- Todo: description
@@ -49,7 +49,7 @@ entity DecompressorWrapper is
     compressed_size             : in  std_logic_vector(31 downto 0);
     uncompressed_size           : in  std_logic_vector(31 downto 0);
 
-    --Data out stream to Fletcher ColumnWriter
+    --Data out stream to Fletcher ArrayWriter
     out_valid                   : out std_logic;
     out_ready                   : in  std_logic;
     out_data                    : out std_logic_vector(BUS_DATA_WIDTH-1 downto 0)

@@ -17,12 +17,13 @@ use ieee.numeric_std.all;
 
 library work;
 -- Fletcher utils for use of log2ceil function.
-use work.Utils.all;
+use work.UtilInt_pkg.all;
 
 package Alignment is
   component DataAligner is
     generic (
       BUS_DATA_WIDTH              : natural := 512;
+      BUS_ADDR_WIDTH              : natural;
       NUM_CONSUMERS               : natural;
       NUM_SHIFT_STAGES            : natural
     );
@@ -40,7 +41,8 @@ package Alignment is
       bc_ready                    : out std_logic_vector(NUM_CONSUMERS-1 downto 0);
       prod_alignment              : in  std_logic_vector(log2ceil(BUS_DATA_WIDTH/8)-1 downto 0);
       pa_valid                    : in  std_logic;
-      pa_ready                    : out std_logic
+      pa_ready                    : out std_logic;
+      data_size                   : in  std_logic_vector(BUS_ADDR_WIDTH-1 downto 0)
     );
   end component;
 

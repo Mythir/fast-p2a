@@ -1,0 +1,9 @@
+*.out
+checkpoints/
+reports/
+src_post_encryption/
+design/
+software/
+sim/
+.Xil/
+hd_visual/

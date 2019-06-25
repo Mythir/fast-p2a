@@ -16,8 +16,9 @@ use ieee.numeric_std.all;
 
 library work;
 -- Fletcher utils for use of log2ceil and endian_swap functions
-use work.Utils.all;
-use work.Interconnect.all;
+use work.UtilInt_pkg.all;
+use work.UtilMisc_pkg.all;
+use work.Interconnect_pkg.all;
 
 -- The ingester is responsible for sending AXI compliant read requests and offering up the responses to the DataAligner for further processing.
 -- AXI requires that a burst does not cross 4KB address boundaries. Logic for avoiding these boundaries is included in the ingester, inspired by
@@ -94,7 +95,7 @@ architecture behv of Ingester is
   type state_t is (IDLE, STEP, FULL_BURST, DONE);
       signal state, state_next : state_t;
 
-  constant BYTE_ALIGN           : natural := work.Utils.min(BUS_BURST_BOUNDARY, BUS_BURST_MAX_LEN * BUS_DATA_WIDTH / 8);
+  constant BYTE_ALIGN           : natural := imin(BUS_BURST_BOUNDARY, BUS_BURST_MAX_LEN * BUS_DATA_WIDTH / 8);
   constant BYTES_PER_STEP       : natural := BUS_DATA_WIDTH/8;
   constant BYTES_PER_BURST      : natural := BUS_DATA_WIDTH * BUS_BURST_MAX_LEN / 8;
 
@@ -130,7 +131,7 @@ begin
       BUS_ADDR_WIDTH                    => BUS_ADDR_WIDTH,
       BUS_LEN_WIDTH                     => BUS_LEN_WIDTH,
       BUS_DATA_WIDTH                    => BUS_DATA_WIDTH,
-      FIFO_DEPTH                        => max(BUS_FIFO_DEPTH, BUS_BURST_MAX_LEN+1),
+      FIFO_DEPTH                        => imax(BUS_FIFO_DEPTH, BUS_BURST_MAX_LEN+1),
       RAM_CONFIG                        => BUS_FIFO_RAM_CONFIG,
       SLV_REQ_SLICE                     => false,
       MST_REQ_SLICE                     => true,
@@ -156,7 +157,7 @@ begin
       mst_rreq_len                      => bus_rreq_len,
       mst_rdat_valid                    => bus_rdat_valid,
       mst_rdat_ready                    => bus_rdat_ready,
-      mst_rdat_data                     => endian_swap(bus_rdat_data),
+      mst_rdat_data                     => endianSwap(bus_rdat_data),
       mst_rdat_last                     => bus_rdat_last
     );
 
@@ -180,7 +181,7 @@ begin
 
         -- Transfer producer alignment (misalignment in starting address) to DataAligner
         if pa_ready = '1' and start = '1' then
-          if is_aligned(unsigned(bus_aligned_base_addr), log2floor(BYTE_ALIGN)) and ((unsigned(bus_aligned_base_addr) + BYTES_PER_BURST) <= end_address) then
+          if isAligned(unsigned(bus_aligned_base_addr), log2floor(BYTE_ALIGN)) and ((unsigned(bus_aligned_base_addr) + BYTES_PER_BURST) <= end_address) then
             state_next <= FULL_BURST;
           else
             state_next <= STEP;
@@ -204,7 +205,7 @@ begin
           end if;
 
           -- If the next request would be aligned to a burst boundary and we still have enough data left we proceed to FULL_BURST
-          if is_aligned(next_burst_address, log2floor(BYTE_ALIGN)) and next_burst_address + BYTES_PER_BURST <= end_address then
+          if isAligned(next_burst_address, log2floor(BYTE_ALIGN)) and next_burst_address + BYTES_PER_BURST <= end_address then
             state_next <= FULL_BURST;
           end if;
           

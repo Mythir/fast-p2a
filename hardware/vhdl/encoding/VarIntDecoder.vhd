@@ -18,7 +18,7 @@ use ieee.math_real.all;
 library work;
 use work.Encoding.all;
 -- Fletcher utils, for use of the log2ceil function
-use work.Utils.all;
+use work.UtilInt_pkg.all;
 
 -- Variable length integer decoder that works by feeding it one byte at a time.
 -- Necessary for deserializing Thrift structures (page headers) and decoding repetition/definition levels.
@@ -72,7 +72,7 @@ architecture behv of VarIntDecoder is
 begin
 
   -- If ZIGZAG_ENCODED is true we add a final decoding step to the result
-  out_data <= std_logic_vector(to_signed(decode_zigzag(out_data_r), out_data'length)) when ZIGZAG_ENCODED else
+  out_data <= std_logic_vector(decode_zigzag(out_data_r)) when ZIGZAG_ENCODED else
               out_data_r;
 
   logic_p: process (in_data, state, byte_count, out_data_r, in_valid)

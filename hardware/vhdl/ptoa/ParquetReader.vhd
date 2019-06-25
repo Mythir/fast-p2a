@@ -19,12 +19,13 @@ use ieee.std_logic_misc.all;
 library work;
 
 -- Fletcher
-use work.Utils.all;
-use work.Arrow.all;
-use work.Columns.all;
-use work.Interconnect.all;
-use work.Wrapper.all;
-use work.ColumnConfigParse.all;
+use work.UtilInt_pkg.all;
+use work.Arrow_pkg.all;
+use work.Array_pkg.all;
+use work.Interconnect_pkg.all;
+use work.Wrapper_pkg.all;
+use work.ArrayConfig_pkg.all;
+use work.ArrayConfigParse_pkg.all;
 
 -- Ptoa
 use work.Encoding.all;
@@ -32,8 +33,8 @@ use work.Thrift.all;
 use work.Ingestion.all;
 use work.Alignment.all;
 
--- This ParquetReader is currently set up to work for Parquet columns containing primitives (int32, int64, float, double).
--- Therefore, CFG should be of the form "prim(<width>)" (see Fletcher's ColumnConfig.vhd). In the future, once more
+-- This ParquetReader is currently set up to work for Parquet arrays containing primitives (int32, int64, float, double).
+-- Therefore, CFG should be of the form "prim(<width>)" (see Fletcher's ArrayConfig.vhd). In the future, once more
 -- CFG's are supported, this file will be expanded with generate statements ensuring the correct functionality (or version) of the
 -- ValuesDecoder, rep level decoder, def level encoder are selected.
 
@@ -49,7 +50,9 @@ entity ParquetReader is
     INDEX_WIDTH                                : natural;
     ---------------------------------------------------------------------------
     TAG_WIDTH                                  : natural;
-    CFG                                        : string
+    CFG                                        : string;
+    ENCODING                                   : string;
+    COMPRESSION_CODEC                          : string
   );
   port(
     clk                                        : in  std_logic;
@@ -84,6 +87,8 @@ entity ParquetReader is
     total_num_values                           : in  std_logic_vector(31 downto 0);
     -- Pointer to Arrow values buffer
     values_buffer_addr                         : in  std_logic_vector(BUS_ADDR_WIDTH-1 downto 0);
+    -- Pointer to Arrow offsets buffer
+    offsets_buffer_addr                        : in  std_logic_vector(BUS_ADDR_WIDTH-1 downto 0) := (others => '0');
     ---------------------------------------------------------------------------
     start                                      : in  std_logic;
     stop                                       : in  std_logic;
@@ -93,6 +98,8 @@ entity ParquetReader is
 end ParquetReader;
 
 architecture Implementation of ParquetReader is
+
+  constant PRIM_WIDTH                          : natural := strtoi(parse_arg(CFG, 0));
 
   -- Metadata signals
   signal mdi_rl_byte_length                    : std_logic_vector(31 downto 0);
@@ -133,14 +140,14 @@ architecture Implementation of ParquetReader is
   signal bytes_cons_data                       : std_logic_vector(NUM_CONSUMERS*(log2ceil(BUS_DATA_WIDTH/8)+1)-1 downto 0);
 
   ----------------------------------
-  -- ValuesDecoder <-> ColumnWriter
+  -- ValuesDecoder <-> ArrayWriter
   ----------------------------------
   -- Command stream
   signal cmd_valid                             : std_logic;
   signal cmd_ready                             : std_logic;
   signal cmd_firstIdx                          : std_logic_vector(INDEX_WIDTH-1 downto 0);
   signal cmd_lastIdx                           : std_logic_vector(INDEX_WIDTH-1 downto 0);
-  signal cmd_ctrl                              : std_logic_vector(BUS_ADDR_WIDTH-1 downto 0);
+  signal cmd_ctrl                              : std_logic_vector(arcfg_ctrlWidth(CFG, BUS_ADDR_WIDTH)-1 downto 0);
   signal cmd_tag                               : std_logic_vector(TAG_WIDTH-1 downto 0);
 
   -- Unlock stream
@@ -149,11 +156,11 @@ architecture Implementation of ParquetReader is
   signal unl_tag                               : std_logic_vector(TAG_WIDTH-1 downto 0);
 
   -- Data stream
-  signal vd_cw_valid                           : std_logic_vector(0 downto 0);
-  signal vd_cw_ready                           : std_logic_vector(0 downto 0);
-  signal vd_cw_last                            : std_logic_vector(0 downto 0);
-  signal vd_cw_data                            : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
-  signal vd_cw_dvalid                          : std_logic_vector(0 downto 0);
+  signal vd_cw_valid                           : std_logic_vector(arcfg_userCount(CFG)-1 downto 0);
+  signal vd_cw_ready                           : std_logic_vector(arcfg_userCount(CFG)-1 downto 0);
+  signal vd_cw_last                            : std_logic_vector(arcfg_userCount(CFG)-1 downto 0);
+  signal vd_cw_data                            : std_logic_vector(arcfg_userWidth(CFG, INDEX_WIDTH)-1 downto 0);
+  signal vd_cw_dvalid                          : std_logic_vector(arcfg_userCount(CFG)-1 downto 0);
 
 begin
 
@@ -163,7 +170,7 @@ begin
       BUS_ADDR_WIDTH      => BUS_ADDR_WIDTH,
       BUS_LEN_WIDTH       => BUS_LEN_WIDTH,
       BUS_BURST_MAX_LEN   => BUS_BURST_MAX_LEN,
-      BUS_FIFO_DEPTH      => 3*BUS_BURST_MAX_LEN
+      BUS_FIFO_DEPTH      => 8*BUS_BURST_MAX_LEN
     )
     port map(
       clk                 => clk,
@@ -191,6 +198,7 @@ begin
   DataAligner_inst: DataAligner
     generic map(
       BUS_DATA_WIDTH      => BUS_DATA_WIDTH,
+      BUS_ADDR_WIDTH      => BUS_ADDR_WIDTH,
       NUM_CONSUMERS       => NUM_CONSUMERS,
       NUM_SHIFT_STAGES    => log2ceil(BUS_DATA_WIDTH/8)
     )
@@ -208,7 +216,8 @@ begin
       bc_ready            => bytes_cons_ready,
       prod_alignment      => prod_align_data,
       pa_valid            => prod_align_valid,
-      pa_ready            => prod_align_ready
+      pa_ready            => prod_align_ready,
+      data_size           => max_data_size
     );
 
   MetadataInterpreter_inst: V2MetadataInterpreter
@@ -238,9 +247,10 @@ begin
       INDEX_WIDTH                 => INDEX_WIDTH,
       MIN_INPUT_BUFFER_DEPTH      => 16,
       CMD_TAG_WIDTH               => TAG_WIDTH,
-      ENCODING                    => "PLAIN",
-      COMPRESSION_CODEC           => "UNCOMPRESSED",
-      PRIM_WIDTH                  => strtoi(parse_arg(CFG, 0))
+      CFG                         => CFG,
+      ENCODING                    => ENCODING,
+      COMPRESSION_CODEC           => COMPRESSION_CODEC,
+      PRIM_WIDTH                  => PRIM_WIDTH
     )
     port map(
       clk                         => clk,
@@ -255,6 +265,7 @@ begin
       total_num_values            => total_num_values,
       page_num_values             => mdi_dd_num_values,
       values_buffer_addr          => values_buffer_addr,
+      offsets_buffer_addr         => offsets_buffer_addr,
       bc_data                     => bytes_cons_data(2*log2ceil(BUS_DATA_WIDTH/8)+1 downto log2ceil(BUS_DATA_WIDTH/8)+1),
       bc_ready                    => bytes_cons_ready(1),
       bc_valid                    => bytes_cons_valid(1),
@@ -267,14 +278,14 @@ begin
       unl_valid                   => unl_valid,
       unl_ready                   => unl_ready,
       unl_tag                     => unl_tag,
-      out_valid                   => vd_cw_valid(0),
-      out_ready                   => vd_cw_ready(0),
-      out_last                    => vd_cw_last(0),
-      out_dvalid                  => vd_cw_dvalid(0),
+      out_valid                   => vd_cw_valid,
+      out_ready                   => vd_cw_ready,
+      out_last                    => vd_cw_last,
+      out_dvalid                  => vd_cw_dvalid,
       out_data                    => vd_cw_data
     );
 
-  fletcher_cw_inst: ColumnWriter
+  fletcher_cw_inst: ArrayWriter
     generic map (
       BUS_ADDR_WIDTH              => BUS_ADDR_WIDTH,
       BUS_LEN_WIDTH               => BUS_LEN_WIDTH,
@@ -283,15 +294,15 @@ begin
       BUS_BURST_STEP_LEN          => BUS_BURST_STEP_LEN,
       BUS_BURST_MAX_LEN           => BUS_BURST_MAX_LEN,
       INDEX_WIDTH                 => INDEX_WIDTH,
-      CFG                         => "prim(" & integer'image(BUS_DATA_WIDTH) & ")", -- ColumnWriter should write the max amount of elements per cycle that the bus width allows
+      CFG                         => CFG,
       CMD_TAG_ENABLE              => true,
       CMD_TAG_WIDTH               => TAG_WIDTH
     )
     port map (
-      bus_clk                     => clk,
-      bus_reset                   => reset,
-      acc_clk                     => clk,
-      acc_reset                   => reset,
+      bcd_clk                     => clk,
+      bcd_reset                   => reset,
+      kcd_clk                     => clk,
+      kcd_reset                   => reset,
       cmd_valid                   => cmd_valid,
       cmd_ready                   => cmd_ready,
       cmd_firstIdx                => cmd_firstIdx,
@@ -312,8 +323,8 @@ begin
       bus_wdat_data               => bus_wdat_data,
       bus_wdat_strobe             => bus_wdat_strobe,
       bus_wdat_last               => bus_wdat_last,
-      unlock_valid                => unl_valid,
-      unlock_ready                => unl_ready,
-      unlock_tag                  => unl_tag
+      unl_valid                => unl_valid,
+      unl_ready                => unl_ready,
+      unl_tag                  => unl_tag
     );
 end architecture;

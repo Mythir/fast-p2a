@@ -16,9 +16,9 @@ use ieee.numeric_std.all;
 
 library work;
 -- Fletcher utils for use of log2ceil function.
-use work.Utils.all;
+use work.UtilInt_pkg.all;
 -- Fletcher streams for use of StreamBuffer
-use work.Streams.all;
+use work.Stream_pkg.all;
 
 -- Once the first data of a new page is received from the DataAligner, the PreDecBuffer will notify the Decompressor and the Decoder and start buffering data.
 -- Once the PreDecBuffer has received <compressed_size> bytes it will handshake the DataAligner.

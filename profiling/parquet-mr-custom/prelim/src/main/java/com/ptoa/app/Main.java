@@ -2,14 +2,12 @@ package com.ptoa.app;
 
 
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.parquet.avro.AvroParquetReader;
-import org.apache.parquet.avro.AvroParquetWriter;
 import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.hadoop.ParquetWriter;
 import org.apache.parquet.column.ParquetProperties.WriterVersion;
+import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.apache.parquet.example.data.Group;
 import org.apache.parquet.example.data.simple.convert.GroupRecordConverter;
@@ -25,6 +23,9 @@ import org.apache.parquet.column.page.PageReadStore;
 import org.apache.parquet.hadoop.api.WriteSupport;
 import org.apache.parquet.hadoop.example.GroupWriteSupport;
 import org.apache.parquet.hadoop.PrintFooter;
+import org.apache.parquet.column.values.factory.ValuesWriterFactory;
+import org.apache.parquet.hadoop.util.HadoopOutputFile;
+import org.apache.parquet.hadoop.ParquetFileWriter;
 
 import java.io.File;
 import java.io.BufferedWriter;
@@ -62,11 +63,16 @@ public class Main {
       return self();
     }
 
+    public CustomBuilder withValuesWriterFactory(ValuesWriterFactory factory) {
+      this.encodingPropsBuilder.withValuesWriterFactory(factory);
+      return self();
+    }
+
   }
 
   public static void main(String[] args) throws IOException {
-    Path file = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/gen-input/ref_int64array.parquet");
-    Path destPath = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/gen-input/hw_int64array.parquet");
+    Path file = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/gen-input/ref_delta_varied_int64.parquet");
+    Path destPath = new Path("/home/lars/Documents/GitHub/fast-p2a/profiling/gen-input/hw_delta_varied_maxps_int64.parquet");
 
     ParquetFileReader reader = new ParquetFileReader(conf, file, ParquetMetadataConverter.NO_FILTER);
     ParquetMetadata readFooter = reader.getFooter();
@@ -75,17 +81,40 @@ public class Main {
     reader.close();
     PageReadStore pages = null;
     
+    ValuesWriterFactory customV2Factory = new CustomV2ValuesWriterFactory();
+
     File t = new File(destPath.toString());
     t.delete();
+
+    //GroupWriteSupport.setSchema(schema, conf);
+    //ParquetProperties.Builder encodingPropsBuilder = ParquetProperties.builder();
+    //encodingPropsBuilder.withPageSize(10000000)
+    //                    .withPageRowCountLimit(1000000000)
+    //                    .withDictionaryEncoding(false)
+    //                    .withValuesWriterFactory(customFactory)
+    //                    .withWriterVersion(WriterVersion.PARQUET_2_0);
+//
+    //ParquetWriter<Group> writer = new ParquetWriter(
+    //                                HadoopOutputFile.fromPath(destPath, conf),
+    //                                ParquetFileWriter.Mode.OVERWRITE,
+    //                                new GroupWriteSupport(),
+    //                                CompressionCodecName.UNCOMPRESSED,
+    //                                Integer.MAX_VALUE,
+    //                                false,
+    //                                conf,
+    //                                ParquetWriter.MAX_PADDING_SIZE_DEFAULT,
+    //                                encodingPropsBuilder.build());
+
 
     CustomBuilder writerBuilder = new CustomBuilder(destPath);
     writerBuilder.withSchema(schema, conf)
                  .withCompressionCodec(CompressionCodecName.UNCOMPRESSED)
-                 .withRowGroupSize(Integer.MAX_VALUE)
-                 .withPageSize(10000000)
-                 .withPageRowCountLimit(1000000000)
+                 .withRowGroupSize(Integer.MAX_VALUE)//
+                 .withPageSize(Integer.MAX_VALUE)
+                 .withPageRowCountLimit(Integer.MAX_VALUE)
                  .withDictionaryEncoding(false)
                  .withValidation(false)
+                 //.withValuesWriterFactory(customV2Factory)
                  .withWriterVersion(WriterVersion.PARQUET_2_0);
     ParquetWriter<Group> writer = writerBuilder.build();
 
@@ -107,12 +136,13 @@ public class Main {
       r.close();
       writer.close();
     }
-
+    /*
     try{
       PrintFooter.main(new String[] {destPath.toString()});
     } catch (Exception e){
       e.printStackTrace();
     }
+    */
   }
 
 }

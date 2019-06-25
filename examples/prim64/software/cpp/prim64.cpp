@@ -98,13 +98,13 @@ void checkMMIO(std::shared_ptr<fletcher::Platform> platform, uint32_t num_val, u
 //Only works for Parquet version 1 style files.
 std::shared_ptr<arrow::Array> readArray(std::string hw_input_file_path) {
   std::shared_ptr<arrow::io::ReadableFile> infile;
-  PARQUET_THROW_NOT_OK(arrow::io::ReadableFile::Open(hw_input_file_path, arrow::default_memory_pool(), &infile));
+  arrow::io::ReadableFile::Open(hw_input_file_path, arrow::default_memory_pool(), &infile);
   
   std::unique_ptr<parquet::arrow::FileReader> reader;
-  PARQUET_THROW_NOT_OK(parquet::arrow::OpenFile(infile, arrow::default_memory_pool(), &reader));
+  parquet::arrow::OpenFile(infile, arrow::default_memory_pool(), &reader);
 
   std::shared_ptr<arrow::Array> array;
-  PARQUET_THROW_NOT_OK(reader->ReadColumn(0, &array));
+  reader->ReadColumn(0, &array);
 
   return array;
 }
@@ -152,7 +152,8 @@ int main(int argc, char **argv) {
   parquet_file.seekg (0, parquet_file.beg);
 
   //Read file data
-  file_data = (uint8_t*)std::malloc(file_size);
+  //file_data = (uint8_t*)std::malloc(file_size);
+  posix_memalign((void**)&file_data, 4096, file_size);
   parquet_file.read((char *)file_data, file_size);
 
 
@@ -231,8 +232,13 @@ int main(int argc, char **argv) {
                              result_buffer_raw_data,
                              sizeof(int64_t) * (num_val));
   t.stop();
+
+  size_t total_arrow_size = sizeof(int64_t) * num_val;
+  
   std::cout << "FPGA device to host copy         : "
             << t.seconds() << std::endl;
+  std::cout << "Arrow buffers total size         : "
+            << total_arrow_size << std::endl;
 
   /*************************************************************
   * Check results
@@ -248,6 +254,10 @@ int main(int argc, char **argv) {
       std::cout << result_array->Value(i) << " " << correct_array->Value(i) << std::endl;
     }
 
+  }
+
+  if(result_array->length() != num_val){
+    error_count++;
   }
 
   if(error_count == 0) {

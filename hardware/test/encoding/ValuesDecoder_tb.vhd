@@ -21,14 +21,19 @@ use ieee.math_real.all;
 
 library work;
 -- Fletcher utils for use of the log2ceil function
-use work.Utils.all;
+use work.UtilInt_pkg.all;
+use work.ArrayConfig_pkg.all;
+use work.ArrayConfigParse_pkg.all;
+
+-- This testbench tests the ValuesDecoder in the case of a PLAIN encoding and UNCOMPRESSED compression_codec. Compatible testcase hex files are generated
+-- by PlainDecoder_gen.py. The generated testcase simulates a Parquet file containing all integers 0 to total_num_values sorted from small to large.
 
 entity ValuesDecoder_tb is
 end ValuesDecoder_tb;
 
 architecture tb of ValuesDecoder_tb is
   constant BUS_DATA_WIDTH       : natural := 512;
-  constant PRIM_WIDTH           : natural := 32;
+  constant PRIM_WIDTH           : natural := 64;
   constant TOTAL_NUM_VALUES     : natural := 9320;
 
   constant clk_period           : time    := 10 ns;
@@ -38,8 +43,10 @@ architecture tb of ValuesDecoder_tb is
   constant MIN_INPUT_BUFFER_DEPTH    : natural := 32;
   constant CMD_TAG_WIDTH             : natural := 1;
   constant RAM_CONFIG                : string := "";
+  constant CFG                       : string := "prim(64;epc=8)";
   constant ENCODING                  : string := "PLAIN";
   constant COMPRESSION_CODEC         : string := "UNCOMPRESSED";
+  constant ELEMENTS_PER_CYCLE        : natural := parse_param(cfg, "epc", 1);
  
   signal clk                         : std_logic;
   signal reset                       : std_logic;
@@ -64,11 +71,11 @@ architecture tb of ValuesDecoder_tb is
   signal unl_valid                   : std_logic;
   signal unl_ready                   : std_logic;
   signal unl_tag                     : std_logic_vector(CMD_TAG_WIDTH-1 downto 0);
-  signal out_valid                   : std_logic;
-  signal out_ready                   : std_logic;
-  signal out_last                    : std_logic;
-  signal out_dvalid                  : std_logic := '1';
-  signal out_data                    : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
+  signal out_valid                   : std_logic_vector(arcfg_userCount(CFG)-1 downto 0);
+  signal out_ready                   : std_logic_vector(arcfg_userCount(CFG)-1 downto 0);
+  signal out_last                    : std_logic_vector(arcfg_userCount(CFG)-1 downto 0);
+  signal out_dvalid                  : std_logic_vector(arcfg_userCount(CFG)-1 downto 0) := (others => '1');
+  signal out_data                    : std_logic_vector(arcfg_userWidth(CFG, INDEX_WIDTH)-1 downto 0);
 begin
 
   dut: entity work.ValuesDecoder
@@ -76,9 +83,9 @@ begin
       BUS_DATA_WIDTH              => BUS_DATA_WIDTH,
       BUS_ADDR_WIDTH              => BUS_ADDR_WIDTH,
       INDEX_WIDTH                 => INDEX_WIDTH,
-      MIN_INPUT_BUFFER_DEPTH      => MIN_INPUT_BUFFER_DEPTH,
+      MIN_INPUT_BUFFER_DEPTH      => 16,
       CMD_TAG_WIDTH               => CMD_TAG_WIDTH,
-      RAM_CONFIG                  => RAM_CONFIG,
+      CFG                         => CFG,
       ENCODING                    => ENCODING,
       COMPRESSION_CODEC           => COMPRESSION_CODEC,
       PRIM_WIDTH                  => PRIM_WIDTH
@@ -234,7 +241,9 @@ begin
     constant max_stopped_cycles : real    := 10.0;
 
     variable counter            : natural := 0;
-    variable read_data          : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
+    variable read_data          : std_logic_vector(log2ceil(ELEMENTS_PER_CYCLE+1) + ELEMENTS_PER_CYCLE*PRIM_WIDTH - 1 downto 0);
+    variable read_count         : unsigned(log2ceil(ELEMENTS_PER_CYCLE+1)-1 downto 0);
+    variable read_values        : std_logic_vector(ELEMENTS_PER_CYCLE*PRIM_WIDTH - 1 downto 0);
     variable check_out_last     : std_logic;
 
     variable seed1              : positive := 1227;
@@ -245,7 +254,7 @@ begin
   begin
     cmd_ready <= '0';
     unl_valid <= '0';
-    out_ready <= '0';
+    out_ready(0) <= '0';
 
     loop
       wait until rising_edge(clk);
@@ -271,21 +280,24 @@ begin
       report "cmd_ctrl not equal to values_buffer_addr" severity failure;
 
     loop
-      out_ready <= '1';
+      out_ready(0) <= '1';
   
       loop
         wait until rising_edge(clk);
-        exit when out_valid = '1';
+        exit when out_valid(0) = '1';
       end loop;
   
-      out_ready <= '0';
+      out_ready(0) <= '0';
 
       read_data      := out_data;
-      check_out_last := out_last;
+      check_out_last := out_last(0);
+
+      read_values    := read_data(ELEMENTS_PER_CYCLE*PRIM_WIDTH-1 downto 0);
+      read_count     := unsigned(read_data(log2ceil(ELEMENTS_PER_CYCLE+1)+ELEMENTS_PER_CYCLE*PRIM_WIDTH-1 downto ELEMENTS_PER_CYCLE*PRIM_WIDTH));
   
-      for i in 0 to integer(floor(real(BUS_DATA_WIDTH)/real(PRIM_WIDTH)))-1 loop
-        assert read_data(PRIM_WIDTH*(i+1)-1 downto PRIM_WIDTH*i) = std_logic_vector(to_unsigned(counter, PRIM_WIDTH))
-          report "Incorrect out_data. Read " & integer'image(to_integer(unsigned(read_data(PRIM_WIDTH*(i+1)-1 downto PRIM_WIDTH*i)))) & " expected " & integer'image(counter) severity failure;
+      for i in 0 to to_integer(read_count)-1 loop
+        assert read_values(PRIM_WIDTH*(i+1)-1 downto PRIM_WIDTH*i) = std_logic_vector(to_unsigned(counter, PRIM_WIDTH))
+          report "Incorrect out_data. Read " & integer'image(to_integer(unsigned(read_values(PRIM_WIDTH*(i+1)-1 downto PRIM_WIDTH*i)))) & " expected " & integer'image(counter) severity failure;
   
         counter := counter + 1;
 
@@ -314,7 +326,7 @@ begin
     end loop;
 
     wait until rising_edge(clk);
-    assert out_valid = '0'
+    assert out_valid(0) = '0'
       report "ValBuffer offers data on its output despite all values having been read" severity failure;
 
     unl_valid <= '1';

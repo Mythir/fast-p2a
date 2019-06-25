@@ -21,13 +21,14 @@ use ieee.math_real.all;
 
 library work;
 -- Fletcher utils for use of the log2ceil function
-use work.Utils.all;
+use work.UtilInt_pkg.all;
 
 entity DataAligner_tb is
 end DataAligner_tb;
 
 architecture tb of DataAligner_tb is
   constant BUS_DATA_WIDTH       : natural := 512;
+  constant BUS_ADDR_WIDTH       : natural := 64;
   constant NUM_CONSUMERS        : natural := 5;
   constant NUM_SHIFT_STAGES     : natural := 6;
   constant SHIFT_WIDTH          : natural := log2ceil(BUS_DATA_WIDTH/8);
@@ -37,8 +38,9 @@ architecture tb of DataAligner_tb is
   constant stream_stop_p        : real    := 0.05;
   constant max_stopped_cycles   : real    := 16.0;
 
-  -- This constant should be changed when a new DataAligner_input file is created
-  constant init_misalignment    : natural := 36;
+  -- These constants should be changed when a new DataAligner_input file is created
+  constant init_misalignment    : natural := 62;
+  constant data_size            : natural := 69025;
 
   signal clk                    : std_logic;
   signal reset                  : std_logic;
@@ -59,6 +61,7 @@ begin
   dut: entity work.DataAligner
   generic map(
     BUS_DATA_WIDTH              => BUS_DATA_WIDTH,
+    BUS_ADDR_WIDTH              => BUS_ADDR_WIDTH,
     NUM_CONSUMERS               => NUM_CONSUMERS,
     NUM_SHIFT_STAGES            => NUM_SHIFT_STAGES
   )
@@ -76,7 +79,8 @@ begin
     bc_ready                    => bc_ready,
     prod_alignment              => prod_alignment,
     pa_valid                    => pa_valid,
-    pa_ready                    => pa_ready
+    pa_ready                    => pa_ready,
+    data_size                   => std_logic_vector(to_unsigned(data_size, BUS_ADDR_WIDTH))
   );
 
   upstream_p : process

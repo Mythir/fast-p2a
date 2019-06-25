@@ -22,4 +22,10 @@ enum status {
 	FAIL = PTOA_FAIL
 };
 
+enum encoding{
+	PLAIN,
+	DELTA,
+	DELTA_LENGTH
+};
+
 }

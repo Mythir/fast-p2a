@@ -37,12 +37,100 @@ SWParquetReader::SWParquetReader(std::string file_path) {
 
 }
 
+status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, encoding enc) {
+    if(enc == encoding::PLAIN){
+        return read_prim_plain(prim_width, num_values, file_offset, prim_array);
+    } else if(enc == encoding::DELTA){
+        return read_prim_delta32(num_values, file_offset, prim_array);
+    } else{
+        std::cout<<"Unsupported encoding selected" << std::endl;
+        return status::FAIL;
+    }
+}
+
+status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, std::shared_ptr<arrow::Buffer> arr_buffer, encoding enc) {
+    if(enc == encoding::PLAIN){
+        return read_prim_plain(prim_width, num_values, file_offset, prim_array, arr_buffer);
+    } else if(enc == encoding::DELTA){
+        return read_prim_delta32(num_values, file_offset, prim_array, arr_buffer);
+    } else{
+        std::cout<<"Unsupported encoding selected" << std::endl;
+        return status::FAIL;
+    }
+}
+
+status SWParquetReader::read_string(int64_t num_strings, int64_t num_chars, int32_t file_offset, std::shared_ptr<arrow::StringArray>* string_array, encoding enc) {
+    if(enc == encoding::DELTA_LENGTH){
+        return read_string_delta_length(num_strings, num_chars, file_offset, string_array);
+    } else{
+        std::cout<<"Unsupported encoding selected" << std::endl;
+        return status::FAIL;
+    }
+}
+status SWParquetReader::read_string(int64_t num_strings, int32_t file_offset, std::shared_ptr<arrow::StringArray>* string_array, std::shared_ptr<arrow::Buffer> off_buffer, std::shared_ptr<arrow::Buffer> val_buffer, encoding enc) {
+    if(enc == encoding::DELTA_LENGTH){
+        return read_string_delta_length(num_strings, file_offset, string_array, off_buffer, val_buffer);
+    } else{
+        std::cout<<"Unsupported encoding selected" << std::endl;
+        return status::FAIL;
+    }
+}
+
+
 // Read a number (set by num_values) of either 32 or 64 bit integers (set by prim_width) into prim_array.
 // File_offset is the byte offset in the Parquet file where the first in a contiguous list of Parquet pages is located.
-status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array) {
+status SWParquetReader::read_prim_plain(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array) {
     uint8_t* page_ptr = parquet_data;
     std::shared_ptr<arrow::Buffer> arr_buffer;
     arrow::AllocateBuffer(num_values*prim_width/8, &arr_buffer);
+    uint8_t* arr_buf_ptr = arr_buffer->mutable_data();
+
+    int64_t total_value_counter = 0;
+
+    // Metadata reading variables
+    int32_t uncompressed_size;
+    int32_t compressed_size;
+    int32_t page_num_values;
+    int32_t def_level_length;
+    int32_t rep_level_length;
+    int32_t metadata_size;
+
+    page_ptr += file_offset;
+
+    // Copy values from Parquet pages until max amount of values is reached
+    while(total_value_counter < num_values){
+        if(read_metadata(page_ptr, &uncompressed_size, &compressed_size, &page_num_values, &def_level_length, &rep_level_length, &metadata_size) != status::OK) {
+            std::cerr << "[ERROR] Corrupted data in Parquet page headers" << std::endl;
+            std::cerr << page_ptr-parquet_data << std::endl;
+            return status::FAIL;
+        }
+
+        page_ptr += metadata_size;
+    
+        std::memcpy((void*) arr_buf_ptr, (const void*) page_ptr, std::min((int64_t) compressed_size, (num_values-total_value_counter)*prim_width/8));
+    
+        page_ptr += compressed_size;
+        arr_buf_ptr += compressed_size;
+        total_value_counter += page_num_values;
+
+
+    }
+
+    if(prim_width == 64){
+        *prim_array = std::make_shared<arrow::PrimitiveArray>(arrow::int64(), num_values, arr_buffer);
+    } else if (prim_width == 32) {
+        *prim_array = std::make_shared<arrow::PrimitiveArray>(arrow::int32(), num_values, arr_buffer);
+    } else {
+        std::cerr << "[ERROR] Unsupported prim width " << prim_width << std::endl;
+    }
+
+    return status::OK;
+
+}
+
+// Same as read_prim but with a pre-allocated buffer
+status SWParquetReader::read_prim_plain(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, std::shared_ptr<arrow::Buffer> arr_buffer) {
+    uint8_t* page_ptr = parquet_data;
     uint8_t* arr_buf_ptr = arr_buffer->mutable_data();
 
     int64_t total_value_counter = 0;
@@ -133,24 +221,27 @@ status SWParquetReader::count_pages(int32_t file_offset) {
 
     }
 
-    std::cout << "Counted " << page_ctr << " pages" << std::endl;
-    std::cout << "Page sizes: " << std::endl;
+    //std::cout << "Page sizes: " << std::endl;
+    int total_page_size = 0;
     for(auto it = size_map.begin(); it != size_map.end(); it++){
-        std::cout << "    Size " << it->first << ": " << it->second <<std::endl;
-    }
+        //std::cout << "    Size " << it->first << ": " << it->second <<std::endl;
+        total_page_size += ((it->first)*(it->second));
+    } 
+    std::cout << "Amount of pages in file   : " << page_ctr << std::endl;
+    std::cout << "Average page size in file : " << total_page_size/page_ctr << std::endl;
 
-    std::cout << "Number of values per page: " << std::endl;
-    for(auto it = size_map.begin(); it != size_map.end(); it++){
-        std::cout << "    " << it->first << ": " << it->second <<std::endl;
-    }
-    std::cout << std::endl;
+    //std::cout << "Number of values per page: " << std::endl;
+    //for(auto it = value_map.begin(); it != value_map.end(); it++){
+    //    std::cout << "    " << it->first << ": " << it->second <<std::endl;
+    //}
+    //std::cout << std::endl;
 
     return status::OK;
 
 }
 
 // Decodes variable length integer pointed to by input and stores it in decoded_int. Returns length of variable length integer in bytes.
-int SWParquetReader::decode_varint32(uint8_t* input, int32_t* decoded_int, bool zigzag) {
+int SWParquetReader::decode_varint32(const uint8_t* input, int32_t* decoded_int, bool zigzag) {
     int32_t result = 0;
     int i;
 
@@ -198,10 +289,10 @@ status SWParquetReader::inspect_metadata(int32_t file_offset) {
 }
 
 // Read all relevant fields from the Parquet page header pointed to by uint8_t* metadata.
-status SWParquetReader::read_metadata(uint8_t* metadata, int32_t* uncompressed_size, int32_t* compressed_size, int32_t* num_values, 
+status SWParquetReader::read_metadata(const uint8_t* metadata, int32_t* uncompressed_size, int32_t* compressed_size, int32_t* num_values, 
                                       int32_t* def_level_length, int32_t* rep_level_length, int32_t* metadata_size) {
 
-    uint8_t* current_byte = metadata;
+    const uint8_t* current_byte = metadata;
 
     // PageType
     if(*current_byte != 0x15){
