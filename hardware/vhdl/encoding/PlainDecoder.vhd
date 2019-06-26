@@ -20,11 +20,9 @@ use work.UtilInt_pkg.all;
 use work.UtilMisc_pkg.all;
 use work.Stream_pkg.all;
 
--- This PlainDecoder does not actually have to decode anything because the "PLAIN" encoding just stores the values as normal integers or floats. Instead
--- the complexity comes from the fact that each page can have an arbitrary number of values and we always want to sent <elements_per_cycle> values
--- to the ArrayWriter per transaction. Every time we start a new page, the PreDecBuffer in the ValuesDecoder handshakes the PlainDecoder to let it know it should
--- store that page's relevant metadata, which the PlainDecoder will use to send the correct amount of values to the ValBuffer. The ValBuffer stores the values until
--- it has enough to send to the ArrayWriter.
+-- This PlainDecoder does not actually have to decode anything because the "PLAIN" encoding just stores the values as normal integers or floats. 
+-- This module is only concerned with limiting its input to exactly one page per handshaked page, and supplying the correct count with out_data to the
+-- Fletcher arraywriters.
 
 entity PlainDecoder is
   generic (

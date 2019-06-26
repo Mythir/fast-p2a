@@ -1,0 +1,3 @@
+[submodule "hardware/vhdl/compression/snappy/FPGA-Snappy-Decompressor"]
+	path = hardware/vhdl/compression/snappy/FPGA-Snappy-Decompressor
+	url = https://github.com/ChenJianyunp/FPGA-Snappy-Decompressor.git

@@ -18,6 +18,7 @@ library work;
 -- Fletcher utils for use of log2ceil function.
 use work.UtilInt_pkg.all;
 use work.Encoding.all;
+use work.Snappy.all;
 
 -- Todo: description
 
@@ -64,5 +65,26 @@ begin
     out_valid      <= in_valid;
     out_data       <= in_data;
     new_page_ready <= '1';
+  end generate;
+
+  snappy_gen: if COMPRESSION_CODEC = "SNAPPY" generate
+    snappy_inst: SnappyDecompressor
+      generic map(
+        BUS_DATA_WIDTH              => BUS_DATA_WIDTH
+      )
+      port map(
+        clk                         => clk,
+        reset                       => reset,
+        in_valid                    => in_valid,
+        in_ready                    => in_ready,
+        in_data                     => in_data,
+        new_page_valid              => new_page_valid,
+        new_page_ready              => new_page_ready,
+        compressed_size             => compressed_size,
+        uncompressed_size           => uncompressed_size,
+        out_valid                   => out_valid,
+        out_ready                   => out_ready,
+        out_data                    => out_data
+      );
   end generate;
 end architecture;
