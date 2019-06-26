@@ -2,7 +2,8 @@
 checkpoints/
 reports/
 src_post_encryption/
-design/
+design/ip/
+!design/ip/axi_interconnect_top.xci
 software/
 sim/
 .Xil/
