@@ -75,14 +75,6 @@ architecture behv of SnappyDecompressor is
   signal dec_in_ready           : std_logic;
   signal dec_in_data            : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
 
-  -- Data stream from decompressor_wrapper to stream reshaper
-  signal dec_sr_last            : std_logic;
-  signal dec_sr_data            : std_logic_vector(BUS_DATA_WIDTH-1 downto 0);
-  signal dec_sr_valid           : std_logic;
-  signal dec_sr_ready           : std_logic;
-  signal dec_sr_strobe          : std_logic_vector(BUS_DATA_WIDTH/8-1 downto 0);
-  signal dec_sr_count           : std_logic_vector(log2ceil(BUS_DATA_WIDTH/8)-1 downto 0);
-
   signal dec_start              : std_logic;
   signal dec_done               : std_logic;
   signal dec_reset              : std_logic;
@@ -97,9 +89,6 @@ begin
   assert BUS_DATA_WIDTH = 512
     report "Only 512 bit BUS_DATA_WIDTH is supported when using the Snappy decompressor" severity failure;
 
-  -- Convert decompressor strobe output to a count of the ones compatible with the other hardware.
-  dec_sr_count <= std_logic_vector(to_unsigned(countOnes(dec_sr_strobe), dec_sr_count'length));
-
   -- Active low reset on decompressor
   dec_reset    <= not reset;
 
@@ -109,7 +98,7 @@ begin
     port map(
       clk                         => clk,
       rst_n                       => dec_reset,
-      last                        => dec_sr_last,
+      last                        => open,
       done                        => dec_done,
       start                       => dec_start,
       in_data                     => dec_in_data,
@@ -119,10 +108,10 @@ begin
       decompression_length        => dec_decompression_length,
       in_metadata_valid           => dec_metadata_valid,
       in_metadata_ready           => dec_metadata_ready,
-      out_data                    => dec_sr_data,
-      out_data_valid              => dec_sr_valid,
-      out_data_byte_valid         => dec_sr_strobe,
-      out_data_ready              => dec_sr_ready
+      out_data                    => out_data,
+      out_data_valid              => out_valid,
+      out_data_byte_valid         => open,
+      out_data_ready              => out_ready
     );
 
   -- Step 1 (IDLE): Stream metadata (uncompressed_size, decompressed_size) to decompressor (new page handshake unblocked)
@@ -186,30 +175,6 @@ begin
 
     d <= v;
   end process;
-
-  reshaper_inst: StreamReshaper
-    generic map (
-      ELEMENT_WIDTH           => 8,
-      IN_COUNT_MAX            => BUS_DATA_WIDTH/8,
-      IN_COUNT_WIDTH          => log2ceil(BUS_DATA_WIDTH/8),
-      OUT_COUNT_MAX           => BUS_DATA_WIDTH/8,
-      OUT_COUNT_WIDTH         => log2ceil(BUS_DATA_WIDTH/8)
-    )
-    port map (
-      clk                     => clk,
-      reset                   => reset,
-      din_valid               => dec_sr_valid,
-      din_ready               => dec_sr_ready,
-      din_data                => dec_sr_data,
-      din_count               => dec_sr_count,
-      din_last                => dec_sr_last,
-      out_valid               => out_valid,
-      out_ready               => out_ready,
-      out_dvalid              => open,
-      out_data                => out_data,
-      out_count               => open,
-      out_last                => open
-    );
 
   clk_p: process(clk)
   begin

@@ -1221,19 +1221,6 @@ Compiling module xil_defaultlib.ram_module(BLOCKNUM=4'b1111)
 Compiling module xil_defaultlib.control
 Compiling module xil_defaultlib.decompressor_default
 Compiling module xil_defaultlib.decompressor_wrapper
-Compiling architecture behavioral of entity xil_defaultlib.StreamSlice [\StreamSlice(data_width=520)\]
-Compiling architecture behavioral of entity xil_defaultlib.StreamBuffer [\StreamBuffer(min_depth=2,data_w...]
-Compiling architecture behavioral of entity xil_defaultlib.StreamSlice [\StreamSlice(data_width=9)\]
-Compiling architecture behavioral of entity xil_defaultlib.StreamBuffer [\StreamBuffer(min_depth=2,data_w...]
-Compiling architecture behavioral of entity xil_defaultlib.StreamSlice [\StreamSlice(data_width=1055)\]
-Compiling architecture behavioral of entity xil_defaultlib.StreamSlice [\StreamSlice(data_width=521)\]
-Compiling architecture behavioral of entity xil_defaultlib.UtilRam1R1W [\UtilRam1R1W(width=521,depth_log...]
-Compiling architecture behavioral of entity xil_defaultlib.StreamFIFO [\StreamFIFO(depth_log2=4,data_wi...]
-Compiling architecture behavioral of entity xil_defaultlib.StreamBuffer [\StreamBuffer(min_depth=16,data_...]
-Compiling architecture behavioral of entity xil_defaultlib.StreamPipelineControl [\StreamPipelineControl(in_data_w...]
-Compiling architecture behavioral of entity xil_defaultlib.StreamPipelineBarrel [\StreamPipelineBarrel(element_wi...]
-Compiling architecture behavioral of entity xil_defaultlib.StreamPipelineBarrel [\StreamPipelineBarrel(element_wi...]
-Compiling architecture behavioral of entity xil_defaultlib.StreamReshaper [\StreamReshaper(element_width=8,...]
 Compiling architecture behv of entity xil_defaultlib.SnappyDecompressor [\SnappyDecompressor(bus_data_wid...]
 Compiling architecture behv of entity xil_defaultlib.DecompressorWrapper [\DecompressorWrapper(bus_data_wi...]
 Compiling architecture behavioral of entity xil_defaultlib.StreamGearboxSerializer [\StreamGearboxSerializer(element...]
@@ -1323,6 +1310,12 @@ source xsim.dir/tb/xsim_script.tcl
 Vivado Simulator 2018.3
 Time resolution is 1 ps
 open_wave_config /shares/bulk/ltjvanleeuwen/github/fast-p2a/platforms/aws-f1/prim64_plain_snappy/verif/sim/vivado/test_prim64/tb.wcfg
+WARNING: Simulation object /tb/card/fpga/CL/ARROW_TOP_INST/ptoa_wrapper_inst/prim32_reader_inst/ValuesDecoder_inst/dcmp_inst/snappy_gen/snappy_inst/dec_sr_last was not found in the design.
+WARNING: Simulation object /tb/card/fpga/CL/ARROW_TOP_INST/ptoa_wrapper_inst/prim32_reader_inst/ValuesDecoder_inst/dcmp_inst/snappy_gen/snappy_inst/dec_sr_data was not found in the design.
+WARNING: Simulation object /tb/card/fpga/CL/ARROW_TOP_INST/ptoa_wrapper_inst/prim32_reader_inst/ValuesDecoder_inst/dcmp_inst/snappy_gen/snappy_inst/dec_sr_valid was not found in the design.
+WARNING: Simulation object /tb/card/fpga/CL/ARROW_TOP_INST/ptoa_wrapper_inst/prim32_reader_inst/ValuesDecoder_inst/dcmp_inst/snappy_gen/snappy_inst/dec_sr_ready was not found in the design.
+WARNING: Simulation object /tb/card/fpga/CL/ARROW_TOP_INST/ptoa_wrapper_inst/prim32_reader_inst/ValuesDecoder_inst/dcmp_inst/snappy_gen/snappy_inst/dec_sr_strobe was not found in the design.
+WARNING: Simulation object /tb/card/fpga/CL/ARROW_TOP_INST/ptoa_wrapper_inst/prim32_reader_inst/ValuesDecoder_inst/dcmp_inst/snappy_gen/snappy_inst/dec_sr_count was not found in the design.
 WARNING: [Simtcl 6-25] Warning: Both '-runall' and '-tclbatch' were specified. The '-runall' was ignored
 source /home/ltjvanleeuwen/bulk/github/fast-p2a/platforms/aws-f1/prim64_plain_snappy/verif/scripts/waves.tcl
 ## set curr_wave [current_wave_config]
