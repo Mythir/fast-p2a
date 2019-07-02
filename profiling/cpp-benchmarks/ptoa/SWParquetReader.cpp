@@ -191,6 +191,7 @@ status SWParquetReader::count_pages(int32_t file_offset) {
     page_ptr += file_offset;
 
     int32_t page_ctr = 0;
+    int32_t column_chunk_size = 0;
     std::map<int32_t, int32_t> size_map;
     std::map<int32_t, int32_t> value_map;
 
@@ -218,7 +219,7 @@ status SWParquetReader::count_pages(int32_t file_offset) {
             value_map.insert(std::make_pair(page_num_values, 1));
         }
 
-
+        column_chunk_size += metadata_size + compressed_size;
     }
 
     //std::cout << "Page sizes: " << std::endl;
@@ -229,6 +230,7 @@ status SWParquetReader::count_pages(int32_t file_offset) {
     } 
     std::cout << "Amount of pages in file   : " << page_ctr << std::endl;
     std::cout << "Average page size in file : " << total_page_size/page_ctr << std::endl;
+    std::cout << "Total size of column chunk: " << column_chunk_size << std::endl;
 
     //std::cout << "Number of values per page: " << std::endl;
     //for(auto it = value_map.begin(); it != value_map.end(); it++){
