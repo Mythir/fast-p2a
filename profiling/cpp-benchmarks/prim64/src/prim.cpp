@@ -126,7 +126,7 @@ int main(int argc, char **argv) {
             if(result_array->Value(i) != correct_array->Value(i)) {
               error_count++;
               if(error_count<20) {
-                std::cout<<i<<std::endl;
+                std::cout<<i<<": "<< result_array->Value(i) <<" "<< correct_array->Value(i)<<std::endl;
               }
             }
         }

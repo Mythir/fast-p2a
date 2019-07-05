@@ -45,17 +45,22 @@ class SWParquetReader {
   	status read_metadata(const uint8_t* metadata, int32_t* uncompressed_size, int32_t* compressed_size, int32_t* num_values, int32_t* def_level_length, int32_t* rep_level_length, int32_t* metadata_size);
     status read_delta_header32(const uint8_t* header, int32_t* first_value, int32_t* header_size);
     status read_block_header32(const uint8_t* header, int32_t* min_delta, uint8_t* bitwidths, int32_t* header_size);
+    status read_delta_header64(const uint8_t* header, int64_t* first_value, int32_t* header_size);
+    status read_block_header64(const uint8_t* header, int64_t* min_delta, uint8_t* bitwidths, int32_t* header_size);
 
     
     status read_prim_plain(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array);
     status read_prim_plain(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, std::shared_ptr<arrow::Buffer> arr_buffer);
     status read_prim_delta32(int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array);
     status read_prim_delta32(int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, std::shared_ptr<arrow::Buffer> arr_buffer);
+    status read_prim_delta64(int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array);
+    status read_prim_delta64(int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, std::shared_ptr<arrow::Buffer> arr_buffer);
     status read_string_delta_length(int64_t num_strings, int64_t num_chars, int32_t file_offset, std::shared_ptr<arrow::StringArray>* string_array);
     status read_string_delta_length(int64_t num_strings, int32_t file_offset, std::shared_ptr<arrow::StringArray>* string_array, std::shared_ptr<arrow::Buffer> off_buffer, std::shared_ptr<arrow::Buffer> val_buffer);
 
 
     int decode_varint32(const uint8_t* input, int32_t* result, bool zigzag);
+    int decode_varint64(const uint8_t* input, int64_t* result, bool zigzag);
 
   	uint8_t* parquet_data;
   	size_t file_size;

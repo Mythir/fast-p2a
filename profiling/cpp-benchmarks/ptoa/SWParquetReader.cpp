@@ -40,8 +40,10 @@ SWParquetReader::SWParquetReader(std::string file_path) {
 status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, encoding enc) {
     if(enc == encoding::PLAIN){
         return read_prim_plain(prim_width, num_values, file_offset, prim_array);
-    } else if(enc == encoding::DELTA){
+    } else if((enc == encoding::DELTA) && (prim_width == 32)){
         return read_prim_delta32(num_values, file_offset, prim_array);
+    } else if((enc == encoding::DELTA) && (prim_width == 64)){
+        return read_prim_delta64(num_values, file_offset, prim_array);
     } else{
         std::cout<<"Unsupported encoding selected" << std::endl;
         return status::FAIL;
@@ -51,8 +53,10 @@ status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_
 status SWParquetReader::read_prim(int32_t prim_width, int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, std::shared_ptr<arrow::Buffer> arr_buffer, encoding enc) {
     if(enc == encoding::PLAIN){
         return read_prim_plain(prim_width, num_values, file_offset, prim_array, arr_buffer);
-    } else if(enc == encoding::DELTA){
+    } else if((enc == encoding::DELTA) && (prim_width == 32)){
         return read_prim_delta32(num_values, file_offset, prim_array, arr_buffer);
+    } else if((enc == encoding::DELTA) && (prim_width == 64)){
+        return read_prim_delta64(num_values, file_offset, prim_array, arr_buffer);
     } else{
         std::cout<<"Unsupported encoding selected" << std::endl;
         return status::FAIL;
@@ -257,6 +261,28 @@ int SWParquetReader::decode_varint32(const uint8_t* input, int32_t* decoded_int,
 
     if(zigzag) {
         result = ((result >> 1) & 0x7FFFFFFF) ^ (-(result & 1));
+    }
+
+    *decoded_int = result;
+
+    return i+1;
+}
+
+// Decodes variable length integer pointed to by input and stores it in decoded_int. Returns length of variable length integer in bytes.
+int SWParquetReader::decode_varint64(const uint8_t* input, int64_t* decoded_int, bool zigzag) {
+    int64_t result = 0;
+    int i;
+
+    for (i = 0; i < 10; i++) {
+        result |= (input[i] & 127) << (7 * i);
+
+        if(!(input[i] & 128)) {
+            break;
+        }
+    }
+
+    if(zigzag) {
+        result = ((result >> 1) & 0x7FFFFFFFFFFFFFFF) ^ (-(result & 1));
     }
 
     *decoded_int = result;
