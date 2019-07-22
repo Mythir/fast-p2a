@@ -16,6 +16,7 @@
 #include <cstring>
 #include <algorithm>
 #include <map>
+#include <bitset>
 
 #include <SWParquetReader.h>
 #include <ptoa.h>
@@ -272,9 +273,8 @@ int SWParquetReader::decode_varint32(const uint8_t* input, int32_t* decoded_int,
 int SWParquetReader::decode_varint64(const uint8_t* input, int64_t* decoded_int, bool zigzag) {
     int64_t result = 0;
     int i;
-
     for (i = 0; i < 10; i++) {
-        result |= (input[i] & 127) << (7 * i);
+        result |= (input[i] & 127ULL) << (7 * i);
 
         if(!(input[i] & 128)) {
             break;
@@ -282,7 +282,7 @@ int SWParquetReader::decode_varint64(const uint8_t* input, int64_t* decoded_int,
     }
 
     if(zigzag) {
-        result = ((result >> 1) & 0x7FFFFFFFFFFFFFFF) ^ (-(result & 1));
+        result = ((result >> 1) & 0x7FFFFFFFFFFFFFFF) ^ (-(result & 1ULL));
     }
 
     *decoded_int = result;

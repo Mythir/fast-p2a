@@ -3131,7 +3131,7 @@ void __int64fastunpack16(const uint64_t *  __restrict__ in, uint64_t *  __restri
 }
 
 void __int64fastunpack32(const uint64_t *  __restrict__ in, uint64_t *  __restrict__  out) {
-  for(uint outer=0; outer< 4 ;++outer) {
+  for(uint outer=0; outer< 16 ;++outer) {
     for( uint inwordpointer =  0 ;inwordpointer<64; inwordpointer +=  32 )
       *(out++) = ( (*in) >> inwordpointer )   % (1ULL << 32 ) ;
     ++in;
@@ -8907,103 +8907,9 @@ void __int64fastunpack63(const uint64_t *  __restrict__ in, uint64_t *  __restri
     *out |= ((*in) % (1ULL<< 32 ))<<( 31 );
 }
 
+
+
 void __int64fastunpack64(const uint64_t *  __restrict__ in, uint64_t *  __restrict__  out) {
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
-    *out = *in;
-    out++;
-    in++;
     *out = *in;
     out++;
     in++;

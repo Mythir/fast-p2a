@@ -288,7 +288,7 @@ status SWParquetReader::read_prim_delta32(int64_t num_values, int32_t file_offse
 
 status SWParquetReader::read_prim_delta64(int64_t num_values, int32_t file_offset, std::shared_ptr<arrow::PrimitiveArray>* prim_array, std::shared_ptr<arrow::Buffer> arr_buffer){
     uint8_t* page_ptr = parquet_data;
-    int64_t* arr_buf_ptr = (int64_t*)arr_buffer->mutable_data();
+    int64_t* arr_buf_ptr = (int64_t*)(arr_buffer->mutable_data());
 
     int32_t total_value_counter = 0;
     int32_t page_value_counter = 0;
@@ -334,7 +334,10 @@ status SWParquetReader::read_prim_delta64(int64_t num_values, int32_t file_offse
         read_delta_header64(block_ptr, &first_value, &header_size);
         block_ptr += header_size;
 
-        std::cout<<header_size<<std::endl;
+        //std::cout<<std::endl;
+        //std::cout<<"Values to read: "<<page_values_to_read<<std::endl;
+        //std::cout<<"Delta header size: "<<header_size<<std::endl;
+        //std::cout<<"First value: "<<first_value<<std::endl;
 
         // Insert first value of page into the arrow buffer
         arr_buf_ptr[page_value_counter] = first_value;
@@ -346,11 +349,11 @@ status SWParquetReader::read_prim_delta64(int64_t num_values, int32_t file_offse
             read_block_header64(block_ptr, &min_delta, bitwidths, &header_size);
             block_ptr += header_size;
 
-            std::cout<<min_delta<<" "<<header_size<<std::endl;
-            for(int z=0; z<4;z++){
-                std::cout<<(int)bitwidths[z]<<std::endl;
-            }
-            std::cout<<(int)*block_ptr<<std::endl;
+            //std::cout<<"Min delta: "<<min_delta<<", block header size: "<<header_size<<std::endl;
+            //for(int z=0; z<4;z++){
+            //    std::cout<<"Bit width "<<z<<": "<<(int)bitwidths[z]<<std::endl;
+            //}
+            //std::cout<<"First byte:  "<<(int)*block_ptr<<std::endl;
         
             for(int i=0; i<MINIBLOCKS_IN_BLOCK; i++){
                 uint8_t current_bitwidth = bitwidths[i];
@@ -378,6 +381,10 @@ status SWParquetReader::read_prim_delta64(int64_t num_values, int32_t file_offse
     }
 
 
+    //std::cout<<"Creating array with capacity "<<arr_buffer->capacity()<<" and size "<< arr_buffer->size()<<std::endl;
+    //for(int l=0; l<200; l++){
+    //    std::cout<<(arr_buf_ptr+page_value_counter-100)[l]<<std::endl;
+    //}
     *prim_array = std::make_shared<arrow::PrimitiveArray>(arrow::int64(), num_values, arr_buffer);
 
     free(bitwidths);
